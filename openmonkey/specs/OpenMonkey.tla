@@ -13,25 +13,36 @@
 (* user may fork any published script, producing a new script they author  *)
 (* with forked_from lineage, which must stay acyclic.                      *)
 (*                                                                         *)
-(* Safety-only, finite model.                                              *)
+(* Safety-only, finite model.  Two symmetry-breaking modeling choices      *)
+(* keep TLC's search small without losing behavior classes:                *)
+(*   1. Script identities are the ordered slots 1..NumScripts, always      *)
+(*      allocated lowest-free-slot first.                                  *)
+(*   2. Direct creation is done by a designated Creator; every other user  *)
+(*      still becomes an author via Fork, so author and non-author roles   *)
+(*      are exercised for all users.                                       *)
+(* NoScript (= 0) marks "no fork parent".                                  *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
 CONSTANTS
     Users,       \* set of users (model values)
-    Scripts,     \* set of script slots (model values)
+    Creator,     \* the user who creates scripts directly (symmetry breaking)
+    NumScripts,  \* number of script identity slots
     MaxVersion,  \* highest version number a script can reach
-    NULL         \* model value: "no author" / "no fork parent"
+    NULL         \* model value: "no author"
 
+ASSUME NumScripts \in Nat /\ NumScripts >= 1
 ASSUME MaxVersion \in Nat /\ MaxVersion >= 1
 
+Scripts  == 1..NumScripts
+NoScript == 0
 Versions == 1..MaxVersion
 Verdicts == {"pass", "warn", "fail"}
 
 VARIABLES
     author,     \* [Scripts -> Users \cup {NULL}]  NULL = not yet created
     published,  \* [Scripts -> 0..MaxVersion]      latest published version, 0 = none
-    forkedFrom, \* [Scripts -> Scripts \cup {NULL}] fork lineage
+    forkedFrom, \* [Scripts -> Scripts \cup {NoScript}] fork lineage
     scans,      \* [Users \X Scripts \X Versions -> Verdicts \cup {"none"}]
     overrides,  \* set of <<user, script, version>> with explicit warn override
     installed,  \* set of <<user, script, version>>
@@ -41,10 +52,13 @@ vars == <<author, published, forkedFrom, scans, overrides, installed, running>>
 
 Created == {s \in Scripts : published[s] > 0}
 
+\* Lowest-free-slot allocation for new script identities.
+NextFreeSlot(s) == published[s] = 0 /\ \A x \in 1..(s - 1) : published[x] > 0
+
 Init ==
     /\ author = [s \in Scripts |-> NULL]
     /\ published = [s \in Scripts |-> 0]
-    /\ forkedFrom = [s \in Scripts |-> NULL]
+    /\ forkedFrom = [s \in Scripts |-> NoScript]
     /\ scans = [x \in Users \X Scripts \X Versions |-> "none"]
     /\ overrides = {}
     /\ installed = {}
@@ -54,9 +68,10 @@ Init ==
 (* Publishing                                                              *)
 (***************************************************************************)
 
-\* Creating a script publishes version 1 immediately.
+\* Creating a script publishes version 1 immediately and publicly.
 CreateScript(u, s) ==
-    /\ published[s] = 0
+    /\ u = Creator
+    /\ NextFreeSlot(s)
     /\ author' = [author EXCEPT ![s] = u]
     /\ published' = [published EXCEPT ![s] = 1]
     /\ UNCHANGED <<forkedFrom, scans, overrides, installed, running>>
@@ -69,10 +84,10 @@ PublishVersion(u, s) ==
     /\ UNCHANGED <<author, forkedFrom, scans, overrides, installed, running>>
 
 \* Any user can fork any published (hence readable) script into a fresh
-\* script slot they author, recording lineage.
+\* script identity they author, recording forked_from lineage.
 Fork(u, src, dst) ==
     /\ src \in Created
-    /\ published[dst] = 0
+    /\ NextFreeSlot(dst)
     /\ author' = [author EXCEPT ![dst] = u]
     /\ published' = [published EXCEPT ![dst] = 1]
     /\ forkedFrom' = [forkedFrom EXCEPT ![dst] = src]
@@ -115,6 +130,7 @@ InstallAsAuthor(u, s, v) ==
 
 \* Non-authors install only after a scan of exactly this version on their
 \* behalf: pass, or warn with an explicit override.  fail never installs.
+\* A scan of any other version of the same script grants nothing.
 InstallForeign(u, s, v) ==
     /\ author[s] # NULL
     /\ author[s] # u
@@ -156,13 +172,28 @@ Next ==
 Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
+(* Finite-exploration bound (model artifact, not part of the design).      *)
+(* Caps cumulative scan records, concurrent installs, and concurrent runs  *)
+(* so TLC's search stays small.  Every invariant-relevant scenario fits    *)
+(* inside it: upgrade-needs-rescan (scan v1, install v1, publish v2, scan  *)
+(* v2, swap installs), warn-plus-override, fail-blocks, fork-then-scan.    *)
+(***************************************************************************)
+
+ScannedSlots == {t \in Users \X Scripts \X Versions : scans[t] # "none"}
+
+StateConstraint ==
+    /\ Cardinality(ScannedSlots) <= 2
+    /\ Cardinality(ScannedSlots) + Cardinality(installed) <= 3
+    /\ Cardinality(running) <= 1
+
+(***************************************************************************)
 (* Invariants                                                              *)
 (***************************************************************************)
 
 TypeOK ==
     /\ author \in [Scripts -> Users \cup {NULL}]
     /\ published \in [Scripts -> 0..MaxVersion]
-    /\ forkedFrom \in [Scripts -> Scripts \cup {NULL}]
+    /\ forkedFrom \in [Scripts -> Scripts \cup {NoScript}]
     /\ scans \in [Users \X Scripts \X Versions -> Verdicts \cup {"none"}]
     /\ overrides \subseteq Users \X Scripts \X Versions
     /\ installed \subseteq Users \X Scripts \X Versions
@@ -191,7 +222,7 @@ ScanIsPerVersion ==
 \* 3. Fork lineage is acyclic (transitive closure of forked_from is
 \*    irreflexive).
 ForkEdges ==
-    {<<s, forkedFrom[s]>> : s \in {x \in Scripts : forkedFrom[x] # NULL}}
+    {<<s, forkedFrom[s]>> : s \in {x \in Scripts : forkedFrom[x] # NoScript}}
 
 RECURSIVE TC(_)
 TC(R) ==
@@ -207,9 +238,9 @@ ForkAcyclic ==
 InstalledImpliesPublished ==
     \A t \in installed : t[3] \in 1..published[t[2]]
 
-\* Forked scripts point at a script that exists.
+\* Forked scripts and their parents actually exist.
 ForkParentCreated ==
-    \A s \in Scripts : forkedFrom[s] # NULL =>
+    \A s \in Scripts : forkedFrom[s] # NoScript =>
         /\ s \in Created
         /\ forkedFrom[s] \in Created
 
