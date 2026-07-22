@@ -42,6 +42,18 @@ State machine actions:
 5. **TypeOK** and **ForkParentCreated** (forked scripts and their parents
    exist) as supporting invariants.
 
+## Auth is out of scope here
+
+OpenMonkey consumes authentication as an abstract session gate: the API
+validates the first-party `session_id` cookie (set on the proc.io registrable
+domain) by forwarding it to AuthGravity's `/v1/whoami`. The login, register,
+and account UI lives in the shared auth surface at auth.proc.io (the
+`procauth/` project), which apps link to with a `return_to`; AuthGravity still
+issues and validates sessions. That ceremony (challenge issuance, single-use
+5-minute expiry, verify creating a session, logout, `return_to` allowlisting)
+is modeled separately in `procauth/specs/ProcAuth.tla`, so this spec stays
+lean and needs no session state.
+
 ## Finiteness and symmetry choices
 
 The model is kept finite and small for the safety-subset TLC engine:

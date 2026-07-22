@@ -1,0 +1,109 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Account — proc.io" description="Manage your proc.io credentials and session.">
+  <h1>Account</h1>
+  <div class="card" id="who"><div class="muted">Loading…</div></div>
+
+  <h2>Credentials</h2>
+  <p class="muted">
+    Every way you can sign in, on any proc.io project. Keep at least one recovery
+    option — if you lose them all, the account is gone (that's the point).
+  </p>
+  <div id="creds"><div class="card muted">Loading…</div></div>
+  <div class="card">
+    <button class="btn secondary" id="add-recovery">Add a 12-word recovery key</button>
+    <div id="recovery-flow" style="margin-top:0.75rem;"></div>
+  </div>
+
+  <script>
+    import { AUTHG, whoami, logout } from "../lib/authg-client";
+    import { mintKey, registerAccountKey, forgetDeviceKey } from "@authgravity/browser";
+
+    const $ = (id: string) => document.getElementById(id)!;
+    const esc = (s: string) =>
+      s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+    async function loadWho() {
+      const me = await whoami();
+      if (!me) {
+        location.href = "/login?return_to=%2Faccount";
+        return false;
+      }
+      $("who").innerHTML = `
+        <div><span class="muted">User</span> <code>${esc(me.user_id)}</code></div>
+        ${me.amr ? `<div><span class="muted">Signed in via</span> ${esc(me.amr)}</div>` : ""}
+        <button class="btn secondary" id="signout" style="margin-top:0.75rem;">Sign out</button>`;
+      $("signout").addEventListener("click", async () => {
+        await forgetDeviceKey().catch(() => {});
+        await logout();
+        location.href = "/";
+      });
+      return true;
+    }
+
+    async function loadCreds() {
+      const res = await fetch(`${AUTHG}/v1/credentials`, { credentials: "include" });
+      if (!res.ok) {
+        $("creds").innerHTML = `<div class="card muted">Couldn't load credentials (${res.status}).</div>`;
+        return;
+      }
+      const data = await res.json();
+      const creds = Array.isArray(data) ? data : data.credentials;
+      if (!Array.isArray(creds) || creds.length === 0) {
+        $("creds").innerHTML = `<div class="card muted">No credentials listed.</div>`;
+        return;
+      }
+      $("creds").innerHTML = "";
+      for (const c of creds) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.style.display = "flex";
+        card.style.justifyContent = "space-between";
+        card.style.alignItems = "center";
+        card.style.gap = "1rem";
+        card.innerHTML = `
+          <div>
+            <strong>${esc(c.label || c.kind || "credential")}</strong>
+            <span class="badge">${esc(c.kind || c.type || "")}</span>
+            <div class="muted"><code>${esc(String(c.id))}</code>${c.created_at ? ` · ${esc(String(c.created_at))}` : ""}</div>
+          </div>
+          <button class="btn secondary remove">Remove</button>`;
+        card.querySelector(".remove")!.addEventListener("click", async () => {
+          if (creds.length === 1 && !confirm("This is your only credential. Removing it locks you out forever. Continue?")) return;
+          const del = await fetch(`${AUTHG}/v1/credentials/${encodeURIComponent(c.id)}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          if (del.ok) loadCreds();
+        });
+        $("creds").appendChild(card);
+      }
+    }
+
+    $("add-recovery").addEventListener("click", () => {
+      const key = mintKey();
+      const flow = $("recovery-flow");
+      flow.innerHTML = `
+        <p style="margin-top:0;">Write these 12 words on paper. They can sign you in on any device.</p>
+        <ol style="columns:2; margin:0 0 1rem; padding-left:1.5rem; font-family:ui-monospace,Menlo,monospace;">
+          ${key.words.map((w: string) => `<li>${esc(w)}</li>`).join("")}
+        </ol>
+        <p class="muted">Compact form: <code>${esc(key.compact)}</code></p>
+        <button class="btn" id="save-recovery">I wrote them down — save key</button>
+        <div id="recovery-status" class="muted" style="margin-top:0.5rem;"></div>`;
+      $("save-recovery").addEventListener("click", async () => {
+        $("recovery-status").textContent = "Saving…";
+        const r = await registerAccountKey(AUTHG, key, "recovery").catch((e: any) => ({ verified: false, error: e?.message }));
+        if (r.verified) {
+          flow.innerHTML = `<div>Recovery key saved.</div>`;
+          loadCreds();
+        } else {
+          $("recovery-status").textContent = `Failed: ${r.error || "unknown error"}`;
+        }
+      });
+    });
+
+    loadWho().then((ok) => ok && loadCreds());
+  </script>
+</Base>

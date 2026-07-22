@@ -1,0 +1,129 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Create an account — proc.io" description="Create a proc.io account with a passkey or a 12-word account key.">
+  <h1>Create an account</h1>
+  <p class="muted">
+    One account for every proc.io project. A passkey (Face ID, Touch ID, security
+    key) or a 12-word account key — no passwords, no email.
+    Already have one? <a href="/login" id="login-link">Sign in</a>.
+  </p>
+
+  <div class="card" id="wizard">
+    <div class="muted">Checking what this device supports…</div>
+  </div>
+
+  <script>
+    import { passkeyRegister, safeReturnTo, withReturnTo, AUTHG } from "../lib/authg-client";
+    import { createAccountKeySetup, enableDeviceKey } from "@authgravity/browser";
+
+    const wizard = document.getElementById("wizard")!;
+    const esc = (s: string) =>
+      s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+    (document.getElementById("login-link") as HTMLAnchorElement).href = withReturnTo("/login");
+
+    const setup = createAccountKeySetup({ endpoint: AUTHG, label: "proc.io auth" });
+
+    async function finish() {
+      await enableDeviceKey(AUTHG, "proc.io auth").catch(() => {});
+      location.href = safeReturnTo();
+    }
+
+    async function runPasskey() {
+      try {
+        const r = await passkeyRegister();
+        if (r.verified) setup.onPasskeyRegistered(r);
+        else render("error", { error: r.error || "Passkey registration failed." });
+      } catch (e: any) {
+        if (e?.name === "NotAllowedError") setup.reset();
+        else render("error", { error: e?.message || "Passkey registration failed." });
+      }
+    }
+
+    function render(state: string, ctx: any) {
+      switch (state) {
+        case "detecting":
+          wizard.innerHTML = `<div class="muted">Checking what this device supports…</div>`;
+          break;
+        case "choose":
+          wizard.innerHTML = `
+            <button class="btn" id="go-passkey" style="width:100%;">Create with a passkey</button>
+            <div class="muted" style="text-align:center; margin:0.75rem 0;">or</div>
+            <button class="btn secondary" id="go-key" style="width:100%;">Create with a 12-word account key</button>
+            <p class="muted" style="margin-bottom:0;">${
+              ctx.suggested === "passkey"
+                ? "This device supports passkeys — the easiest option."
+                : "No platform passkey detected here; an account key works everywhere."
+            }</p>`;
+          wizard.querySelector("#go-passkey")!.addEventListener("click", () => setup.choosePasskey());
+          wizard.querySelector("#go-key")!.addEventListener("click", () => setup.chooseAccountKey());
+          break;
+        case "passkey":
+          wizard.innerHTML = `<div class="muted">Follow your browser's passkey prompt…</div>`;
+          runPasskey();
+          break;
+        case "recovery_nudge":
+          wizard.innerHTML = `
+            <p style="margin-top:0;">Passkey created. Add a 12-word recovery key so you can
+            get back in if you lose this device?</p>
+            <button class="btn" id="add-recovery" style="width:100%;">Add recovery key</button>
+            <button class="btn secondary" id="skip" style="width:100%; margin-top:0.5rem;">Skip for now</button>`;
+          wizard.querySelector("#add-recovery")!.addEventListener("click", () => setup.createRecoveryKey());
+          wizard.querySelector("#skip")!.addEventListener("click", () => setup.skipRecovery());
+          break;
+        case "words_intro":
+          wizard.innerHTML = `
+            <p style="margin-top:0;">You'll get 12 words. They <strong>are</strong> your account —
+            write them on paper and keep them somewhere safe. Anyone with the words is you.</p>
+            <button class="btn" id="ready" style="width:100%;">I have pen and paper</button>`;
+          wizard.querySelector("#ready")!.addEventListener("click", () => setup.acknowledgePaper());
+          break;
+        case "words_show": {
+          const words = ctx.key.words as string[];
+          wizard.innerHTML = `
+            <ol style="columns:2; margin:0 0 1rem; padding-left:1.5rem; font-family:ui-monospace,Menlo,monospace;">
+              ${words.map((w: string) => `<li>${esc(w)}</li>`).join("")}
+            </ol>
+            <p class="muted">Compact form (same key): <code>${esc(ctx.key.compact)}</code></p>
+            <button class="btn" id="wrote" style="width:100%;">I wrote them down</button>`;
+          wizard.querySelector("#wrote")!.addEventListener("click", () => setup.toConfirm());
+          break;
+        }
+        case "words_confirm":
+          wizard.innerHTML = `
+            <p style="margin-top:0;">Quick check: what is word <strong>#${ctx.confirmIndex + 1}</strong>?</p>
+            <form id="confirm-form">
+              <input id="confirm-word" autocomplete="off" autocapitalize="none" spellcheck="false"
+                style="margin-bottom:0.6rem;" />
+              <button class="btn" type="submit" style="width:100%;">Confirm</button>
+            </form>
+            <button class="btn secondary" id="review" style="width:100%; margin-top:0.5rem;">Show the words again</button>
+            <div id="confirm-error" class="muted" style="color:var(--fail); margin-top:0.5rem; display:none;">Not quite — check your notes.</div>`;
+          wizard.querySelector("#confirm-form")!.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const ok = await setup.confirmWord((wizard.querySelector("#confirm-word") as HTMLInputElement).value.trim());
+            if (!ok) (wizard.querySelector("#confirm-error") as HTMLElement).style.display = "block";
+          });
+          wizard.querySelector("#review")!.addEventListener("click", () => setup.review());
+          break;
+        case "registering":
+          wizard.innerHTML = `<div class="muted">Creating your account…</div>`;
+          break;
+        case "done":
+          wizard.innerHTML = `<div>Account ready. Redirecting…</div>`;
+          finish();
+          break;
+        case "error":
+          wizard.innerHTML = `
+            <p style="margin-top:0; color:var(--fail);">${esc(ctx.error || "Something went wrong.")}</p>
+            <button class="btn secondary" id="retry" style="width:100%;">Start over</button>`;
+          wizard.querySelector("#retry")!.addEventListener("click", () => setup.reset());
+          break;
+      }
+    }
+
+    setup.subscribe(render);
+    setup.start();
+  </script>
+</Base>

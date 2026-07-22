@@ -1,0 +1,108 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = "Sign-in for proc.io projects. Passkeys and 12-word account keys, no passwords." } = Astro.props;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <style is:global>
+      :root {
+        --bg: #0b0e14;
+        --panel: #141926;
+        --border: #283042;
+        --text: #e8ecf4;
+        --muted: #8b93a7;
+        --accent: #7aa2f7;
+        --fail: #f7768e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.6;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .wrap { width: 100%; max-width: 640px; margin: 0 auto; padding: 0 1rem; }
+      header.site { border-bottom: 1px solid var(--border); padding: 0.75rem 0; }
+      header.site .wrap { display: flex; align-items: center; gap: 1.25rem; }
+      .logo { font-weight: 700; color: var(--text); letter-spacing: 0.02em; }
+      .logo span { color: var(--accent); }
+      header.site nav { margin-left: auto; display: flex; gap: 1rem; }
+      main { flex: 1; padding: 2.5rem 0 4rem; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 0.75rem;
+      }
+      .muted { color: var(--muted); font-size: 0.9rem; }
+      .btn {
+        display: inline-block;
+        background: var(--accent);
+        color: #0b1020;
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 0.55rem 1rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+      }
+      .btn:hover { text-decoration: none; filter: brightness(1.1); }
+      .btn.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+      .badge {
+        display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px;
+        font-size: 0.75rem; font-weight: 600; border: 1px solid var(--border); color: var(--muted);
+      }
+      input, textarea {
+        width: 100%;
+        background: #0a0d14;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.55rem;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 0.95rem;
+      }
+      code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+      footer.site { border-top: 1px solid var(--border); padding: 1.25rem 0; }
+      @media (max-width: 600px) {
+        main { padding: 1.5rem 0 3rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="logo" href="/">proc<span>.io</span> auth</a>
+        <nav>
+          <a href="/account">Account</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <div class="wrap">
+        <slot />
+      </div>
+    </main>
+    <footer class="site">
+      <div class="wrap muted">
+        One sign-in for every proc.io project. Passkeys via
+        <a href="https://authgravity.proc.io">AuthGravity</a>, interface by procauth.
+        <a href="/llms.txt">/llms.txt</a>
+      </div>
+    </footer>
+  </body>
+</html>

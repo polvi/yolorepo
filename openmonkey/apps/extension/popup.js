@@ -17,7 +17,7 @@ async function refreshStatus() {
   parts.push(
     user
       ? `Signed in as ${user.handle || user.id.slice(0, 8)}`
-      : `<a href="https://authgravity.proc.io/login?return_to=https://openmonkey.proc.io/scripts" target="_blank">Sign in</a> to publish`
+      : `<a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/scripts" target="_blank">Sign in</a> to publish`
   );
   parts.push(hasKey ? "inference connected" : `<a href="#" id="fix-key">connect inference</a>`);
   $("status").innerHTML = parts.join(" · ");

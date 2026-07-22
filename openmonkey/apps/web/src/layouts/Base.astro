@@ -88,13 +88,26 @@ const { title, description = "Userscripts in the open. Publish, fork, and AI-sca
     </style>
   </head>
   <body>
+    <script>
+      // Swap "Sign in" for "Account" when a proc.io session exists.
+      fetch("https://authgravity.proc.io/v1/whoami", { credentials: "include" })
+        .then((r) => {
+          if (!r.ok) return;
+          const a = document.getElementById("nav-auth") as HTMLAnchorElement | null;
+          if (a) {
+            a.textContent = "Account";
+            a.href = "https://auth.proc.io/account";
+          }
+        })
+        .catch(() => {});
+    </script>
     <header class="site">
       <div class="wrap">
         <a class="logo" href="/">open<span>monkey</span></a>
         <nav>
           <a href="/scripts">Scripts</a>
           <a href="/docs">Docs</a>
-          <a href="https://authgravity.proc.io/login?return_to=https://openmonkey.proc.io/scripts">Sign in</a>
+          <a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/scripts" id="nav-auth">Sign in</a>
         </nav>
       </div>
     </header>

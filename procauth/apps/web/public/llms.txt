@@ -1,0 +1,35 @@
+# auth.proc.io
+
+The shared, first-party auth surface for proc.io projects. Own UI over
+AuthGravity's raw API (https://authgravity.proc.io/llms.txt) — the hosted
+AuthGravity pages are not used. Sessions are a `session_id` cookie on the
+`proc.io` registrable domain, so one sign-in is valid on every *.proc.io app.
+
+## Pages
+
+- /login?return_to=<url>     passkey sign-in, 12-word account key fallback,
+                             silent device-key auto sign-in
+- /register?return_to=<url>  passkey or account-key registration (guided
+                             12-word flow with paper-backup confirmation)
+- /account                   credentials list, add recovery key, remove
+                             credentials, sign out
+
+return_to must be a local path or an https URL on proc.io / *.proc.io;
+anything else falls back to /account.
+
+## Integrating a proc.io app
+
+- Link "Sign in" to https://auth.proc.io/login?return_to=<back-to-your-app>
+- Server-side session check: forward the incoming Cookie header to
+  GET https://authgravity.proc.io/v1/whoami → {user_id} or 401.
+- Client-side signed-in state: fetch the same endpoint with
+  credentials: "include".
+- Sign out: POST https://authgravity.proc.io/v1/logout with credentials,
+  or send users to /account here.
+
+Accounts are an AuthGravity UUID plus public keys only — no usernames, emails,
+or passwords exist. Key your users table by the UUID.
+
+## Source
+
+Monorepo: idea-playground/procauth (Astro on Cloudflare Workers).

@@ -32,5 +32,7 @@ Registry API: https://api.openmonkey.proc.io/api
 - Scans run client-side in the extension against the user's own OpenAI-compatible
   endpoint (default https://api.tokenpony.dev/v1 via a TPX grant). Verdict rules:
   pass installs, warn needs explicit user override, fail never installs.
-- Auth: AuthGravity passkeys (https://authgravity.proc.io/llms.txt).
+- Auth: AuthGravity passkeys (https://authgravity.proc.io/llms.txt). Sign-in UI
+  is the shared proc.io surface: https://auth.proc.io/login?return_to=<url>
+  (https://auth.proc.io/llms.txt).
 - Inference: TPX metered grants (https://tokenpony.dev/llms.txt).

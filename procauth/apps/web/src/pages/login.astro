@@ -1,0 +1,70 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Sign in — proc.io" description="Sign in to proc.io projects with a passkey or account key.">
+  <h1>Sign in</h1>
+  <p class="muted">
+    One sign-in works on every proc.io project. No passwords, no email.
+    New here? <a href="/register" id="register-link">Create an account</a>.
+  </p>
+
+  <div class="card">
+    <div id="silent" class="muted" style="display:none; margin-bottom:0.75rem;">Checking this device…</div>
+    <button class="btn" id="passkey" style="width:100%;">Sign in with a passkey</button>
+    <div class="muted" style="text-align:center; margin:0.75rem 0;">or</div>
+    <form id="key-form">
+      <label class="muted" for="key-input">Account key (12 words or <code>agak1_…</code>)</label>
+      <textarea id="key-input" rows="2" autocomplete="off" autocapitalize="none" spellcheck="false"
+        style="margin:0.35rem 0 0.6rem;"></textarea>
+      <button class="btn secondary" type="submit" style="width:100%;">Sign in with account key</button>
+    </form>
+    <div id="error" class="muted" style="color:var(--fail); margin-top:0.6rem; display:none;"></div>
+  </div>
+
+  <script>
+    import { passkeyLogin, safeReturnTo, withReturnTo, AUTHG } from "../lib/authg-client";
+    import { decodeKey, loginWithAccountKey, trySilentLogin, enableDeviceKey, supportsPasskeys } from "@authgravity/browser";
+
+    const $ = (id: string) => document.getElementById(id)!;
+    const fail = (msg: string) => {
+      const el = $("error");
+      el.textContent = msg;
+      el.style.display = "block";
+    };
+
+    ($("register-link") as HTMLAnchorElement).href = withReturnTo("/register");
+
+    async function done(fresh: boolean) {
+      if (fresh) await enableDeviceKey(AUTHG, "proc.io auth").catch(() => {});
+      location.href = safeReturnTo();
+    }
+
+    if (!supportsPasskeys()) $("passkey").style.display = "none";
+
+    $("silent").style.display = "block";
+    trySilentLogin(AUTHG)
+      .then((r) => (r?.verified ? done(false) : ($("silent").style.display = "none")))
+      .catch(() => ($("silent").style.display = "none"));
+
+    $("passkey").addEventListener("click", async () => {
+      try {
+        const r = await passkeyLogin();
+        r.verified ? done(true) : fail(r.error || "Sign-in failed.");
+      } catch (e: any) {
+        if (e?.name !== "NotAllowedError") fail(e?.message || "Sign-in failed.");
+      }
+    });
+
+    $("key-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = ($("key-input") as HTMLTextAreaElement).value.trim();
+      if (!input) return;
+      try {
+        const r = await loginWithAccountKey(AUTHG, decodeKey(input));
+        r.verified ? done(true) : fail(r.error || "That key didn't match an account.");
+      } catch (e: any) {
+        fail(e?.message || "Invalid account key.");
+      }
+    });
+  </script>
+</Base>

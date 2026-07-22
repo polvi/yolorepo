@@ -1,0 +1,24 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="proc.io auth — one sign-in for every project">
+  <h1>One sign-in, every proc.io project</h1>
+  <p class="muted">
+    This is the shared auth surface for proc.io projects. Sign in once — with a
+    passkey or a 12-word account key — and every <code>*.proc.io</code> app sees
+    the same session. No passwords, no email, nothing to leak.
+  </p>
+  <p>
+    <a class="btn" href="/login">Sign in</a>
+    <a class="btn secondary" href="/register" style="margin-left:0.5rem;">Create an account</a>
+  </p>
+
+  <h2>For project authors</h2>
+  <div class="card">
+    <p style="margin-top:0;">Send users here with a <code>return_to</code> back to your app
+    (any <code>https</code> URL on <code>proc.io</code> or a subdomain):</p>
+    <p><code>https://auth.proc.io/login?return_to=https://yourapp.proc.io/…</code></p>
+    <p style="margin-bottom:0;">Validate sessions by forwarding the <code>Cookie</code> header to
+    <code>authgravity.proc.io/v1/whoami</code>. Details in <a href="/llms.txt">/llms.txt</a>.</p>
+  </div>
+</Base>

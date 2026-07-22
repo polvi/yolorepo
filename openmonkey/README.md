@@ -10,7 +10,7 @@ Live: [openmonkey.proc.io](https://openmonkey.proc.io) · API: `api.openmonkey.p
 
 ## Layout
 
-- `apps/api` — Hono worker + D1: the public registry (scripts, immutable versions, forks, scan reports). Auth via [AuthGravity](https://authgravity.proc.io) passkey sessions.
+- `apps/api` — Hono worker + D1: the public registry (scripts, immutable versions, forks, scan reports). Auth via [AuthGravity](https://authgravity.proc.io) passkey sessions; sign-in UI is the shared [auth.proc.io](https://auth.proc.io) surface (`../procauth`).
 - `apps/web` — Astro (SSR on Workers): marketing + script directory. Talks to the API over a service binding.
 - `apps/extension` — cross-browser WebExtension (MV3). Safari is the first target; the same folder loads in Chrome/Firefox dev mode.
 - `packages/shared` — types, userscript metadata parsing, scan/generation prompts.
