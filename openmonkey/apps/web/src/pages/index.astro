@@ -1,0 +1,62 @@
+---
+import Base from "../layouts/Base.astro";
+import { apiFetch } from "../lib/api";
+const data = await apiFetch(Astro.locals, "/scripts?limit=6");
+const recent = data?.scripts ?? [];
+---
+<Base title="openmonkey — userscripts in the open">
+  <section style="padding: 2rem 0 1rem;">
+    <h1 style="font-size: 2.2rem; margin: 0 0 0.5rem; line-height: 1.2;">
+      Userscripts, <span style="color: var(--accent);">done in the open</span>.
+    </h1>
+    <p style="font-size: 1.15rem; max-width: 40rem;" class="muted">
+      Greasemonkey for the AI era. Describe a script and your own model writes it.
+      Every script is published to a public registry the moment it exists.
+      Before you run anyone else's code, <strong style="color: var(--text);">your</strong> AI
+      security-scans it, on the inference endpoint you choose.
+    </p>
+    <p style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+      <a class="btn" href="/extension">Get the extension</a>
+      <a class="btn secondary" href="/scripts">Browse scripts</a>
+    </p>
+  </section>
+
+  <section style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.75rem; margin: 1.5rem 0;">
+    <div class="card">
+      <h3 style="margin-top:0;">🐒 Create or grab</h3>
+      <p class="muted">Write a script by hand, generate one with AI, or install any script from the registry. Publishing is automatic — creation and publication are the same act.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">🔍 Scanned by <em>your</em> AI</h3>
+      <p class="muted">Installing someone else's script triggers a security audit through your own TPX inference grant (tokenpony by default, any OpenAI-compatible endpoint you prefer). Fail means no install. Verdicts are published for everyone.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">🍴 Fork and republish</h3>
+      <p class="muted">Any script can be forked, edited, and republished under your name, with lineage back to the original. The whole graph is public.</p>
+    </div>
+  </section>
+
+  {recent.length > 0 && (
+    <section>
+      <h2>Recently published</h2>
+      {recent.map((s: any) => (
+        <div class="card">
+          <a href={`/scripts/${s.slug}`}><strong>{s.name}</strong></a>
+          {s.forked_from && <span class="badge">fork</span>}
+          <div class="muted">{s.description}</div>
+          <div class="muted">by {s.author_handle ?? "anonymous"} · v{s.latest_version} · {s.install_count} installs</div>
+        </div>
+      ))}
+    </section>
+  )}
+
+  <section>
+    <h2>Safari first, every browser eventually</h2>
+    <p class="muted" style="max-width: 40rem;">
+      The extension is a standard WebExtension: it ships for Safari first and the same
+      code runs in Chrome and Firefox. Sign in with a passkey, connect a
+      <a href="https://tokenpony.dev">tokenpony</a> grant (or point it at your own endpoint),
+      and every script you touch is created, scanned, and shared in the open.
+    </p>
+  </section>
+</Base>

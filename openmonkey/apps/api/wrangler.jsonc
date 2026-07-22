@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openmonkey-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "routes": [
+    {
+      "pattern": "api.openmonkey.proc.io",
+      "custom_domain": true
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openmonkey",
+      "database_id": "43bbd871-ad28-43f1-b03f-184c7c85a5a4"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

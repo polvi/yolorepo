@@ -1,0 +1,36 @@
+# openmonkey
+
+Userscripts in the open. A public registry of browser userscripts where creation
+is publication, foreign scripts are AI-security-scanned on the installing user's
+own inference endpoint before they run, and every script can be forked with
+public lineage.
+
+Site: https://openmonkey.proc.io
+Registry API: https://api.openmonkey.proc.io/api
+
+## Registry API (JSON, no auth for reads)
+
+- GET  /api/scripts?q=&limit=            list/search scripts
+- GET  /api/scripts/:slug                script metadata + latest version (code, match_patterns)
+- GET  /api/scripts/:slug/versions       version history
+- GET  /api/scripts/:slug/versions/:n    specific version
+- GET  /api/scripts/:slug/raw            latest code as text/javascript (.user.js compatible)
+- GET  /api/versions/:id/scans           community scan verdicts for a version
+
+## Authenticated writes (AuthGravity session cookie, https://authgravity.proc.io)
+
+- POST /api/scripts                      {name?, description?, code} → publish new script (public immediately)
+- POST /api/scripts/:slug/versions       {code, changelog?} → new immutable version (author only)
+- POST /api/scripts/:slug/fork           {name?, code?} → fork with lineage
+- POST /api/versions/:id/scans           {verdict: pass|warn|fail, summary?, model?} → publish your scan verdict
+- GET  /api/me · POST /api/me/handle     profile
+
+## Conventions
+
+- Scripts use Greasemonkey metadata blocks; @match or @include is required.
+- Versions are immutable; a new version requires a fresh scan by each non-author user.
+- Scans run client-side in the extension against the user's own OpenAI-compatible
+  endpoint (default https://api.tokenpony.dev/v1 via a TPX grant). Verdict rules:
+  pass installs, warn needs explicit user override, fail never installs.
+- Auth: AuthGravity passkeys (https://authgravity.proc.io/llms.txt).
+- Inference: TPX metered grants (https://tokenpony.dev/llms.txt).

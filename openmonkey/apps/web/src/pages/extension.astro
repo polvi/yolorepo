@@ -1,0 +1,29 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Get the extension — openmonkey">
+  <h1>Get the extension</h1>
+  <p class="muted" style="max-width:42rem;">
+    openmonkey is a standard WebExtension. Safari is the first-class target; the same
+    code loads in Chrome and Firefox for development.
+  </p>
+
+  <h2>Safari (macOS / iOS)</h2>
+  <ol>
+    <li>Clone the repo and open <code>apps/extension</code>.</li>
+    <li>Run <code>xcrun safari-web-extension-converter apps/extension --project-location build/safari --app-name OpenMonkey</code>.</li>
+    <li>Open the generated Xcode project, run it, then enable OpenMonkey in Safari → Settings → Extensions (allow unsigned extensions in the Develop menu during development).</li>
+  </ol>
+
+  <h2>Chrome / Firefox (dev mode)</h2>
+  <ol>
+    <li>Chrome: <code>chrome://extensions</code> → Developer mode → Load unpacked → <code>apps/extension</code>.</li>
+    <li>Firefox: <code>about:debugging</code> → This Firefox → Load Temporary Add-on → <code>apps/extension/manifest.json</code>.</li>
+  </ol>
+
+  <h2>Setup</h2>
+  <ol>
+    <li><a href="https://authgravity.proc.io/register?return_to=https://openmonkey.proc.io/scripts">Create an account with a passkey</a> (used for publishing and forking).</li>
+    <li>Open the extension options and connect inference: paste a <a href="https://api.tokenpony.dev/dashboard">tokenpony</a> key, or point it at any OpenAI-compatible endpoint you run. Scans and script generation run on <em>your</em> grant, always.</li>
+  </ol>
+</Base>

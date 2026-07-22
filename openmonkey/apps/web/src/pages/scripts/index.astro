@@ -1,0 +1,26 @@
+---
+import Base from "../../layouts/Base.astro";
+import { apiFetch } from "../../lib/api";
+const q = Astro.url.searchParams.get("q") ?? "";
+const data = await apiFetch(Astro.locals, `/scripts?limit=100${q ? `&q=${encodeURIComponent(q)}` : ""}`);
+const scripts = data?.scripts ?? [];
+---
+<Base title="Scripts — openmonkey">
+  <h1>Scripts</h1>
+  <form method="get" style="margin-bottom:1rem; display:flex; gap:0.5rem;">
+    <input
+      type="search" name="q" value={q} placeholder="Search scripts…"
+      style="flex:1; padding:0.5rem 0.75rem; background:var(--panel); border:1px solid var(--border); border-radius:6px; color:var(--text);"
+    />
+    <button class="btn" type="submit">Search</button>
+  </form>
+  {scripts.length === 0 && <p class="muted">No scripts yet. Be the first: install the extension and publish one.</p>}
+  {scripts.map((s: any) => (
+    <div class="card">
+      <a href={`/scripts/${s.slug}`}><strong>{s.name}</strong></a>
+      {s.forked_from && <span class="badge">fork</span>}
+      <div class="muted">{s.description}</div>
+      <div class="muted">by {s.author_handle ?? "anonymous"} · v{s.latest_version} · {s.install_count} installs · {s.created_at}</div>
+    </div>
+  ))}
+</Base>

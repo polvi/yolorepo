@@ -1,0 +1,17 @@
+{
+  "name": "@openmonkey/api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@openmonkey/shared": "workspace:*",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.105.0",
+    "@cloudflare/workers-types": "^4.20250712.0"
+  }
+}

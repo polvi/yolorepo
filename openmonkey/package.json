@@ -1,0 +1,15 @@
+{
+  "name": "openmonkey",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "build:web": "bun run --cwd apps/web build",
+    "deploy:api": "bun run --cwd apps/api deploy",
+    "deploy:web": "bun run --cwd apps/web deploy"
+  }
+}

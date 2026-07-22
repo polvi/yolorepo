@@ -1,0 +1,59 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Docs — openmonkey">
+  <h1>How openmonkey works</h1>
+
+  <h2>Everything is public</h2>
+  <p style="max-width:42rem;">
+    Creating a script and publishing it are the same action. There are no private
+    scripts. Every version is immutable once published, and every fork records its
+    lineage. The registry is a plain JSON API — see <a href="/llms.txt">/llms.txt</a>.
+  </p>
+
+  <h2>The scan rule</h2>
+  <p style="max-width:42rem;">
+    Your own scripts install directly, you wrote them. Anyone else's script must be
+    security-scanned <em>on your behalf, by your model</em> before it can be installed
+    or run. The extension sends the exact source to your configured TPX endpoint
+    (<a href="https://tokenpony.dev">tokenpony</a> by default) and gets a verdict:
+  </p>
+  <ul style="max-width:42rem;">
+    <li><span class="badge pass">pass</span> — installs.</li>
+    <li><span class="badge warn">warn</span> — installs only after you read the summary and explicitly accept.</li>
+    <li><span class="badge fail">fail</span> — will not install. Fork it, fix it, republish it.</li>
+  </ul>
+  <p style="max-width:42rem;">
+    A new version of a script is new code: your old verdict does not carry over, so
+    upgrades are re-scanned. Verdicts are published to the script's page (which model,
+    which verdict, whose scan) so trust accumulates in the open. This lifecycle is
+    model-checked with TLA+; the spec lives in the repo under <code>specs/</code>.
+  </p>
+
+  <h2>Bring your own endpoint</h2>
+  <p style="max-width:42rem;">
+    The scanner and the script generator both speak the OpenAI chat-completions
+    format. Default is <code>https://api.tokenpony.dev/v1</code> with a metered TPX
+    grant, but the endpoint field in the extension options accepts anything
+    compatible — your own gateway, a local model, another provider. Your keys never
+    touch our servers; scans run client-side from the extension.
+  </p>
+
+  <h2>Script format</h2>
+  <p style="max-width:42rem;">
+    Standard Greasemonkey-style metadata blocks. <code>@match</code>/<code>@include</code>
+    are required — a script that runs everywhere is a script that gets a
+    <span class="badge warn">warn</span>.
+  </p>
+  <pre><code>{`// ==UserScript==
+// @name         Wider GitHub
+// @description  Make GitHub use the full window width
+// @version      1.0.0
+// @match        https://github.com/*
+// ==/UserScript==
+(function () {
+  const s = document.createElement("style");
+  s.textContent = ".container-xl { max-width: 100% !important; }";
+  document.head.appendChild(s);
+})();`}</code></pre>
+</Base>
