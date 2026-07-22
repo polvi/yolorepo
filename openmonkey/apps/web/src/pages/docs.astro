@@ -26,6 +26,12 @@ import Base from "../layouts/Base.astro";
     <code>{`{"code": "..."}`}</code> and your proc.io session cookie. The full API is
     described in <a href="/llms.txt">/llms.txt</a>.
   </p>
+  <p style="max-width:42rem;">
+    Don't want to write it by hand? Install
+    <a href="/scripts?q=composer">openmonkey composer (TPX)</a>: it adds a
+    "Generate with my model" box to the publish page. Describe the script you want,
+    your own TPX key writes it into the form, you review it, you publish it.
+  </p>
 
   <h2>Installing</h2>
   <p style="max-width:42rem;">
@@ -33,6 +39,10 @@ import Base from "../layouts/Base.astro";
     every userscript manager understands. Click Install on a script page and
     <a href="https://github.com/quoid/userscripts">Userscripts for Safari</a>,
     Tampermonkey, or Violentmonkey takes over. See <a href="/install">/install</a>.
+    At serve time the registry fills in <code>@downloadURL</code>,
+    <code>@updateURL</code>, and <code>@homepageURL</code> (when the author omitted
+    them), so your manager registers the canonical URL and picks up new versions on
+    its normal update checks.
   </p>
 
   <h2>The scan norm</h2>
@@ -50,7 +60,7 @@ import Base from "../layouts/Base.astro";
   </ul>
   <p style="max-width:42rem;">
     The easiest way to follow the norm is with a userscript, naturally:
-    <a href="/scripts?q=scanner">openmonkey scanner (TPX)</a> is hosted on this
+    <a href="/scripts/openmonkey-scanner-tpx-633144">openmonkey scanner (TPX)</a> is hosted on this
     registry, adds a "Scan with my model" button to every script page, runs the audit
     through your own TPX key, and publishes the verdict. It is a script you didn't
     write, so scan it first — by hand, or with a model, before the button exists.

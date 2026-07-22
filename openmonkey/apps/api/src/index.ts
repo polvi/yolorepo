@@ -65,6 +65,23 @@ const SCRIPT_COLS = `s.id, s.slug, s.name, s.description, s.author_id, s.forked_
   s.install_count, s.created_at, u.handle AS author_handle,
   (SELECT MAX(v.version) FROM versions v WHERE v.script_id = s.id) AS latest_version`;
 
+// Serve-time metadata injection: stored code is immutable, but managers need
+// @downloadURL/@updateURL to register the canonical URL and check for updates,
+// and a @version to compare against. Injected only when the author omitted them.
+function withInjectedMeta(code: string, slug: string, version: number): string {
+  const close = code.match(/^\s*\/\/\s*==\/UserScript==.*$/m);
+  if (!close || typeof close.index !== "number") return code;
+  const base = `https://openmonkey.proc.io/scripts/${slug}`;
+  const has = (k: string) => new RegExp(`^\\s*//\\s*@${k}\\b`, "m").test(code);
+  const lines: string[] = [];
+  if (!has("version")) lines.push(`// @version      ${version}.0.0`);
+  if (!has("homepageURL")) lines.push(`// @homepageURL  ${base}`);
+  if (!has("downloadURL")) lines.push(`// @downloadURL  ${base}.user.js`);
+  if (!has("updateURL")) lines.push(`// @updateURL    ${base}.user.js`);
+  if (lines.length === 0) return code;
+  return code.slice(0, close.index) + lines.join("\n") + "\n" + code.slice(close.index);
+}
+
 // ---- Public read endpoints ----------------------------------------------------
 
 app.get("/scripts", async (c) => {
@@ -103,17 +120,19 @@ app.get("/scripts/:file{.+\\.user\\.js}", async (c) => {
   const script = await getScriptBySlug(c.env.DB, slug);
   if (!script) return c.text("not found", 404);
   const version = await c.env.DB.prepare(
-    "SELECT code FROM versions WHERE script_id = ? ORDER BY version DESC LIMIT 1"
+    "SELECT code, version FROM versions WHERE script_id = ? ORDER BY version DESC LIMIT 1"
   )
     .bind(script.id)
-    .first<{ code: string }>();
+    .first<{ code: string; version: number }>();
   if (!version) return c.text("not found", 404);
   c.executionCtx.waitUntil(
     c.env.DB.prepare("UPDATE scripts SET install_count = install_count + 1 WHERE id = ?")
       .bind(script.id)
       .run()
   );
-  return c.text(version.code, 200, { "Content-Type": "text/javascript; charset=utf-8" });
+  return c.text(withInjectedMeta(version.code, script.slug as string, version.version), 200, {
+    "Content-Type": "text/javascript; charset=utf-8",
+  });
 });
 
 app.get("/scripts/:slug", async (c) => {

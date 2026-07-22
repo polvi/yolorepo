@@ -14,7 +14,7 @@ Live: [openmonkey.proc.io](https://openmonkey.proc.io) · API: `api.openmonkey.p
 - `apps/api` — Hono worker + D1: the public registry (scripts, immutable versions, forks, scan reports, raw `.user.js` serving). Auth via [AuthGravity](https://authgravity.proc.io) passkey sessions; sign-in UI is the shared [auth.proc.io](https://auth.proc.io) surface (`../procauth`).
 - `apps/web` — Astro (SSR on Workers): marketing + script directory, plus the pretty install URL `openmonkey.proc.io/scripts/<slug>.user.js`. Talks to the API over a service binding.
 - `packages/shared` — types, userscript metadata parsing, reference scan/generation prompts.
-- `userscripts/` — first-party scripts published to the registry itself, notably `openmonkey-scanner.user.js`: adds a "Scan with my model" button to script pages, runs the audit through the viewer's own TPX key, and publishes the verdict.
+- `userscripts/` — first-party scripts published to the registry itself: `openmonkey-scanner.user.js` (a "Scan with my model" button on script pages that audits via the viewer's own TPX key and publishes the verdict) and `openmonkey-composer.user.js` (a "Generate with my model" box on /publish that drafts a userscript from a description for review).
 - `specs/` — TLA+ model of the registry lifecycle (publish → version → fork, plus advisory per-version scan verdicts), checked with TLC.
 
 ## Develop
