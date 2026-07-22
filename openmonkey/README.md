@@ -3,7 +3,7 @@
 Userscripts in the open. Greasemonkey for the AI era:
 
 - **Creation is publication.** Write a userscript by hand or have your model generate it; either way it lands in a public registry the moment it exists.
-- **Installs through the manager you already have.** Every script is served at a standard `<slug>.user.js` URL, so [Userscripts for Safari](https://github.com/quoid/userscripts), Tampermonkey, and Violentmonkey install it with one click. There is no first-party extension.
+- **Installs through the manager you already have.** Every script is served at a standard `<slug>.user.js` URL, so [Userscripts for Safari](https://github.com/quoid/userscripts), Tampermonkey, and Violentmonkey install it with one click.
 - **Foreign code gets scanned by *your* AI.** Before running someone else's script, audit the exact source with your own TPX inference grant (tokenpony by default, any OpenAI-compatible endpoint you choose) and publish the verdict (`pass` / `warn` / `fail`) back to the registry, so trust accumulates in the open.
 - **Fork anything.** Every script can be forked, edited, and republished with public lineage.
 

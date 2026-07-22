@@ -6,7 +6,6 @@ scan verdicts are published per version by the users' own models.
 
 Scripts are served at standard `.user.js` URLs, so any userscript manager
 (Userscripts for Safari, Tampermonkey, Violentmonkey) installs them directly.
-There is no first-party extension.
 
 Site: https://openmonkey.proc.io
 Registry API: https://api.openmonkey.proc.io/api
