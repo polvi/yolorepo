@@ -11,6 +11,22 @@ import Base from "../layouts/Base.astro";
     lineage. The registry is a plain JSON API — see <a href="/llms.txt">/llms.txt</a>.
   </p>
 
+  <h2>Publishing a script</h2>
+  <p style="max-width:42rem;">
+    Sign in with your passkey, then paste your script at <a href="/publish">/publish</a>.
+    The metadata block supplies the name and description, and a <code>@match</code> or
+    <code>@include</code> line is required. The script is public the moment you submit,
+    served at its own <code>.user.js</code> URL, and gets a slug derived from its name.
+    New versions of an existing script are published with
+    <code>POST /api/scripts/&lt;slug&gt;/versions</code>.
+  </p>
+  <p style="max-width:42rem;">
+    Everything the publish page does goes through the public JSON API, so scripts,
+    CLIs, and agents can publish the same way: <code>POST /api/scripts</code> with
+    <code>{`{"code": "..."}`}</code> and your proc.io session cookie. The full API is
+    described in <a href="/llms.txt">/llms.txt</a>.
+  </p>
+
   <h2>Installing</h2>
   <p style="max-width:42rem;">
     Every script is served at <code>/scripts/&lt;slug&gt;.user.js</code>, the URL shape
@@ -32,6 +48,13 @@ import Base from "../layouts/Base.astro";
     <li><span class="badge warn">warn</span> — read the summary before deciding.</li>
     <li><span class="badge fail">fail</span> — don't run it. Fork it, fix it, republish it.</li>
   </ul>
+  <p style="max-width:42rem;">
+    The easiest way to follow the norm is with a userscript, naturally:
+    <a href="/scripts?q=scanner">openmonkey scanner (TPX)</a> is hosted on this
+    registry, adds a "Scan with my model" button to every script page, runs the audit
+    through your own TPX key, and publishes the verdict. It is a script you didn't
+    write, so scan it first — by hand, or with a model, before the button exists.
+  </p>
   <p style="max-width:42rem;">
     A new version of a script is new code: verdicts never carry over, each version is
     scanned on its own. Verdicts are published to the script's page (which model, which

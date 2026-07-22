@@ -22,7 +22,8 @@ Registry API: https://api.openmonkey.proc.io/api
 
 ## Authenticated writes (AuthGravity session cookie, https://authgravity.proc.io)
 
-- POST /api/scripts                      {name?, description?, code} → publish new script (public immediately)
+- POST /api/scripts                      {name?, description?, code} → publish new script (public immediately;
+                                         humans can use the form at https://openmonkey.proc.io/publish)
 - POST /api/scripts/:slug/versions       {code, changelog?} → new immutable version (author only)
 - POST /api/scripts/:slug/fork           {name?, code?} → fork with lineage
 - POST /api/versions/:id/scans           {verdict: pass|warn|fail, summary?, model?} → publish your scan verdict
@@ -41,3 +42,5 @@ Registry API: https://api.openmonkey.proc.io/api
   is the shared proc.io surface: https://auth.proc.io/login?return_to=<url>
   (https://auth.proc.io/llms.txt).
 - Inference: TPX metered grants (https://tokenpony.dev/llms.txt).
+- Dogfood: the "openmonkey scanner (TPX)" userscript in this registry adds a
+  scan-and-publish button to script pages, using the viewer's own TPX key.

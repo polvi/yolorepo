@@ -1,0 +1,72 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Publish — openmonkey" description="Publish a userscript to the open registry. Creation is publication.">
+  <h1>Publish a script</h1>
+  <p class="muted" style="max-width:42rem;">
+    Publishing is public and immediate. The metadata block supplies the name and
+    description unless you override them here; <code>@match</code> or
+    <code>@include</code> is required. You need a
+    <a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/publish">proc.io session</a> to publish.
+  </p>
+
+  <form id="publish-form" style="display:flex; flex-direction:column; gap:0.75rem; max-width:42rem;">
+    <input id="f-name" type="text" placeholder="Name (optional — taken from @name)"
+      style="padding:0.5rem 0.75rem; background:var(--panel); border:1px solid var(--border); border-radius:6px; color:var(--text);" />
+    <input id="f-desc" type="text" placeholder="Description (optional — taken from @description)"
+      style="padding:0.5rem 0.75rem; background:var(--panel); border:1px solid var(--border); border-radius:6px; color:var(--text);" />
+    <textarea id="f-code" rows="16" required spellcheck="false"
+      placeholder={`// ==UserScript==\n// @name         My script\n// @description  What it does\n// @version      1.0.0\n// @match        https://example.com/*\n// ==/UserScript==\n(function () {\n  // …\n})();`}
+      style="padding:0.75rem; background:#0a0d12; border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:ui-monospace,Menlo,monospace; font-size:0.85rem; width:100%;"></textarea>
+    <p style="display:flex; gap:0.75rem; align-items:center; margin:0;">
+      <button class="btn" type="submit">Publish publicly</button>
+      <span id="f-status" class="muted"></span>
+    </p>
+  </form>
+
+  <p class="muted" style="max-width:42rem; margin-top:1.5rem;">
+    New versions of an existing script go through
+    <code>POST /api/scripts/:slug/versions</code> — see <a href="/llms.txt">/llms.txt</a>
+    for the full API.
+  </p>
+
+  <script>
+    const form = document.getElementById("publish-form") as HTMLFormElement;
+    const status = document.getElementById("f-status")!;
+    const ERRORS: Record<string, string> = {
+      invalid_code: "Code is missing or over 200 KB.",
+      missing_name: "No name given and no @name in the metadata block.",
+      missing_match_pattern: "A @match or @include line is required.",
+    };
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      status.textContent = "publishing…";
+      const body = {
+        name: (document.getElementById("f-name") as HTMLInputElement).value.trim() || undefined,
+        description: (document.getElementById("f-desc") as HTMLInputElement).value.trim() || undefined,
+        code: (document.getElementById("f-code") as HTMLTextAreaElement).value,
+      };
+      try {
+        const res = await fetch("https://api.openmonkey.proc.io/api/scripts", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.status === 401) {
+          status.innerHTML =
+            'Sign in first: <a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/publish">auth.proc.io</a>';
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok) {
+          status.textContent = ERRORS[data.error] ?? `Publish failed (${data.error ?? res.status}).`;
+          return;
+        }
+        location.href = `/scripts/${data.script.slug}`;
+      } catch {
+        status.textContent = "Network error — try again.";
+      }
+    });
+  </script>
+</Base>
