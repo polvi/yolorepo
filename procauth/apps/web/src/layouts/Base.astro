@@ -1,11 +1,14 @@
 ---
+import { resolveTheme, themeStyle } from "../lib/theme";
+
 interface Props {
   title: string;
   description?: string;
 }
 const { title, description = "Sign-in for proc.io projects. Passkeys and 12-word account keys, no passwords." } = Astro.props;
+const theme = resolveTheme(Astro.url);
 ---
-<html lang="en">
+<html lang="en" style={themeStyle(theme)}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -87,6 +90,7 @@ const { title, description = "Sign-in for proc.io projects. Passkeys and 12-word
     <header class="site">
       <div class="wrap">
         <a class="logo" href="/">proc<span>.io</span> auth</a>
+        {theme.app && <span class="badge">{theme.app}</span>}
         <nav>
           <a href="/account">Account</a>
         </nav>

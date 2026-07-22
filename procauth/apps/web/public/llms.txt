@@ -17,6 +17,22 @@ AuthGravity pages are not used. Sessions are a `session_id` cookie on the
 return_to must be a local path or an https URL on proc.io / *.proc.io;
 anything else falls back to /account.
 
+## Theming (light skinning per project)
+
+The surface adopts a project's colors two ways; structure never changes,
+so the page is always recognizably auth.proc.io:
+
+1. Registry (preferred): apps on *.proc.io register a palette in
+   procauth/apps/web/src/lib/theme.ts keyed by hostname. Linking with
+   return_to is then enough — the palette is resolved from its hostname
+   and rendered server-side (no flash).
+2. Query overrides: ?app=<name>&accent=<hex>&bg=<hex>&panel=<hex>
+   &border=<hex>&text=<hex>&muted=<hex>&fail=<hex>. Hex colors only
+   (with or without #), app name shown as a chip, max 32 chars.
+   Overrides win over the registry.
+
+Theme params and return_to are carried across the login/register links.
+
 ## Integrating a proc.io app
 
 - Link "Sign in" to https://auth.proc.io/login?return_to=<back-to-your-app>

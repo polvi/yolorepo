@@ -118,8 +118,14 @@ export function safeReturnTo(fallback = "/account"): string {
   return fallback;
 }
 
-// Keep return_to when moving between /login and /register.
+// Keep return_to and any theme params when moving between /login and /register.
 export function withReturnTo(path: string): string {
-  const raw = new URLSearchParams(location.search).get("return_to");
-  return raw ? `${path}?return_to=${encodeURIComponent(raw)}` : path;
+  const current = new URLSearchParams(location.search);
+  const kept = new URLSearchParams();
+  for (const k of ["return_to", "app", "bg", "panel", "border", "text", "muted", "accent", "fail"]) {
+    const v = current.get(k);
+    if (v) kept.set(k, v);
+  }
+  const q = kept.toString();
+  return q ? `${path}?${q}` : path;
 }

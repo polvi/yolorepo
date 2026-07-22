@@ -18,6 +18,12 @@ on `proc.io` or a subdomain):
 - `https://auth.proc.io/register?return_to=…`
 - `https://auth.proc.io/account` — credentials, recovery keys, sign out
 
+The surface lightly skins itself per project: register a palette in
+`apps/web/src/lib/theme.ts` keyed by your `*.proc.io` hostname (resolved from
+`return_to`, rendered server-side), or pass sanitized query overrides
+(`?app=name&accent=hex&bg=hex…`). Colors and an app-name chip only — the page
+structure always stays auth.proc.io.
+
 Validate sessions server-side by forwarding the incoming `Cookie` header to
 `https://authgravity.proc.io/v1/whoami` (401 = signed out). Client-side, the
 same endpoint with `credentials: "include"` powers signed-in nav states.
