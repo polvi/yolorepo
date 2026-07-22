@@ -1,9 +1,12 @@
 # OpenMonkey TLA+ Specs
 
-Formal safety model of the OpenMonkey design: an open userscript registry plus
-browser extension. `OpenMonkey.tla` and `OpenMonkey.cfg` are the exact spec and
-configuration that passed TLC model checking (114,630 states generated, 10,079
-distinct, full search to depth 11, no violations). Hub record:
+Formal safety model of the OpenMonkey design: an open userscript registry.
+OpenMonkey ships no browser extension of its own; users install scripts
+through standard third-party userscript managers (the quoid/userscripts
+Safari app, Tampermonkey, etc.) that fetch a raw `<slug>.user.js` URL from
+the registry. `OpenMonkey.tla` and `OpenMonkey.cfg` are the exact spec and
+configuration that passed TLC model checking (36,231 states generated, 2,313
+distinct, full search to depth 8, no violations). Hub record:
 https://tlc.proc.io/hub/623f9b12-a08b-4b6d-850a-29d58934eb61/OpenMonkey
 
 ## What is modeled
@@ -13,34 +16,48 @@ State machine actions:
 - **CreateScript**: creating a script publishes version 1 immediately and
   publicly. Versions are immutable once published.
 - **PublishVersion**: only the author publishes new versions (up to
-  `MaxVersion`); each is public at once.
+  `MaxVersion`); each is public at once, and the version number only grows.
 - **Fork**: any user can fork any published script into a new script they
   author, recording `forkedFrom` lineage.
 - **Scan**: a non-author user has a specific published version security-scanned
-  on their own behalf (their own inference endpoint). Verdicts are
-  nondeterministic: `pass`, `warn`, or `fail`. Scans are per user x per
-  version and never change (versions are immutable).
-- **OverrideWarn**: explicit user override recorded for a `warn` verdict.
-- **InstallAsAuthor**: authors install their own published versions directly.
-- **InstallForeign**: non-authors install a version only with a scan of exactly
-  that version: `pass`, or `warn` plus a recorded override. `fail` never
-  installs. A scan of version N grants nothing for version N+1, so upgrades
-  force a rescan.
+  on their own behalf (their own inference endpoint) and publishes the verdict
+  to the registry as an advisory community report. Verdicts are
+  nondeterministic: `pass`, `warn`, or `fail`. Scans are per user x per exact
+  version and never change (versions are immutable), and a verdict for version
+  N says nothing about version N+1.
+- **Install**: any user installs any published version by pointing their
+  userscript manager at the raw `<slug>.user.js` URL. No scan verdict is
+  consulted; the registry cannot gate this step.
 - **Run**: only installed (user, script, version) pairs run.
 - **Uninstall**: removes the install and stops any running instance.
 
+## Scan verdicts are advisory
+
+Install and run happen inside a third-party userscript manager, outside the
+registry's trusted computing base, so the registry cannot enforce "no foreign
+version runs without a pass or accepted-warn scan". The earlier model's
+enforced gate (and its warn-override machinery) is gone. Scan-before-run is
+now a user norm supported by published community verdicts, not a system
+invariant, and the spec deliberately checks no such invariant. What remains
+are exactly the properties the registry itself enforces.
+
 ## Invariants checked
 
-1. **NoUnscannedForeignRun**: every running (user, version) where the user is
-   not the author has a scan verdict for exactly that version that is `pass`,
-   or `warn` with an override recorded. Never `fail`, never unscanned.
-2. **ScanIsPerVersion**: no foreign install rides on a scan of a different
-   version; the scan consulted is for exactly the installed version.
-3. **ForkAcyclic**: the transitive closure of `forkedFrom` is irreflexive.
-4. **InstalledImpliesPublished**: every installed version was actually
-   published.
+1. **ForkAcyclic**: the transitive closure of `forkedFrom` is irreflexive.
+2. **InstalledImpliesPublished**: every installed version was actually
+   published (managers can only fetch published `<slug>.user.js` content, and
+   versions are never retracted).
+3. **RunningImpliesInstalled**: a manager only runs scripts it holds.
+4. **ScanRefsPublishedVersion**: every recorded scan verdict references an
+   exact published version of an existing script, never a version of the
+   reporter's own script; verdicts never carry over across versions because
+   the scan record is keyed on the exact version.
 5. **TypeOK** and **ForkParentCreated** (forked scripts and their parents
    exist) as supporting invariants.
+
+Immutability and monotonic publishing, and author-only version publishing,
+are enforced by construction in the `PublishVersion` action (the published
+version only increments, and only when `author[s] = u`).
 
 ## Auth is out of scope here
 
@@ -65,11 +82,11 @@ The model is kept finite and small for the safety-subset TLC engine:
   authors via `Fork`, so author and non-author roles are still exercised for
   every user.
 - `StateConstraint` (a model artifact, not part of the design) caps cumulative
-  scan records at 2, scans plus installs at 3, and concurrent runs at 1. All
-  invariant-relevant scenarios fit inside the cap, including the
-  upgrade-needs-rescan flow (scan v1, install v1, publish v2, scan v2,
-  uninstall v1, install v2), warn-plus-override, fail-blocks-install, and
-  fork-then-scan.
+  scan records at 1, scans plus installs at 2, and concurrent runs at 1. With
+  installs no longer gated on scans, this tighter cap keeps the search small
+  while still covering every invariant-relevant scenario: install without any
+  scan, run-then-uninstall, install-then-upgrade-then-reinstall (uninstall v1,
+  install v2), scan-after-install, and fork-then-scan.
 
 ## Re-checking
 

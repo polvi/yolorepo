@@ -167,15 +167,16 @@ Spec == Init /\ [][Next]_vars
 (* Finite-exploration bound (model artifact, not part of the design).      *)
 (* Caps cumulative scan records, concurrent installs, and concurrent runs  *)
 (* so TLC's search stays small.  Every invariant-relevant scenario fits    *)
-(* inside it: install-then-upgrade-then-reinstall, scan-after-install      *)
-(* (now legal), install-without-any-scan, fork-then-scan.                  *)
+(* inside it: install-then-upgrade-then-reinstall (uninstall v1, install   *)
+(* v2), scan-after-install (now legal), install-without-any-scan,          *)
+(* fork-then-scan.                                                         *)
 (***************************************************************************)
 
 ScannedSlots == {t \in Users \X Scripts \X Versions : scans[t] # "none"}
 
 StateConstraint ==
-    /\ Cardinality(ScannedSlots) <= 2
-    /\ Cardinality(ScannedSlots) + Cardinality(installed) <= 3
+    /\ Cardinality(ScannedSlots) <= 1
+    /\ Cardinality(ScannedSlots) + Cardinality(installed) <= 2
     /\ Cardinality(running) <= 1
 
 (***************************************************************************)
