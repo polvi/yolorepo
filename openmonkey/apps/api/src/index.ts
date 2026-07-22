@@ -14,10 +14,10 @@ const AUTH_ENDPOINT = "https://authgravity.proc.io";
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>().basePath("/api");
 
-// ---- CORS: site + browser extensions, with credentials ----------------------
+// ---- CORS: site + local dev, with credentials -------------------------------
 
 const ALLOWED_ORIGIN_RE =
-  /^(https:\/\/openmonkey\.proc\.io|https?:\/\/localhost(:\d+)?|(safari-web-extension|chrome-extension|moz-extension):\/\/[^/]+)$/;
+  /^(https:\/\/openmonkey\.proc\.io|https?:\/\/localhost(:\d+)?)$/;
 
 app.use("*", async (c, next) => {
   const origin = c.req.header("origin");
@@ -94,6 +94,28 @@ async function getScriptBySlug(db: D1Database, slug: string) {
     .first();
 }
 
+// Raw latest code at a *.user.js path. Userscript managers (Userscripts for
+// Safari, Tampermonkey, Violentmonkey) key their install flow off the URL
+// ending in .user.js, so this route is what makes one-click installs work.
+// A fetch here is the closest observable proxy for an install, so it counts.
+app.get("/scripts/:file{.+\\.user\\.js}", async (c) => {
+  const slug = c.req.param("file").replace(/\.user\.js$/, "");
+  const script = await getScriptBySlug(c.env.DB, slug);
+  if (!script) return c.text("not found", 404);
+  const version = await c.env.DB.prepare(
+    "SELECT code FROM versions WHERE script_id = ? ORDER BY version DESC LIMIT 1"
+  )
+    .bind(script.id)
+    .first<{ code: string }>();
+  if (!version) return c.text("not found", 404);
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare("UPDATE scripts SET install_count = install_count + 1 WHERE id = ?")
+      .bind(script.id)
+      .run()
+  );
+  return c.text(version.code, 200, { "Content-Type": "text/javascript; charset=utf-8" });
+});
+
 app.get("/scripts/:slug", async (c) => {
   const script = await getScriptBySlug(c.env.DB, c.req.param("slug"));
   if (!script) return c.json({ error: "not_found" }, 404);
@@ -128,18 +150,10 @@ app.get("/scripts/:slug/versions/:n", async (c) => {
   return c.json({ script, version });
 });
 
-// Raw latest code, Greasemonkey-style .user.js
-app.get("/scripts/:slug/raw", async (c) => {
-  const script = await getScriptBySlug(c.env.DB, c.req.param("slug"));
-  if (!script) return c.text("not found", 404);
-  const version = await c.env.DB.prepare(
-    "SELECT code FROM versions WHERE script_id = ? ORDER BY version DESC LIMIT 1"
-  )
-    .bind(script.id)
-    .first<{ code: string }>();
-  if (!version) return c.text("not found", 404);
-  return c.text(version.code, 200, { "Content-Type": "text/javascript; charset=utf-8" });
-});
+// Legacy raw URL: send managers to the canonical .user.js path.
+app.get("/scripts/:slug/raw", (c) =>
+  c.redirect(`/api/scripts/${c.req.param("slug")}.user.js`, 301)
+);
 
 app.get("/versions/:id/scans", async (c) => {
   const { results } = await c.env.DB.prepare(
@@ -281,14 +295,6 @@ app.post("/versions/:id/scans", requireAuth, async (c) => {
     )
     .run();
   return c.json({ ok: true }, 201);
-});
-
-// Anonymous install counter (called by the extension after a successful install).
-app.post("/scripts/:slug/installed", async (c) => {
-  await c.env.DB.prepare("UPDATE scripts SET install_count = install_count + 1 WHERE slug = ?")
-    .bind(c.req.param("slug"))
-    .run();
-  return c.json({ ok: true });
 });
 
 app.get("/health", (c) => c.json({ ok: true }));

@@ -14,7 +14,7 @@ const scripts = data?.scripts ?? [];
     />
     <button class="btn" type="submit">Search</button>
   </form>
-  {scripts.length === 0 && <p class="muted">No scripts yet. Be the first: install the extension and publish one.</p>}
+  {scripts.length === 0 && <p class="muted">No scripts yet. Be the first: publish one through the API.</p>}
   {scripts.map((s: any) => (
     <div class="card">
       <a href={`/scripts/${s.slug}`}><strong>{s.name}</strong></a>

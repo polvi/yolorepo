@@ -3,7 +3,7 @@ interface Props {
   title: string;
   description?: string;
 }
-const { title, description = "Userscripts in the open. Publish, fork, and AI-scan before you run." } = Astro.props;
+const { title, description = "Userscripts in the open. Publish, fork, and AI-scan before you run. Installs with any userscript manager." } = Astro.props;
 ---
 <html lang="en">
   <head>
@@ -106,6 +106,7 @@ const { title, description = "Userscripts in the open. Publish, fork, and AI-sca
         <a class="logo" href="/">open<span>monkey</span></a>
         <nav>
           <a href="/scripts">Scripts</a>
+          <a href="/install">Install</a>
           <a href="/docs">Docs</a>
           <a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/scripts" id="nav-auth">Sign in</a>
         </nav>
@@ -118,7 +119,7 @@ const { title, description = "Userscripts in the open. Publish, fork, and AI-sca
     </main>
     <footer class="site">
       <div class="wrap muted">
-        openmonkey — userscripts in the open. Every script public, every install scanned by <em>your</em> model.
+        openmonkey — userscripts in the open. Every script public, every verdict scanned by <em>your</em> model.
         <a href="/llms.txt">/llms.txt</a>
       </div>
     </footer>

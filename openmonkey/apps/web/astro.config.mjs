@@ -5,4 +5,7 @@ export default defineConfig({
   output: "server",
   adapter: cloudflare(),
   site: "https://openmonkey.proc.io",
+  redirects: {
+    "/extension": "/install",
+  },
 });

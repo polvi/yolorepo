@@ -10,14 +10,14 @@ const recent = data?.scripts ?? [];
       Userscripts, <span style="color: var(--accent);">done in the open</span>.
     </h1>
     <p style="font-size: 1.15rem; max-width: 40rem;" class="muted">
-      Greasemonkey for the AI era. Describe a script and your own model writes it.
-      Every script is published to a public registry the moment it exists.
-      Before you run anyone else's code, <strong style="color: var(--text);">your</strong> AI
-      security-scans it, on the inference endpoint you choose.
+      Greasemonkey for the AI era. Every script is published to a public registry the
+      moment it exists, installs into the userscript manager you already use via a
+      plain <code>.user.js</code> URL, and carries security scan verdicts published
+      by <strong style="color: var(--text);">real users' own models</strong>.
     </p>
     <p style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-      <a class="btn" href="/extension">Get the extension</a>
-      <a class="btn secondary" href="/scripts">Browse scripts</a>
+      <a class="btn" href="/scripts">Browse scripts</a>
+      <a class="btn secondary" href="/install">How to install</a>
     </p>
   </section>
 
@@ -28,7 +28,7 @@ const recent = data?.scripts ?? [];
     </div>
     <div class="card">
       <h3 style="margin-top:0;">🔍 Scanned by <em>your</em> AI</h3>
-      <p class="muted">Installing someone else's script triggers a security audit through your own TPX inference grant (tokenpony by default, any OpenAI-compatible endpoint you prefer). Fail means no install. Verdicts are published for everyone.</p>
+      <p class="muted">Before running someone else's script, audit it with your own model (tokenpony by default, any OpenAI-compatible endpoint you prefer) and publish the verdict to the script's page. Trust accumulates in the open, one scan at a time.</p>
     </div>
     <div class="card">
       <h3 style="margin-top:0;">🍴 Fork and republish</h3>
@@ -51,12 +51,12 @@ const recent = data?.scripts ?? [];
   )}
 
   <section>
-    <h2>Safari first, every browser eventually</h2>
+    <h2>Works with the manager you already have</h2>
     <p class="muted" style="max-width: 40rem;">
-      The extension is a standard WebExtension: it ships for Safari first and the same
-      code runs in Chrome and Firefox. Sign in with a passkey, connect a
-      <a href="https://tokenpony.dev">tokenpony</a> grant (or point it at your own endpoint),
-      and every script you touch is created, scanned, and shared in the open.
+      No openmonkey extension required. Every script lives at a standard
+      <code>.user.js</code> URL, so <a href="https://github.com/quoid/userscripts">Userscripts
+      for Safari</a>, Tampermonkey, and Violentmonkey install it with one click.
+      Sign in with a passkey to publish and fork; everything you touch is shared in the open.
     </p>
   </section>
 </Base>

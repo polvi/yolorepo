@@ -1,0 +1,42 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Install scripts — openmonkey">
+  <h1>Installing scripts</h1>
+  <p class="muted" style="max-width:42rem;">
+    openmonkey serves every script at a standard <code>&lt;slug&gt;.user.js</code> URL,
+    so it works with the userscript manager you already have. There is no
+    openmonkey extension to install.
+  </p>
+
+  <h2>Safari (macOS / iOS)</h2>
+  <ol style="max-width:42rem;">
+    <li>Get <a href="https://apps.apple.com/app/userscripts/id1463298887">Userscripts</a>
+      from the App Store (open source: <a href="https://github.com/quoid/userscripts">quoid/userscripts</a>).</li>
+    <li>Enable it in Safari → Settings → Extensions and allow it on the sites you care about.</li>
+    <li>Click <strong>Install</strong> on any script page here — Userscripts detects the
+      <code>.user.js</code> URL and offers to install it.</li>
+  </ol>
+
+  <h2>Chrome / Firefox / Edge</h2>
+  <p style="max-width:42rem;">
+    <a href="https://www.tampermonkey.net/">Tampermonkey</a> or
+    <a href="https://violentmonkey.github.io/">Violentmonkey</a> work the same way:
+    open a script's <code>.user.js</code> link and the manager takes over.
+  </p>
+
+  <h2>Before you run foreign code</h2>
+  <p style="max-width:42rem;">
+    Every script page shows community scan verdicts
+    (<span class="badge pass">pass</span> / <span class="badge warn">warn</span> /
+    <span class="badge fail">fail</span>) published by other users' models. Read them,
+    or better, run your own scan and <a href="/docs">publish the verdict</a> so the
+    next person can too.
+  </p>
+
+  <h2>Publishing</h2>
+  <ol style="max-width:42rem;">
+    <li><a href="https://auth.proc.io/register?return_to=https://openmonkey.proc.io/scripts">Create an account</a> — a passkey or 12-word account key.</li>
+    <li>Publish through the <a href="/llms.txt">registry API</a>: <code>POST /api/scripts</code> with your code. Creation is publication.</li>
+  </ol>
+</Base>

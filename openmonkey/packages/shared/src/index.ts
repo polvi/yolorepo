@@ -1,4 +1,4 @@
-// Shared types and helpers for the OpenMonkey registry, web app, and extension.
+// Shared types and helpers for the OpenMonkey registry and web app.
 
 export interface Script {
   id: string;

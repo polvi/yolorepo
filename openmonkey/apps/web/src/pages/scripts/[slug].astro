@@ -18,15 +18,16 @@ const matches = version ? JSON.parse(version.match_patterns) : [];
   </p>
   <p>{script.description}</p>
   <p style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
-    <button class="btn" id="install-btn" data-slug={script.slug} data-version={script.latest_version}>
-      Install with openmonkey
-    </button>
-    <a class="btn secondary" href={`https://api.openmonkey.proc.io/api/scripts/${script.slug}/raw`}>Raw .user.js</a>
+    <a class="btn" href={`/scripts/${script.slug}.user.js`}>Install {script.slug}.user.js</a>
     <span class="muted">Runs on: {matches.map((m: string) => <code style="margin-right:0.5rem;">{m}</code>)}</span>
+  </p>
+  <p class="muted" style="max-width:42rem;">
+    Opens in your userscript manager — <a href="/install">Userscripts for Safari, Tampermonkey, or
+    Violentmonkey</a>. Check the scan verdicts below before you run code you didn't write.
   </p>
 
   <h2>Community scan verdicts</h2>
-  {scans.length === 0 && <p class="muted">No published scans yet for v{version?.version}. Your install will produce the first one.</p>}
+  {scans.length === 0 && <p class="muted">No published scans yet for v{version?.version}. Run one with your own model and publish the first verdict.</p>}
   {scans.map((r: any) => (
     <div class="card">
       <span class={`badge ${r.verdict}`}>{r.verdict}</span>
@@ -37,26 +38,4 @@ const matches = version ? JSON.parse(version.match_patterns) : [];
 
   <h2>Source (v{version?.version})</h2>
   <pre><code>{version?.code}</code></pre>
-
-  <script>
-    // The extension's content script listens for this event on openmonkey.proc.io.
-    document.getElementById("install-btn")?.addEventListener("click", (e) => {
-      const btn = e.currentTarget as HTMLElement;
-      window.postMessage(
-        { type: "openmonkey:install", slug: btn.dataset.slug, version: Number(btn.dataset.version) },
-        window.location.origin
-      );
-      btn.textContent = "Sent to extension…";
-      setTimeout(() => {
-        if (btn.textContent === "Sent to extension…") {
-          btn.textContent = "Extension not detected — get it from /extension";
-        }
-      }, 1500);
-      window.addEventListener("message", (ev) => {
-        if (ev.data?.type === "openmonkey:install-ack") btn.textContent = "Scanning & installing…";
-        if (ev.data?.type === "openmonkey:install-done") btn.textContent = "Installed ✓";
-        if (ev.data?.type === "openmonkey:install-blocked") btn.textContent = "Blocked by scan ✗";
-      });
-    });
-  </script>
 </Base>
