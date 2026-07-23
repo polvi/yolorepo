@@ -30,7 +30,11 @@ import Base from "../layouts/Base.astro";
     Don't want to write it by hand? Install
     <a href="/scripts?q=composer">openmonkey composer (TPX)</a>: it adds a
     "Generate with my model" box to the publish page. Describe the script you want,
-    your own TPX key writes it into the form, you review it, you publish it.
+    a metered TPX grant you approve writes it into the form, you review it, you
+    publish it. Scripts that need inference do the full OAuth flow themselves
+    (dynamic client registration, PKCE, popup approval) using
+    <code>/oauth/tpx</code> on this site as the redirect relay — a pattern any
+    script here is welcome to copy.
   </p>
 
   <h2>Installing</h2>
@@ -62,7 +66,8 @@ import Base from "../layouts/Base.astro";
     The easiest way to follow the norm is with a userscript, naturally:
     <a href="/scripts/openmonkey-scanner-tpx-633144">openmonkey scanner (TPX)</a> is hosted on this
     registry, adds a "Scan with my model" button to every script page, runs the audit
-    through your own TPX key, and publishes the verdict. It is a script you didn't
+    through a metered TPX budget you approve in an OAuth popup (no API keys to copy),
+    and publishes the verdict. It is a script you didn't
     write, so scan it first — by hand, or with a model, before the button exists.
   </p>
   <p style="max-width:42rem;">

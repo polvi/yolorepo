@@ -1,0 +1,42 @@
+---
+import Base from "../../layouts/Base.astro";
+---
+<Base title="TPX grant — openmonkey" description="OAuth redirect relay for userscripts using TPX metered grants.">
+  <h1>TPX grant</h1>
+  <p id="msg" class="muted">Completing grant…</p>
+  <p class="muted" style="max-width:42rem;">
+    This page is the OAuth redirect URI for userscripts that use
+    <a href="https://tokenpony.dev">TPX</a> metered grants. It hands the
+    authorization code back to the page that opened the popup (same-origin
+    localStorage plus BroadcastChannel) and closes itself. The code is useless
+    without the PKCE verifier held by the requesting script, so relaying it
+    on this origin is safe. Any script on this registry may use
+    <code>https://openmonkey.proc.io/oauth/tpx</code> as its registered
+    redirect URI.
+  </p>
+
+  <script>
+    const p = new URLSearchParams(location.search);
+    const state = p.get("state");
+    const msg = document.getElementById("msg")!;
+    if (state) {
+      const payload = JSON.stringify({
+        code: p.get("code"),
+        state,
+        iss: p.get("iss"),
+        error: p.get("error"),
+        error_description: p.get("error_description"),
+      });
+      localStorage.setItem("om_tpx_cb_" + state, payload);
+      try {
+        new BroadcastChannel("om-tpx-oauth").postMessage(JSON.parse(payload));
+      } catch {}
+      msg.textContent = p.get("error")
+        ? `Grant failed: ${p.get("error_description") ?? p.get("error")}`
+        : "Grant complete — you can close this window.";
+      if (!p.get("error")) setTimeout(() => window.close(), 1500);
+    } else {
+      msg.textContent = "Missing state parameter — nothing to relay.";
+    }
+  </script>
+</Base>
