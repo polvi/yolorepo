@@ -14,6 +14,10 @@ const OPS = {
   GetNumObjects: 0x1006,
   GetObjectHandles: 0x1007,
   GetObjectInfo: 0x1008,
+  GetObject: 0x1009,
+  DeleteObject: 0x100B,
+  SendObjectInfo: 0x100C,
+  SendObject: 0x100D,
 };
 
 const CONTAINER = { COMMAND: 1, DATA: 2, RESPONSE: 3, EVENT: 4 };
@@ -24,14 +28,29 @@ const RC_NAMES = {
   0x2003: 'SessionNotOpen',
   0x2005: 'OperationNotSupported',
   0x2006: 'ParameterNotSupported',
+  0x2007: 'IncompleteTransfer',
   0x2009: 'InvalidObjectHandle',
+  0x200C: 'StoreFull',
+  0x200D: 'ObjectWriteProtected',
   0x2013: 'StoreNotAvailable',
+  0x2015: 'NoValidObjectInfo',
   0x2019: 'DeviceBusy',
   0x201D: 'InvalidParameter',
   0x201E: 'SessionAlreadyOpen',
 };
 
 const FMT_ASSOCIATION = 0x3001; // folder
+
+const EXT_FORMATS = {
+  txt: 0x3004, html: 0x3005, htm: 0x3005, wav: 0x3008, mp3: 0x3009,
+  avi: 0x300A, mpg: 0x300B, jpg: 0x3801, jpeg: 0x3801, gif: 0x3807,
+  png: 0x380B, tiff: 0x380D, wma: 0xB901, mp4: 0xB982,
+};
+
+function formatForName(name) {
+  const ext = name.toLowerCase().split('.').pop();
+  return EXT_FORMATS[ext] || 0x3000; // undefined/binary
+}
 
 function rcName(code) {
   return RC_NAMES[code] || '0x' + code.toString(16);
@@ -71,6 +90,20 @@ class Reader {
     for (let i = 0; i < n; i++) a.push(this.u32());
     return a;
   }
+}
+
+class Writer {
+  constructor() { this.bytes = []; }
+  u8(v) { this.bytes.push(v & 0xFF); }
+  u16(v) { this.u8(v); this.u8(v >> 8); }
+  u32(v) { this.u16(v); this.u16(v >>> 16); }
+  string(s) {
+    if (!s) { this.u8(0); return; }
+    this.u8(s.length + 1); // char count including null terminator
+    for (let i = 0; i < s.length; i++) this.u16(s.charCodeAt(i));
+    this.u16(0);
+  }
+  build() { return new Uint8Array(this.bytes); }
 }
 
 class MtpDevice {
@@ -173,9 +206,19 @@ class MtpDevice {
     return { length, type, code, tid, payload: full.subarray(12, length) };
   }
 
-  async transaction(op, params = []) {
+  async transaction(op, params = [], dataOut = null) {
     const tid = this.tid++;
     await this.device.transferOut(this.epOut, this.buildCommand(op, tid, params));
+    if (dataOut) {
+      const buf = new Uint8Array(12 + dataOut.byteLength);
+      const dv = new DataView(buf.buffer);
+      dv.setUint32(0, buf.byteLength, true);
+      dv.setUint16(4, CONTAINER.DATA, true);
+      dv.setUint16(6, op, true);
+      dv.setUint32(8, tid, true);
+      buf.set(dataOut, 12);
+      await this.device.transferOut(this.epOut, buf);
+    }
     let data = null;
     let c = await this.readContainer();
     if (c.type === CONTAINER.DATA) {
@@ -183,14 +226,15 @@ class MtpDevice {
       c = await this.readContainer();
     }
     if (c.type !== CONTAINER.RESPONSE) throw new Error('expected response container, got type ' + c.type);
+    if (c.tid !== tid) throw new Error(`response tid ${c.tid} does not match command tid ${tid} (stale container on pipe?)`);
     const rparams = [];
     const rv = new Reader(c.payload);
     for (let i = 0; i + 4 <= c.payload.byteLength; i += 4) rparams.push(rv.u32());
     return { code: c.code, params: rparams, data };
   }
 
-  async expectOk(op, params) {
-    const r = await this.transaction(op, params);
+  async expectOk(op, params, dataOut = null) {
+    const r = await this.transaction(op, params, dataOut);
     if (r.code !== 0x2001) {
       throw new Error(`op 0x${op.toString(16)} failed: ${rcName(r.code)}`);
     }
@@ -280,6 +324,39 @@ class MtpDevice {
     o.dateModified = rd.string();
     o.isFolder = o.format === FMT_ASSOCIATION;
     return o;
+  }
+
+  // Receive a file: returns its bytes.
+  async getObject(handle) {
+    const r = await this.expectOk(OPS.GetObject, [handle]);
+    return r.data;
+  }
+
+  // Send a file. SendObjectInfo tells the responder what is coming and where
+  // (storage + parent); SendObject must follow immediately with the bytes.
+  // Returns the new object handle.
+  async sendObject(storageID, parent, filename, bytes, format = null) {
+    const w = new Writer();
+    w.u32(storageID);
+    w.u16(format ?? formatForName(filename));
+    w.u16(0); // protection
+    w.u32(bytes.byteLength);
+    w.u16(0); w.u32(0); w.u32(0); w.u32(0); // thumb format/size/width/height
+    w.u32(0); w.u32(0); w.u32(0); // image width/height/bit depth
+    w.u32(0); // parent (taken from the command params)
+    w.u16(0); w.u32(0); w.u32(0); // association type/desc, sequence number
+    w.string(filename);
+    w.string(''); // date created
+    w.string(''); // date modified
+    w.string(''); // keywords
+    const info = await this.expectOk(OPS.SendObjectInfo, [storageID, parent], w.build());
+    const handle = info.params[2];
+    await this.expectOk(OPS.SendObject, [], bytes);
+    return handle;
+  }
+
+  async deleteObject(handle) {
+    await this.expectOk(OPS.DeleteObject, [handle, 0]);
   }
 }
 

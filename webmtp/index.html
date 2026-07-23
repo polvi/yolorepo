@@ -13,11 +13,15 @@
   button { font: inherit; background: #2563eb; color: #fff; border: 0;
            border-radius: 6px; padding: .5rem 1rem; cursor: pointer; }
   button:disabled { background: #374151; cursor: default; }
+  #toolbar { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+  input[type=file] { color: #8b949e; }
   #status { margin: 1rem 0; color: #93c5fd; }
-  table { border-collapse: collapse; margin: .5rem 0 1.5rem; width: 100%; max-width: 720px; }
+  table { border-collapse: collapse; margin: .5rem 0 1.5rem; width: 100%; max-width: 800px; }
   th, td { text-align: left; padding: .2rem .8rem .2rem 0; border-bottom: 1px solid #1f2937; }
   th { color: #6a737d; font-weight: normal; }
   .folder { color: #fbbf24; }
+  a.act { color: #60a5fa; cursor: pointer; text-decoration: underline; }
+  a.act.danger { color: #f87171; }
   #log { background: #0a0d10; border: 1px solid #1f2937; border-radius: 6px;
          padding: .8rem; white-space: pre-wrap; max-height: 40vh; overflow-y: auto;
          color: #8b949e; font-size: 12px; }
@@ -26,7 +30,12 @@
 </head>
 <body>
 <h1>webmtp <span>— MTP over WebUSB, research build</span></h1>
-<button id="connect">Connect MTP device</button>
+<div id="toolbar">
+  <button id="connect">Connect MTP device</button>
+  <button id="refresh" disabled>Refresh</button>
+  <input type="file" id="file">
+  <button id="upload" disabled>Send to device</button>
+</div>
 <div id="status">idle</div>
 <div id="listing"></div>
 <pre id="log"></pre>
@@ -44,8 +53,18 @@ function log(msg) {
 }
 function setStatus(s) {
   state.status = s;
+  state.error = null;
   $('status').textContent = s;
   log('status: ' + s);
+}
+function fail(e) {
+  state.error = String(e);
+  state.status = 'error';
+  $('status').textContent = 'error: ' + (e.message || e);
+  console.error('[webmtp]', e);
+  if (/claim/i.test(String(e))) {
+    log('hint: on macOS another process may hold the PTP interface (ptpcamerad / Image Capture / Photos).');
+  }
 }
 function fmtSize(n) {
   if (n >= 1 << 30) return (n / (1 << 30)).toFixed(1) + ' GiB';
@@ -64,7 +83,7 @@ function render() {
       `(${fmtSize(s.freeSpace)} free of ${fmtSize(s.maxCapacity)})`;
     el.appendChild(head);
     const table = document.createElement('table');
-    table.innerHTML = '<tr><th>name</th><th>type</th><th>size</th><th>modified</th></tr>';
+    table.innerHTML = '<tr><th>name</th><th>type</th><th>size</th><th>modified</th><th></th></tr>';
     for (const o of s.objects) {
       const tr = document.createElement('tr');
       const name = document.createElement('td');
@@ -80,10 +99,84 @@ function render() {
       const mod = document.createElement('td');
       mod.textContent = o.dateModified || '';
       tr.appendChild(mod);
+      const act = document.createElement('td');
+      if (!o.isFolder) {
+        const get = document.createElement('a');
+        get.className = 'act';
+        get.textContent = 'get';
+        get.onclick = () => downloadObject(o).catch(fail);
+        act.appendChild(get);
+        act.appendChild(document.createTextNode(' '));
+        const del = document.createElement('a');
+        del.className = 'act danger';
+        del.textContent = 'del';
+        del.onclick = () => {
+          if (confirm('Delete ' + o.filename + ' from the device?')) {
+            deleteObject(o).catch(fail);
+          }
+        };
+        act.appendChild(del);
+      }
+      tr.appendChild(act);
       table.appendChild(tr);
     }
     el.appendChild(table);
   }
+}
+
+async function refresh() {
+  const mtp = window.__mtpDevice;
+  setStatus('GetStorageIDs');
+  const ids = await mtp.getStorageIDs();
+  state.storages = [];
+  for (const id of ids) {
+    if ((id & 0xFFFF) === 0) { log(`storage 0x${id.toString(16)}: media not present, skipping`); continue; }
+    const s = await mtp.getStorageInfo(id);
+    setStatus('GetObjectHandles for 0x' + id.toString(16));
+    const handles = await mtp.getObjectHandles(id, 0xFFFFFFFF);
+    const capped = handles.slice(0, 200);
+    s.objects = [];
+    for (const h of capped) s.objects.push(await mtp.getObjectInfo(h));
+    if (handles.length > capped.length) log(`(showing first ${capped.length} of ${handles.length})`);
+    state.storages.push(s);
+    render();
+  }
+  setStatus('done — listed ' + state.storages.reduce((n, s) => n + s.objects.length, 0) + ' objects');
+}
+
+async function downloadObject(o) {
+  const mtp = window.__mtpDevice;
+  setStatus(`GetObject ${o.filename} (${fmtSize(o.size)})`);
+  const t0 = performance.now();
+  const bytes = await mtp.getObject(o.handle);
+  const ms = Math.round(performance.now() - t0);
+  log(`received ${bytes.byteLength} bytes in ${ms}ms`);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes]));
+  a.download = o.filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('saved ' + o.filename);
+  return bytes;
+}
+
+async function deleteObject(o) {
+  const mtp = window.__mtpDevice;
+  setStatus('DeleteObject ' + o.filename);
+  await mtp.deleteObject(o.handle);
+  await refresh();
+}
+
+async function uploadBytes(filename, bytes, parent = 0xFFFFFFFF) {
+  const mtp = window.__mtpDevice;
+  const sid = state.storages[0].id;
+  setStatus(`SendObject ${filename} (${fmtSize(bytes.byteLength)})`);
+  const t0 = performance.now();
+  const handle = await mtp.sendObject(sid, parent, filename, bytes);
+  const ms = Math.round(performance.now() - t0);
+  log(`sent ${bytes.byteLength} bytes in ${ms}ms, new handle 0x${handle.toString(16)}`);
+  await refresh();
+  return handle;
 }
 
 async function listDevice(usbDevice) {
@@ -101,30 +194,10 @@ async function listDevice(usbDevice) {
 
   setStatus('OpenSession');
   await mtp.openSession();
-
-  setStatus('GetStorageIDs');
-  const ids = await mtp.getStorageIDs();
-  log('storage IDs: ' + ids.map((i) => '0x' + i.toString(16)).join(' '));
-
-  state.storages = [];
-  for (const id of ids) {
-    if ((id & 0xFFFF) === 0) { log(`storage 0x${id.toString(16)}: media not present, skipping`); continue; }
-    const s = await mtp.getStorageInfo(id);
-    log(`storage 0x${id.toString(16)}: ${s.description || s.volumeLabel}`);
-    setStatus('GetObjectHandles for 0x' + id.toString(16));
-    const handles = await mtp.getObjectHandles(id, 0xFFFFFFFF);
-    log(`root has ${handles.length} objects`);
-    const capped = handles.slice(0, 200);
-    s.objects = [];
-    for (const h of capped) {
-      s.objects.push(await mtp.getObjectInfo(h));
-    }
-    if (handles.length > capped.length) log(`(showing first ${capped.length} of ${handles.length})`);
-    state.storages.push(s);
-    render();
-  }
-  setStatus('done — listed ' + state.storages.reduce((n, s) => n + s.objects.length, 0) + ' objects');
   window.__mtpDevice = mtp;
+  $('refresh').disabled = false;
+  $('upload').disabled = false;
+  await refresh();
 }
 
 async function connect(fromPicker) {
@@ -143,16 +216,29 @@ async function connect(fromPicker) {
     }
     await listDevice(device);
   } catch (e) {
-    state.error = String(e);
-    setStatus('error: ' + e.message);
-    console.error('[webmtp]', e);
-    if (/claim/i.test(String(e))) {
-      log('hint: on macOS another process may hold the PTP interface (ptpcamerad / Image Capture / Photos).');
-    }
+    fail(e);
   }
 }
 
 $('connect').addEventListener('click', () => connect(true));
+$('refresh').addEventListener('click', () => refresh().catch(fail));
+$('upload').addEventListener('click', async () => {
+  try {
+    const f = $('file').files[0];
+    if (!f) { setStatus('pick a file first'); return; }
+    await uploadBytes(f.name, new Uint8Array(await f.arrayBuffer()));
+  } catch (e) { fail(e); }
+});
+
+// Automation/debug surface.
+window.__mtpApi = {
+  refresh,
+  getBytes: (handle) => window.__mtpDevice.getObject(handle),
+  download: downloadObject,
+  uploadBytes,
+  deleteHandle: (handle) => window.__mtpDevice.deleteObject(handle),
+};
+
 if (!navigator.usb) {
   setStatus('WebUSB not available in this browser');
 } else {
