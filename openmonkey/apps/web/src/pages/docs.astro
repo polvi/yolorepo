@@ -33,10 +33,10 @@ import Base from "../layouts/Base.astro";
   <p style="max-width:42rem;">
     Don't want to write it by hand? Install
     <a href="/scripts?q=composer">openmonkey composer (TPX)</a>: it adds a
-    "Generate with my model" box to the publish page. Describe the script you want
-    (or, with an existing script loaded for editing, the change you want made),
-    a metered TPX grant you approve writes it into the form, you review it, you
-    publish it. Scripts that need inference do the full OAuth flow themselves
+    "Generate with my model" box to the publish page and an "Edit with my model"
+    box to every script page. Describe the script you want, or the change you want
+    made to the one you're looking at; a metered TPX grant you approve writes the
+    result into the publish form, you review it, you publish it. Scripts that need inference do the full OAuth flow themselves
     (dynamic client registration, PKCE, popup approval) using
     <code>/oauth/tpx</code> on this site as the redirect relay — a pattern any
     script here is welcome to copy.

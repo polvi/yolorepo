@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         openmonkey composer (TPX)
-// @description  Adds a "Generate with my model" box to the openmonkey publish page. Describe a new userscript, or a change to the one loaded in the form; a metered TPX grant you approve (OAuth, no API keys) writes the result into the form for review before you publish.
-// @version      2.1.0
-// @match        https://openmonkey.proc.io/publish
+// @description  Generate and edit openmonkey userscripts with your own model. Adds a "Generate with my model" box to the publish page and an "Edit with my model" box to script pages; a metered TPX grant you approve (OAuth, no API keys) writes the result into the publish form for review.
+// @version      2.2.0
+// @match        https://openmonkey.proc.io/publish*
+// @match        https://openmonkey.proc.io/scripts/*
 // @grant        GM.xmlHttpRequest
 // @grant        GM.getValue
 // @grant        GM.setValue
@@ -286,7 +287,7 @@
 
   // ---- UI -------------------------------------------------------------------
 
-  function mount() {
+  function mountPublish() {
     var formEl = document.getElementById("publish-form");
     if (!formEl) return;
     var card = document.createElement("div");
@@ -335,6 +336,77 @@
     card.appendChild(desc);
     card.appendChild(row);
     formEl.parentNode.insertBefore(card, formEl);
+
+    // Arrived from a script page's "Edit with my model" box: the description
+    // travels in ?prompt=. Prefill, wait for the page to load the existing
+    // code into the form, then run the generation.
+    var params = new URLSearchParams(location.search);
+    var carried = params.get("prompt");
+    if (carried) {
+      desc.value = carried;
+      params.delete("prompt");
+      var qs = params.toString();
+      history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+      var expectCode = !!params.get("slug");
+      var waited = 0;
+      var poll = setInterval(function () {
+        var loaded = !expectCode || (document.getElementById("f-code") || {}).value;
+        waited += 400;
+        if (loaded) {
+          clearInterval(poll);
+          generate(desc.value.trim(), btn, status);
+        } else if (waited > 8000) {
+          clearInterval(poll);
+          status("script didn't load — press Generate to run anyway");
+        }
+      }, 400);
+    }
+  }
+
+  function mountScriptPage(slug) {
+    var heading = Array.prototype.find.call(document.querySelectorAll("h2"), function (h) {
+      return /community scan verdicts/i.test(h.textContent);
+    });
+    if (!heading) return;
+    var card = document.createElement("div");
+    card.className = "card";
+    card.style.maxWidth = "42rem";
+    var label = document.createElement("p");
+    label.style.cssText = "margin:0 0 0.5rem;";
+    label.textContent = "Edit with your model (TPX): describe the change you want made to this script.";
+    var desc = document.createElement("textarea");
+    desc.rows = 2;
+    desc.placeholder = "e.g. Also match gitlab.com, and make the button blue";
+    desc.style.cssText =
+      "width:100%; padding:0.5rem 0.75rem; background:#0a0d12; border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:inherit; margin-bottom:0.5rem;";
+    var row = document.createElement("p");
+    row.style.cssText = "display:flex; gap:0.75rem; align-items:center; margin:0;";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn secondary";
+    btn.textContent = "Edit with my model";
+    var out = document.createElement("span");
+    out.className = "muted";
+    btn.addEventListener("click", function () {
+      if (!desc.value.trim()) {
+        out.textContent = "describe the change first";
+        return;
+      }
+      location.href =
+        "/publish?slug=" + encodeURIComponent(slug) + "&prompt=" + encodeURIComponent(desc.value.trim());
+    });
+    row.appendChild(btn);
+    row.appendChild(out);
+    card.appendChild(label);
+    card.appendChild(desc);
+    card.appendChild(row);
+    heading.parentNode.insertBefore(card, heading);
+  }
+
+  function mount() {
+    if (/^\/publish\/?$/.test(location.pathname)) return mountPublish();
+    var m = location.pathname.match(/^\/scripts\/([a-z0-9-]+)$/);
+    if (m) mountScriptPage(m[1]);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
