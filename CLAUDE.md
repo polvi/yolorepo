@@ -14,3 +14,4 @@ Keep Claude.MD updated with the list of projects and what they are for
 - `procauth/` — shared first-party auth surface (passkeys via AuthGravity) for all playground projects, with per-project theming. auth.proc.io
 - `tlc-rs/` — Rust reimplementation of the TLA+ tools (parser + TLC safety checker) running in a Cloudflare Worker as a hosted checking service. tlc.proc.io
 - `happybook/` — local-first PWA for notebooks made of PDFs/EPUBs: highlight, cross-link, passkey sync, plus an account-wide OPDS catalog (password-only Basic auth) for e-readers like KOReader. app.happybook.proc.io
+- `webmtp/` — research: MTP (Media Transfer Protocol) implemented over WebUSB in the browser. Speaks raw PTP containers (OpenSession, GetStorageIDs, GetObjectHandles, GetObjectInfo) against a USB-attached device from Chrome. Milestone 1 (directory listing) works; next is file transfer. Local dev via `bun serve.ts` on :8321.

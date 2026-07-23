@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>webmtp</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #101418; color: #d8dee6; margin: 0; padding: 1.5rem; }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; }
+  h1 span { color: #6a737d; font-weight: normal; }
+  button { font: inherit; background: #2563eb; color: #fff; border: 0;
+           border-radius: 6px; padding: .5rem 1rem; cursor: pointer; }
+  button:disabled { background: #374151; cursor: default; }
+  #status { margin: 1rem 0; color: #93c5fd; }
+  table { border-collapse: collapse; margin: .5rem 0 1.5rem; width: 100%; max-width: 720px; }
+  th, td { text-align: left; padding: .2rem .8rem .2rem 0; border-bottom: 1px solid #1f2937; }
+  th { color: #6a737d; font-weight: normal; }
+  .folder { color: #fbbf24; }
+  #log { background: #0a0d10; border: 1px solid #1f2937; border-radius: 6px;
+         padding: .8rem; white-space: pre-wrap; max-height: 40vh; overflow-y: auto;
+         color: #8b949e; font-size: 12px; }
+  .storage-head { color: #34d399; margin: 1rem 0 .2rem; }
+</style>
+</head>
+<body>
+<h1>webmtp <span>— MTP over WebUSB, research build</span></h1>
+<button id="connect">Connect MTP device</button>
+<div id="status">idle</div>
+<div id="listing"></div>
+<pre id="log"></pre>
+<script src="mtp.js"></script>
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const state = (window.__mtp = { status: 'idle', error: null, deviceInfo: null, storages: [] });
+
+function log(msg) {
+  console.log('[webmtp] ' + msg);
+  $('log').textContent += msg + '\n';
+  $('log').scrollTop = $('log').scrollHeight;
+}
+function setStatus(s) {
+  state.status = s;
+  $('status').textContent = s;
+  log('status: ' + s);
+}
+function fmtSize(n) {
+  if (n >= 1 << 30) return (n / (1 << 30)).toFixed(1) + ' GiB';
+  if (n >= 1 << 20) return (n / (1 << 20)).toFixed(1) + ' MiB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KiB';
+  return n + ' B';
+}
+
+function render() {
+  const el = $('listing');
+  el.innerHTML = '';
+  for (const s of state.storages) {
+    const head = document.createElement('div');
+    head.className = 'storage-head';
+    head.textContent = `storage 0x${s.id.toString(16)} — ${s.description || s.volumeLabel || '(unnamed)'} ` +
+      `(${fmtSize(s.freeSpace)} free of ${fmtSize(s.maxCapacity)})`;
+    el.appendChild(head);
+    const table = document.createElement('table');
+    table.innerHTML = '<tr><th>name</th><th>type</th><th>size</th><th>modified</th></tr>';
+    for (const o of s.objects) {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      name.textContent = o.filename;
+      if (o.isFolder) name.className = 'folder';
+      tr.appendChild(name);
+      const type = document.createElement('td');
+      type.textContent = o.isFolder ? 'folder' : '0x' + o.format.toString(16);
+      tr.appendChild(type);
+      const size = document.createElement('td');
+      size.textContent = o.isFolder ? '' : fmtSize(o.size);
+      tr.appendChild(size);
+      const mod = document.createElement('td');
+      mod.textContent = o.dateModified || '';
+      tr.appendChild(mod);
+      table.appendChild(tr);
+    }
+    el.appendChild(table);
+  }
+}
+
+async function listDevice(usbDevice) {
+  const mtp = new MtpDevice(usbDevice);
+  mtp.log = log;
+  setStatus('opening ' + (usbDevice.productName || 'device'));
+  await mtp.open();
+
+  setStatus('GetDeviceInfo');
+  const info = await mtp.getDeviceInfo();
+  state.deviceInfo = info;
+  log(`device: ${info.manufacturer} ${info.model} (fw ${info.deviceVersion})`);
+  log(`vendor ext: ${info.vendorExtensionDesc}`);
+  log(`operations: ${info.operationsSupported.map((o) => '0x' + o.toString(16)).join(' ')}`);
+
+  setStatus('OpenSession');
+  await mtp.openSession();
+
+  setStatus('GetStorageIDs');
+  const ids = await mtp.getStorageIDs();
+  log('storage IDs: ' + ids.map((i) => '0x' + i.toString(16)).join(' '));
+
+  state.storages = [];
+  for (const id of ids) {
+    if ((id & 0xFFFF) === 0) { log(`storage 0x${id.toString(16)}: media not present, skipping`); continue; }
+    const s = await mtp.getStorageInfo(id);
+    log(`storage 0x${id.toString(16)}: ${s.description || s.volumeLabel}`);
+    setStatus('GetObjectHandles for 0x' + id.toString(16));
+    const handles = await mtp.getObjectHandles(id, 0xFFFFFFFF);
+    log(`root has ${handles.length} objects`);
+    const capped = handles.slice(0, 200);
+    s.objects = [];
+    for (const h of capped) {
+      s.objects.push(await mtp.getObjectInfo(h));
+    }
+    if (handles.length > capped.length) log(`(showing first ${capped.length} of ${handles.length})`);
+    state.storages.push(s);
+    render();
+  }
+  setStatus('done — listed ' + state.storages.reduce((n, s) => n + s.objects.length, 0) + ' objects');
+  window.__mtpDevice = mtp;
+}
+
+async function connect(fromPicker) {
+  try {
+    let device = null;
+    const granted = await navigator.usb.getDevices();
+    if (granted.length && !fromPicker) {
+      device = granted[0];
+      log('using previously granted device: ' + device.productName);
+    } else if (fromPicker) {
+      setStatus('waiting for device picker');
+      device = await navigator.usb.requestDevice({ filters: [] });
+    } else {
+      setStatus('no granted device — click Connect');
+      return;
+    }
+    await listDevice(device);
+  } catch (e) {
+    state.error = String(e);
+    setStatus('error: ' + e.message);
+    console.error('[webmtp]', e);
+    if (/claim/i.test(String(e))) {
+      log('hint: on macOS another process may hold the PTP interface (ptpcamerad / Image Capture / Photos).');
+    }
+  }
+}
+
+$('connect').addEventListener('click', () => connect(true));
+if (!navigator.usb) {
+  setStatus('WebUSB not available in this browser');
+} else {
+  connect(false);
+}
+</script>
+</body>
+</html>
