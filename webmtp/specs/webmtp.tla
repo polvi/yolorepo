@@ -1,7 +1,7 @@
 ---------------------------- MODULE webmtp ----------------------------
 (***************************************************************************)
 (* MTP (Media Transfer Protocol, over the PTP/USB transport) transaction   *)
-(* and session state machine as implemented by the initiator in mtp.js.    *)
+(* and session state machine as implemented by the initiator in mtp.ts.    *)
 (*                                                                         *)
 (* An initiator (browser, via WebUSB) and a responder (device) exchange    *)
 (* containers over a pair of bulk pipes.  Each transaction is              *)
@@ -12,8 +12,8 @@
 (* absent for DeleteObject and the session operations.                     *)
 (*                                                                         *)
 (* Transaction IDs increase per session (OpenSession resets the counter    *)
-(* to 0, matching MtpDevice.openSession()), and transaction() now rejects  *)
-(* a RESPONSE container whose tid differs from the command's tid           *)
+(* to 0, matching MtpDevice.openSession()), and transaction() rejects a    *)
+(* RESPONSE container whose tid differs from the command's tid             *)
 (* (RecvRespBadTid, a thrown Error); NoTransportFailure shows this path    *)
 (* is unreachable against a conforming responder.                          *)
 (*                                                                         *)
@@ -21,12 +21,19 @@
 (* ops -> CloseSession.  GetDeviceInfo is allowed outside a session.  The  *)
 (* device may start with a stale open session (devSession = TRUE           *)
 (* initially), answered with SessionAlreadyOpen; the initiator recovers by *)
-(* closing and reopening, exactly as openSession() does in mtp.js.         *)
+(* closing and reopening, exactly as openSession() does in mtp.ts.         *)
 (*                                                                         *)
-(* Object upload is a paired sequence: SendObjectInfo announces the        *)
-(* object, and SendObject is only valid immediately after a successful     *)
-(* SendObjectInfo (the responder answers NoValidObjectInfo otherwise, and  *)
-(* any intervening operation invalidates the pending info).                *)
+(* SendObjectInfo comes in two flavors distinguished by the ObjectInfo     *)
+(* dataset's format code:                                                  *)
+(*   - file-flavored (sendObject() in mtp.ts): announces incoming bytes;   *)
+(*     SendObject must follow immediately, and the responder holds the     *)
+(*     ObjectInfo as pending until it does.                                *)
+(*   - folder-flavored (createFolder() in mtp.ts, format = Association):   *)
+(*     a complete, terminal operation on its own.  No SendObject follows,  *)
+(*     and it clears any notion of pending file info on the responder.     *)
+(* SendObject without an immediately preceding successful file-flavored    *)
+(* SendObjectInfo is answered NoValidObjectInfo; the initiator never       *)
+(* issues that sequence.                                                   *)
 (***************************************************************************)
 EXTENDS Naturals, Sequences
 
@@ -35,27 +42,30 @@ CONSTANT MaxTid  \* Bound on the tid counter; sent tids stay in 0..MaxTid-1.
 VARIABLES
   pc,          \* initiator program counter (which command comes next)
   phase,       \* "ready" (may send) or "await" (transaction outstanding)
-  nextTid,     \* initiator's tid counter (this.tid in mtp.js)
+  nextTid,     \* initiator's tid counter (this.tid in mtp.ts)
   gotData,     \* initiator consumed a Data container this transaction
-  objInfoDone, \* initiator: SendObjectInfo succeeded, SendObject may follow
+  objInfoDone, \* initiator: file SendObjectInfo succeeded, SendObject may follow
   outCmd,      \* the outstanding command from the initiator's view
   cmdPipe,     \* bulk-out pipe: commands and I->R data heading to the device
   respPipe,    \* bulk-in pipe: containers heading to the initiator
   devSession,  \* responder-side session state
-  devObjInfo   \* responder holds a valid ObjectInfo awaiting SendObject
+  devObjInfo   \* responder holds a valid FILE ObjectInfo awaiting SendObject
 
 vars == <<pc, phase, nextTid, gotData, objInfoDone, outCmd,
           cmdPipe, respPipe, devSession, devObjInfo>>
 
 NoCmd      == [op |-> "none", tid |-> 0]
 DataInOps  == {"GetDeviceInfo", "GetStorageIDs"}    \* responder -> initiator
-DataOutOps == {"SendObjectInfo", "SendObject"}      \* initiator -> responder
-SessionOps == {"GetStorageIDs", "SendObjectInfo", "SendObject", "DeleteObject"}
+\* Initiator -> responder data phase.  Both SendObjectInfo flavors carry an
+\* ObjectInfo dataset; SendObject carries the object bytes.
+DataOutOps == {"SendObjectInfoFile", "SendObjectInfoFolder", "SendObject"}
+SessionOps == {"GetStorageIDs", "SendObjectInfoFile", "SendObjectInfoFolder",
+               "SendObject", "DeleteObject"}
 AllOps     == {"GetDeviceInfo", "OpenSession", "CloseSession"} \cup SessionOps
 RCs        == {"OK", "SessionAlreadyOpen", "SessionNotOpen",
                "NoValidObjectInfo", "none"}
 PCs        == {"maybeInfo", "open", "recoverClose", "recoverOpen",
-               "getStorage", "sendObjInfo", "sendObj", "delete",
+               "getStorage", "mkFolder", "sendObjInfo", "sendObj", "delete",
                "close", "done", "failed"}
 
 Cmd(o, t)     == [kind |-> "CMD",  op |-> o,      rc |-> "none", tid |-> t]
@@ -80,14 +90,16 @@ Init ==
   /\ devObjInfo = FALSE
 
 \* Which operation the initiator issues at each program point: the app flow
-\* GetDeviceInfo? -> OpenSession -> GetStorageIDs -> sendObject() (which is
+\* GetDeviceInfo? -> OpenSession -> GetStorageIDs -> createFolder() (a
+\* standalone folder-flavored SendObjectInfo) -> sendObject() (file-flavored
 \* SendObjectInfo then SendObject) -> DeleteObject -> CloseSession.
 OpFor(p) ==
   CASE p \in {"open", "recoverOpen"}   -> "OpenSession"
     [] p \in {"recoverClose", "close"} -> "CloseSession"
     [] p = "maybeInfo"                 -> "GetDeviceInfo"
     [] p = "getStorage"                -> "GetStorageIDs"
-    [] p = "sendObjInfo"               -> "SendObjectInfo"
+    [] p = "mkFolder"                  -> "SendObjectInfoFolder"
+    [] p = "sendObjInfo"               -> "SendObjectInfoFile"
     [] p = "sendObj"                   -> "SendObject"
     [] p = "delete"                    -> "DeleteObject"
 
@@ -97,8 +109,9 @@ OpFor(p) ==
 
 \* transaction(): send a command container with tid = this.tid++, followed
 \* immediately by an I->R DATA container when the operation carries dataOut
-\* (SendObjectInfo's ObjectInfo dataset, SendObject's bytes).  openSession()
-\* first resets this.tid to 0, so OpenSession always goes out with tid 0.
+\* (either SendObjectInfo flavor's ObjectInfo dataset, SendObject's bytes).
+\* openSession() first resets this.tid to 0, so OpenSession goes out with
+\* tid 0.
 Send ==
   /\ phase = "ready"
   /\ pc \notin {"done", "failed"}
@@ -131,7 +144,8 @@ NextPC(p, rc) ==
                                   THEN "recoverClose" ELSE "failed"
     [] p = "recoverClose" -> IF rc = "OK" THEN "recoverOpen" ELSE "failed"
     [] p = "recoverOpen"  -> IF rc = "OK" THEN "getStorage"  ELSE "failed"
-    [] p = "getStorage"   -> IF rc = "OK" THEN "sendObjInfo" ELSE "failed"
+    [] p = "getStorage"   -> IF rc = "OK" THEN "mkFolder"    ELSE "failed"
+    [] p = "mkFolder"     -> IF rc = "OK" THEN "sendObjInfo" ELSE "failed"
     [] p = "sendObjInfo"  -> IF rc = "OK" THEN "sendObj"     ELSE "failed"
     [] p = "sendObj"      -> IF rc = "OK" THEN "delete"      ELSE "failed"
     [] p = "delete"       -> IF rc = "OK" THEN "close"       ELSE "failed"
@@ -162,19 +176,23 @@ RecvUnexpectedData ==
   /\ UNCHANGED <<nextTid, gotData, objInfoDone, cmdPipe, devSession, devObjInfo>>
 
 \* Response container with the matching tid completes the transaction.
-\* A successful SendObjectInfo arms the SendObject that must follow;
-\* anything else that finishes clears the pairing on the initiator side.
+\* A successful FILE SendObjectInfo arms the SendObject that must follow.
+\* A folder SendObjectInfo is terminal: it never arms SendObject, and it
+\* clears any stale pairing state.  Anything else that finishes the pair
+\* (or the session boundary) clears the pairing on the initiator side.
 RecvResp ==
   /\ phase = "await"
   /\ respPipe /= <<>>
   /\ Head(respPipe).kind = "RESP"
   /\ Head(respPipe).tid = outCmd.tid
   /\ pc' = NextPC(pc, Head(respPipe).rc)
-  /\ objInfoDone' = IF outCmd.op = "SendObjectInfo" /\ Head(respPipe).rc = "OK"
+  /\ objInfoDone' = IF outCmd.op = "SendObjectInfoFile"
+                       /\ Head(respPipe).rc = "OK"
                     THEN TRUE
-                    ELSE IF outCmd.op = "SendObjectInfo"
-                             \/ outCmd.op \in {"SendObject", "OpenSession",
-                                               "CloseSession"}
+                    ELSE IF outCmd.op \in {"SendObjectInfoFile",
+                                           "SendObjectInfoFolder",
+                                           "SendObject", "OpenSession",
+                                           "CloseSession"}
                     THEN FALSE
                     ELSE objInfoDone
   /\ phase' = "ready"
@@ -183,7 +201,7 @@ RecvResp ==
   /\ respPipe' = Tail(respPipe)
   /\ UNCHANGED <<nextTid, cmdPipe, devSession, devObjInfo>>
 
-\* transaction() now compares the RESPONSE container's tid against the
+\* transaction() compares the RESPONSE container's tid against the
 \* command's tid and throws on mismatch (stale container on the pipe)
 \* instead of accepting the response.  Against a conforming responder this
 \* action is never enabled -- NoTransportFailure proves it.
@@ -202,9 +220,10 @@ RecvRespBadTid ==
 (***************************************************************************)
 (* Responder (device) action: consume a command (plus its I->R data phase  *)
 (* when the operation has one), produce optional R->I Data then a          *)
-(* Response, echoing the command's transaction ID.  A successful           *)
-(* SendObjectInfo leaves the responder holding a valid ObjectInfo; any     *)
-(* other operation clears it, and SendObject without it is answered with   *)
+(* Response, echoing the command's transaction ID.  A successful FILE      *)
+(* SendObjectInfo leaves the responder holding a valid ObjectInfo; a       *)
+(* folder SendObjectInfo completes immediately and clears it; any other    *)
+(* operation clears it, and SendObject without it is answered with         *)
 (* NoValidObjectInfo.                                                      *)
 (***************************************************************************)
 DevHandle ==
@@ -247,7 +266,7 @@ DevHandle ==
                                ELSE Append(respPipe,
                                            RespC("SessionNotOpen", c.tid))
                 /\ UNCHANGED devSession
-            [] c.op = "SendObjectInfo" ->
+            [] c.op = "SendObjectInfoFile" ->
                 \* I->R data phase already drained above; on success the
                 \* responder now expects SendObject next.
                 /\ IF devSession
@@ -256,6 +275,16 @@ DevHandle ==
                    ELSE /\ devObjInfo' = FALSE
                         /\ respPipe' = Append(respPipe,
                                               RespC("SessionNotOpen", c.tid))
+                /\ UNCHANGED devSession
+            [] c.op = "SendObjectInfoFolder" ->
+                \* Association format: the object (folder) is complete with
+                \* this transaction alone.  No pending file info is set --
+                \* and any previously pending file info is invalidated.
+                /\ devObjInfo' = FALSE
+                /\ respPipe' = IF devSession
+                               THEN Append(respPipe, RespC("OK", c.tid))
+                               ELSE Append(respPipe,
+                                           RespC("SessionNotOpen", c.tid))
                 /\ UNCHANGED devSession
             [] c.op = "SendObject" ->
                 /\ devObjInfo' = FALSE  \* consumed (or rejected) either way
@@ -309,10 +338,12 @@ TypeOK ==
   /\ devObjInfo \in BOOLEAN
 
 \* The initiator never has to treat an unexpected container as a
-\* response, no operation it issues is rejected, and the new tid check in
-\* transaction() never fires: pc "failed" (a thrown Error in mtp.js) is
+\* response, no operation it issues is rejected, and the tid check in
+\* transaction() never fires: pc "failed" (a thrown Error in mtp.ts) is
 \* unreachable against a spec-conforming device, including the
-\* stale-session start.
+\* stale-session start.  In particular NoValidObjectInfo is unreachable:
+\* the standalone folder SendObjectInfo never leads the initiator into an
+\* unpaired SendObject.
 NoTransportFailure == pc /= "failed"
 
 \* Every container heading to the initiator carries the transaction ID of
@@ -367,12 +398,22 @@ DataDirectionOK ==
          /\ cmdPipe[i-1].tid = cmdPipe[i].tid
 
 \* Pairing: the initiator never issues SendObject without a successful
-\* SendObjectInfo earlier in the current session, and whenever SendObject
-\* is in flight the responder is still holding that valid ObjectInfo (no
-\* operation slipped in between), so NoValidObjectInfo is unreachable.
+\* FILE-flavored SendObjectInfo as the immediately preceding operation,
+\* and whenever SendObject is in flight the responder is still holding
+\* that valid file ObjectInfo (no operation slipped in between), so
+\* NoValidObjectInfo is unreachable.
 SendObjectPaired ==
   /\ outCmd.op = "SendObject" => objInfoDone
   /\ \A i \in 1..Len(cmdPipe) :
        cmdPipe[i].op = "SendObject" => (objInfoDone /\ devObjInfo)
+
+\* A folder-flavored SendObjectInfo is terminal: right after createFolder()
+\* completes (pc has advanced past mkFolder with the transaction drained),
+\* neither side holds pending file object info -- the folder flavor never
+\* arms a SendObject.
+FolderInfoNeverArms ==
+  /\ (pc = "sendObjInfo" /\ phase = "ready") =>
+       (~objInfoDone /\ ~devObjInfo)
+  /\ outCmd.op = "SendObjectInfoFolder" => ~objInfoDone
 
 =======================================================================
