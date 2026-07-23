@@ -31,6 +31,12 @@ import Base from "../../layouts/Base.astro";
       try {
         new BroadcastChannel("om-tpx-oauth").postMessage(JSON.parse(payload));
       } catch {}
+      // Cross-origin openers (userscripts granting from arbitrary sites) can't
+      // see this origin's storage; hand the payload to the opener directly.
+      // "*" is fine: the code is useless without the opener's PKCE verifier.
+      try {
+        if (window.opener) window.opener.postMessage(JSON.parse(payload), "*");
+      } catch {}
       msg.textContent = p.get("error")
         ? `Grant failed: ${p.get("error_description") ?? p.get("error")}`
         : "Grant complete — you can close this window.";

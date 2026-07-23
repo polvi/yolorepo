@@ -31,7 +31,17 @@ import Base from "../layouts/Base.astro";
     described in <a href="/llms.txt">/llms.txt</a>.
   </p>
   <p style="max-width:42rem;">
-    Don't want to write it by hand? Install
+    The shortest path of all: install
+    <a href="/scripts?q=anywhere">openmonkey anywhere (TPX)</a>, go to the page you
+    want to change, and open its panel (your manager's menu command, or the floating
+    🐵 button). Describe the change; the model sees the page you're on — URL, title,
+    real DOM — generates a script with working selectors, publishes it here, and
+    opens it for install. It matches every site by necessity, which by our own norm
+    earns it a <span class="badge warn">warn</span>: scan it, and see that it talks
+    only to TPX and this registry, only when you ask.
+  </p>
+  <p style="max-width:42rem;">
+    Prefer starting from the registry? Install
     <a href="/scripts?q=composer">openmonkey composer (TPX)</a>: it adds a
     "Generate with my model" box to the publish page and an "Edit with my model"
     box to every script page. Describe the script you want, or the change you want
