@@ -16,10 +16,16 @@
   #toolbar { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
   input[type=file] { color: #8b949e; }
   #status { margin: 1rem 0; color: #93c5fd; }
+  #crumbs { margin: 1rem 0 0; }
+  #crumbs a { color: #34d399; cursor: pointer; text-decoration: none; }
+  #crumbs a:hover { text-decoration: underline; }
+  #crumbs .sep { color: #6a737d; padding: 0 .35rem; }
+  #crumbs .here { color: #d8dee6; }
   table { border-collapse: collapse; margin: .5rem 0 1.5rem; width: 100%; max-width: 800px; }
   th, td { text-align: left; padding: .2rem .8rem .2rem 0; border-bottom: 1px solid #1f2937; }
   th { color: #6a737d; font-weight: normal; }
-  .folder { color: #fbbf24; }
+  a.folder { color: #fbbf24; cursor: pointer; text-decoration: none; }
+  a.folder:hover { text-decoration: underline; }
   a.act { color: #60a5fa; cursor: pointer; text-decoration: underline; }
   a.act.danger { color: #f87171; }
   #log { background: #0a0d10; border: 1px solid #1f2937; border-radius: 6px;
@@ -36,6 +42,7 @@
   <input type="file" id="file">
   <button id="upload" disabled>Send to device</button>
 </div>
+<div id="crumbs"></div>
 <div id="status">idle</div>
 <div id="listing"></div>
 <pre id="log"></pre>
@@ -43,8 +50,15 @@
 <script>
 'use strict';
 
+const ROOT_PARENT = 0xFFFFFFFF;
+
 const $ = (id) => document.getElementById(id);
-const state = (window.__mtp = { status: 'idle', error: null, deviceInfo: null, storages: [] });
+const state = (window.__mtp = {
+  status: 'idle', error: null, deviceInfo: null, storages: [],
+  // cwd: null = overview of every storage's root; otherwise
+  // {storageId, path: [{handle, name}, ...]} where an empty path is a storage root.
+  cwd: null, cwdObjects: [],
+});
 
 function log(msg) {
   console.log('[webmtp] ' + msg);
@@ -73,58 +87,137 @@ function fmtSize(n) {
   return n + ' B';
 }
 
+function storageById(id) {
+  return state.storages.find((s) => s.id === id);
+}
+function breadcrumbText() {
+  if (!state.cwd) return '/';
+  const s = storageById(state.cwd.storageId);
+  return '/' + [s ? (s.description || s.volumeLabel || 'storage') : '?',
+                ...state.cwd.path.map((p) => p.name)].join('/');
+}
+
+function renderCrumbs() {
+  const el = $('crumbs');
+  el.innerHTML = '';
+  const rootLink = document.createElement('a');
+  rootLink.textContent = 'device';
+  rootLink.onclick = () => navigateTo(null).catch(fail);
+  el.appendChild(rootLink);
+  if (!state.cwd) return;
+  const s = storageById(state.cwd.storageId);
+  const segs = [{ name: s ? (s.description || s.volumeLabel || 'storage') : '?', depth: 0 },
+                ...state.cwd.path.map((p, i) => ({ name: p.name, depth: i + 1 }))];
+  for (const seg of segs) {
+    const sep = document.createElement('span');
+    sep.className = 'sep';
+    sep.textContent = '/';
+    el.appendChild(sep);
+    const last = seg.depth === segs.length - 1;
+    if (last) {
+      const here = document.createElement('span');
+      here.className = 'here';
+      here.textContent = seg.name;
+      el.appendChild(here);
+    } else {
+      const a = document.createElement('a');
+      a.textContent = seg.name;
+      a.onclick = () => navigateTo(seg.depth).catch(fail);
+      el.appendChild(a);
+    }
+  }
+}
+
+function objectTable(storage, objects) {
+  const table = document.createElement('table');
+  table.innerHTML = '<tr><th>name</th><th>type</th><th>size</th><th>modified</th><th></th></tr>';
+  const sorted = [...objects].sort((a, b) =>
+    (b.isFolder - a.isFolder) || a.filename.localeCompare(b.filename));
+  for (const o of sorted) {
+    const tr = document.createElement('tr');
+    const name = document.createElement('td');
+    if (o.isFolder) {
+      const a = document.createElement('a');
+      a.className = 'folder';
+      a.textContent = o.filename + '/';
+      a.onclick = () => enterFolder(storage.id, o).catch(fail);
+      name.appendChild(a);
+    } else {
+      name.textContent = o.filename;
+    }
+    tr.appendChild(name);
+    const type = document.createElement('td');
+    type.textContent = o.isFolder ? 'folder' : '0x' + o.format.toString(16);
+    tr.appendChild(type);
+    const size = document.createElement('td');
+    size.textContent = o.isFolder ? '' : fmtSize(o.size);
+    tr.appendChild(size);
+    const mod = document.createElement('td');
+    mod.textContent = o.dateModified || '';
+    tr.appendChild(mod);
+    const act = document.createElement('td');
+    if (!o.isFolder) {
+      const get = document.createElement('a');
+      get.className = 'act';
+      get.textContent = 'get';
+      get.onclick = () => downloadObject(o).catch(fail);
+      act.appendChild(get);
+      act.appendChild(document.createTextNode(' '));
+      const del = document.createElement('a');
+      del.className = 'act danger';
+      del.textContent = 'del';
+      del.onclick = () => {
+        if (confirm('Delete ' + o.filename + ' from the device?')) {
+          deleteObject(o).catch(fail);
+        }
+      };
+      act.appendChild(del);
+    }
+    tr.appendChild(act);
+    table.appendChild(tr);
+  }
+  return table;
+}
+
 function render() {
+  renderCrumbs();
   const el = $('listing');
   el.innerHTML = '';
+  if (state.cwd) {
+    el.appendChild(objectTable(storageById(state.cwd.storageId), state.cwdObjects));
+    return;
+  }
   for (const s of state.storages) {
     const head = document.createElement('div');
     head.className = 'storage-head';
     head.textContent = `storage 0x${s.id.toString(16)} — ${s.description || s.volumeLabel || '(unnamed)'} ` +
       `(${fmtSize(s.freeSpace)} free of ${fmtSize(s.maxCapacity)})`;
     el.appendChild(head);
-    const table = document.createElement('table');
-    table.innerHTML = '<tr><th>name</th><th>type</th><th>size</th><th>modified</th><th></th></tr>';
-    for (const o of s.objects) {
-      const tr = document.createElement('tr');
-      const name = document.createElement('td');
-      name.textContent = o.filename;
-      if (o.isFolder) name.className = 'folder';
-      tr.appendChild(name);
-      const type = document.createElement('td');
-      type.textContent = o.isFolder ? 'folder' : '0x' + o.format.toString(16);
-      tr.appendChild(type);
-      const size = document.createElement('td');
-      size.textContent = o.isFolder ? '' : fmtSize(o.size);
-      tr.appendChild(size);
-      const mod = document.createElement('td');
-      mod.textContent = o.dateModified || '';
-      tr.appendChild(mod);
-      const act = document.createElement('td');
-      if (!o.isFolder) {
-        const get = document.createElement('a');
-        get.className = 'act';
-        get.textContent = 'get';
-        get.onclick = () => downloadObject(o).catch(fail);
-        act.appendChild(get);
-        act.appendChild(document.createTextNode(' '));
-        const del = document.createElement('a');
-        del.className = 'act danger';
-        del.textContent = 'del';
-        del.onclick = () => {
-          if (confirm('Delete ' + o.filename + ' from the device?')) {
-            deleteObject(o).catch(fail);
-          }
-        };
-        act.appendChild(del);
-      }
-      tr.appendChild(act);
-      table.appendChild(tr);
-    }
-    el.appendChild(table);
+    el.appendChild(objectTable(s, s.objects));
   }
 }
 
+async function listObjects(storageId, parent) {
+  const mtp = window.__mtpDevice;
+  const handles = await mtp.getObjectHandles(storageId, parent);
+  const capped = handles.slice(0, 500);
+  const objects = [];
+  for (const h of capped) objects.push(await mtp.getObjectInfo(h));
+  if (handles.length > capped.length) log(`(showing first ${capped.length} of ${handles.length})`);
+  return objects;
+}
+
+async function loadCwd() {
+  const { storageId, path } = state.cwd;
+  const parent = path.length ? path[path.length - 1].handle : ROOT_PARENT;
+  setStatus('listing ' + breadcrumbText());
+  state.cwdObjects = await listObjects(storageId, parent);
+  render();
+  setStatus(`${breadcrumbText()} — ${state.cwdObjects.length} objects`);
+}
+
 async function refresh() {
+  if (state.cwd) return loadCwd();
   const mtp = window.__mtpDevice;
   setStatus('GetStorageIDs');
   const ids = await mtp.getStorageIDs();
@@ -132,16 +225,28 @@ async function refresh() {
   for (const id of ids) {
     if ((id & 0xFFFF) === 0) { log(`storage 0x${id.toString(16)}: media not present, skipping`); continue; }
     const s = await mtp.getStorageInfo(id);
-    setStatus('GetObjectHandles for 0x' + id.toString(16));
-    const handles = await mtp.getObjectHandles(id, 0xFFFFFFFF);
-    const capped = handles.slice(0, 200);
-    s.objects = [];
-    for (const h of capped) s.objects.push(await mtp.getObjectInfo(h));
-    if (handles.length > capped.length) log(`(showing first ${capped.length} of ${handles.length})`);
+    setStatus('listing root of 0x' + id.toString(16));
+    s.objects = await listObjects(id, ROOT_PARENT);
     state.storages.push(s);
     render();
   }
-  setStatus('done — listed ' + state.storages.reduce((n, s) => n + s.objects.length, 0) + ' objects');
+  setStatus('/ — ' + state.storages.reduce((n, s) => n + s.objects.length, 0) + ' objects');
+}
+
+async function enterFolder(storageId, o) {
+  const samePath = state.cwd && state.cwd.storageId === storageId ? state.cwd.path : [];
+  state.cwd = { storageId, path: [...samePath, { handle: o.handle, name: o.filename }] };
+  await loadCwd();
+}
+
+// depth: null = storages overview, 0 = storage root, n = nth folder in the path.
+async function navigateTo(depth) {
+  if (depth === null) {
+    state.cwd = null;
+    return refresh();
+  }
+  state.cwd.path = state.cwd.path.slice(0, depth);
+  await loadCwd();
 }
 
 async function downloadObject(o) {
@@ -167,10 +272,12 @@ async function deleteObject(o) {
   await refresh();
 }
 
-async function uploadBytes(filename, bytes, parent = 0xFFFFFFFF) {
+async function uploadBytes(filename, bytes) {
   const mtp = window.__mtpDevice;
-  const sid = state.storages[0].id;
-  setStatus(`SendObject ${filename} (${fmtSize(bytes.byteLength)})`);
+  const sid = state.cwd ? state.cwd.storageId : state.storages[0].id;
+  const parent = state.cwd && state.cwd.path.length
+    ? state.cwd.path[state.cwd.path.length - 1].handle : ROOT_PARENT;
+  setStatus(`SendObject ${filename} (${fmtSize(bytes.byteLength)}) to ${breadcrumbText()}`);
   const t0 = performance.now();
   const handle = await mtp.sendObject(sid, parent, filename, bytes);
   const ms = Math.round(performance.now() - t0);
@@ -233,6 +340,8 @@ $('upload').addEventListener('click', async () => {
 // Automation/debug surface.
 window.__mtpApi = {
   refresh,
+  enterFolder,
+  navigateTo,
   getBytes: (handle) => window.__mtpDevice.getObject(handle),
   download: downloadObject,
   uploadBytes,
