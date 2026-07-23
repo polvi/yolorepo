@@ -4,44 +4,64 @@
 (* and session state machine as implemented by the initiator in mtp.js.    *)
 (*                                                                         *)
 (* An initiator (browser, via WebUSB) and a responder (device) exchange    *)
-(* containers over a bulk pipe.  Each transaction is Command -> optional   *)
-(* Data -> Response, with per-session monotonically increasing             *)
-(* transaction IDs (OpenSession resets the counter to 0, matching         *)
-(* MtpDevice.openSession()).                                               *)
+(* containers over a pair of bulk pipes.  Each transaction is              *)
+(* Command -> optional Data -> Response, where the data phase runs in one  *)
+(* direction chosen by the operation: responder->initiator for reads       *)
+(* (GetDeviceInfo, GetStorageIDs), initiator->responder for writes         *)
+(* (SendObjectInfo, SendObject, via transaction()'s dataOut argument), and *)
+(* absent for DeleteObject and the session operations.                     *)
 (*                                                                         *)
-(* Session lifecycle: no session -> OpenSession(1) -> session-required    *)
-(* ops (GetStorageIDs, GetObjectInfo) -> CloseSession.  GetDeviceInfo is   *)
-(* allowed outside a session.  The device may start with a stale open      *)
-(* session (devSession = TRUE initially), in which case OpenSession is     *)
-(* answered with SessionAlreadyOpen and the initiator recovers by closing  *)
-(* and reopening, exactly as openSession() does in mtp.js.                 *)
+(* Transaction IDs increase per session (OpenSession resets the counter    *)
+(* to 0, matching MtpDevice.openSession()), and transaction() now rejects  *)
+(* a RESPONSE container whose tid differs from the command's tid           *)
+(* (RecvRespBadTid, a thrown Error); NoTransportFailure shows this path    *)
+(* is unreachable against a conforming responder.                          *)
+(*                                                                         *)
+(* Session lifecycle: no session -> OpenSession(1) -> session-required     *)
+(* ops -> CloseSession.  GetDeviceInfo is allowed outside a session.  The  *)
+(* device may start with a stale open session (devSession = TRUE           *)
+(* initially), answered with SessionAlreadyOpen; the initiator recovers by *)
+(* closing and reopening, exactly as openSession() does in mtp.js.         *)
+(*                                                                         *)
+(* Object upload is a paired sequence: SendObjectInfo announces the        *)
+(* object, and SendObject is only valid immediately after a successful     *)
+(* SendObjectInfo (the responder answers NoValidObjectInfo otherwise, and  *)
+(* any intervening operation invalidates the pending info).                *)
 (***************************************************************************)
 EXTENDS Naturals, Sequences
 
 CONSTANT MaxTid  \* Bound on the tid counter; sent tids stay in 0..MaxTid-1.
 
 VARIABLES
-  pc,         \* initiator program counter (which command comes next)
-  phase,      \* "ready" (may send) or "await" (transaction outstanding)
-  nextTid,    \* initiator's tid counter (this.tid in mtp.js)
-  gotData,    \* initiator consumed a Data container this transaction
-  outCmd,     \* the outstanding command from the initiator's view
-  cmdPipe,    \* bulk-out pipe: commands in flight to the device
-  respPipe,   \* bulk-in pipe: containers in flight to the initiator
-  devSession  \* device-side session state
+  pc,          \* initiator program counter (which command comes next)
+  phase,       \* "ready" (may send) or "await" (transaction outstanding)
+  nextTid,     \* initiator's tid counter (this.tid in mtp.js)
+  gotData,     \* initiator consumed a Data container this transaction
+  objInfoDone, \* initiator: SendObjectInfo succeeded, SendObject may follow
+  outCmd,      \* the outstanding command from the initiator's view
+  cmdPipe,     \* bulk-out pipe: commands and I->R data heading to the device
+  respPipe,    \* bulk-in pipe: containers heading to the initiator
+  devSession,  \* responder-side session state
+  devObjInfo   \* responder holds a valid ObjectInfo awaiting SendObject
 
-vars == <<pc, phase, nextTid, gotData, outCmd, cmdPipe, respPipe, devSession>>
+vars == <<pc, phase, nextTid, gotData, objInfoDone, outCmd,
+          cmdPipe, respPipe, devSession, devObjInfo>>
 
 NoCmd      == [op |-> "none", tid |-> 0]
-SessionOps == {"GetStorageIDs", "GetObjectInfo"}
+DataInOps  == {"GetDeviceInfo", "GetStorageIDs"}    \* responder -> initiator
+DataOutOps == {"SendObjectInfo", "SendObject"}      \* initiator -> responder
+SessionOps == {"GetStorageIDs", "SendObjectInfo", "SendObject", "DeleteObject"}
 AllOps     == {"GetDeviceInfo", "OpenSession", "CloseSession"} \cup SessionOps
-RCs        == {"OK", "SessionAlreadyOpen", "SessionNotOpen", "none"}
+RCs        == {"OK", "SessionAlreadyOpen", "SessionNotOpen",
+               "NoValidObjectInfo", "none"}
 PCs        == {"maybeInfo", "open", "recoverClose", "recoverOpen",
-               "getStorage", "getObjInfo", "close", "done", "failed"}
+               "getStorage", "sendObjInfo", "sendObj", "delete",
+               "close", "done", "failed"}
 
-Cmd(o, t)   == [kind |-> "CMD",  op |-> o,      rc |-> "none", tid |-> t]
-DataC(t)    == [kind |-> "DATA", op |-> "none", rc |-> "none", tid |-> t]
-RespC(r, t) == [kind |-> "RESP", op |-> "none", rc |-> r,      tid |-> t]
+Cmd(o, t)     == [kind |-> "CMD",  op |-> o,      rc |-> "none", tid |-> t]
+DataOutC(o,t) == [kind |-> "DATA", op |-> o,      rc |-> "none", tid |-> t]
+DataC(t)      == [kind |-> "DATA", op |-> "none", rc |-> "none", tid |-> t]
+RespC(r, t)   == [kind |-> "RESP", op |-> "none", rc |-> r,      tid |-> t]
 
 Containers ==
   [kind : {"CMD", "DATA", "RESP"}, op : AllOps \cup {"none"},
@@ -52,43 +72,54 @@ Init ==
   /\ phase = "ready"
   /\ nextTid = 0
   /\ gotData = FALSE
+  /\ objInfoDone = FALSE
   /\ outCmd = NoCmd
   /\ cmdPipe = <<>>
   /\ respPipe = <<>>
   /\ devSession \in BOOLEAN  \* TRUE models a stale session left by a crash
+  /\ devObjInfo = FALSE
 
-\* Which operation the initiator issues at each program point.
+\* Which operation the initiator issues at each program point: the app flow
+\* GetDeviceInfo? -> OpenSession -> GetStorageIDs -> sendObject() (which is
+\* SendObjectInfo then SendObject) -> DeleteObject -> CloseSession.
 OpFor(p) ==
   CASE p \in {"open", "recoverOpen"}   -> "OpenSession"
     [] p \in {"recoverClose", "close"} -> "CloseSession"
     [] p = "maybeInfo"                 -> "GetDeviceInfo"
     [] p = "getStorage"                -> "GetStorageIDs"
-    [] p = "getObjInfo"                -> "GetObjectInfo"
+    [] p = "sendObjInfo"               -> "SendObjectInfo"
+    [] p = "sendObj"                   -> "SendObject"
+    [] p = "delete"                    -> "DeleteObject"
 
 (***************************************************************************)
 (* Initiator actions                                                       *)
 (***************************************************************************)
 
-\* transaction(): send a command container with tid = this.tid++.
-\* openSession() first resets this.tid to 0, so OpenSession always goes
-\* out with tid 0 and the first in-session operation with tid 1.
+\* transaction(): send a command container with tid = this.tid++, followed
+\* immediately by an I->R DATA container when the operation carries dataOut
+\* (SendObjectInfo's ObjectInfo dataset, SendObject's bytes).  openSession()
+\* first resets this.tid to 0, so OpenSession always goes out with tid 0.
 Send ==
   /\ phase = "ready"
   /\ pc \notin {"done", "failed"}
-  /\ LET t == IF OpFor(pc) = "OpenSession" THEN 0 ELSE nextTid
-     IN /\ cmdPipe' = Append(cmdPipe, Cmd(OpFor(pc), t))
-        /\ outCmd' = [op |-> OpFor(pc), tid |-> t]
+  /\ LET o == OpFor(pc)
+         t == IF o = "OpenSession" THEN 0 ELSE nextTid
+     IN /\ cmdPipe' = IF o \in DataOutOps
+                      THEN cmdPipe \o <<Cmd(o, t), DataOutC(o, t)>>
+                      ELSE Append(cmdPipe, Cmd(o, t))
+        /\ outCmd' = [op |-> o, tid |-> t]
         /\ nextTid' = t + 1
   /\ phase' = "await"
   /\ gotData' = FALSE
-  /\ UNCHANGED <<pc, respPipe, devSession>>
+  /\ UNCHANGED <<pc, objInfoDone, respPipe, devSession, devObjInfo>>
 
 \* GetDeviceInfo before OpenSession is optional in the app flow.
 SkipInfo ==
   /\ pc = "maybeInfo"
   /\ phase = "ready"
   /\ pc' = "open"
-  /\ UNCHANGED <<phase, nextTid, gotData, outCmd, cmdPipe, respPipe, devSession>>
+  /\ UNCHANGED <<phase, nextTid, gotData, objInfoDone, outCmd,
+                 cmdPipe, respPipe, devSession, devObjInfo>>
 
 \* Where the initiator goes after a response with code rc, mirroring
 \* openSession()'s SessionAlreadyOpen recovery and expectOk()'s throw
@@ -100,11 +131,13 @@ NextPC(p, rc) ==
                                   THEN "recoverClose" ELSE "failed"
     [] p = "recoverClose" -> IF rc = "OK" THEN "recoverOpen" ELSE "failed"
     [] p = "recoverOpen"  -> IF rc = "OK" THEN "getStorage"  ELSE "failed"
-    [] p = "getStorage"   -> IF rc = "OK" THEN "getObjInfo"  ELSE "failed"
-    [] p = "getObjInfo"   -> IF rc = "OK" THEN "close"       ELSE "failed"
+    [] p = "getStorage"   -> IF rc = "OK" THEN "sendObjInfo" ELSE "failed"
+    [] p = "sendObjInfo"  -> IF rc = "OK" THEN "sendObj"     ELSE "failed"
+    [] p = "sendObj"      -> IF rc = "OK" THEN "delete"      ELSE "failed"
+    [] p = "delete"       -> IF rc = "OK" THEN "close"       ELSE "failed"
     [] p = "close"        -> IF rc = "OK" THEN "done"        ELSE "failed"
 
-\* First Data container of a transaction: recorded as the data phase.
+\* First R->I Data container of a transaction: recorded as the data phase.
 RecvData ==
   /\ phase = "await"
   /\ respPipe /= <<>>
@@ -112,7 +145,8 @@ RecvData ==
   /\ gotData = FALSE
   /\ gotData' = TRUE
   /\ respPipe' = Tail(respPipe)
-  /\ UNCHANGED <<pc, phase, nextTid, outCmd, cmdPipe, devSession>>
+  /\ UNCHANGED <<pc, phase, nextTid, objInfoDone, outCmd,
+                 cmdPipe, devSession, devObjInfo>>
 
 \* A second Data container: transaction() would throw
 \* "expected response container" -- never treat Data as a Response.
@@ -125,57 +159,122 @@ RecvUnexpectedData ==
   /\ phase' = "ready"
   /\ outCmd' = NoCmd
   /\ respPipe' = Tail(respPipe)
-  /\ UNCHANGED <<nextTid, gotData, cmdPipe, devSession>>
+  /\ UNCHANGED <<nextTid, gotData, objInfoDone, cmdPipe, devSession, devObjInfo>>
 
-\* Response container completes the transaction.
+\* Response container with the matching tid completes the transaction.
+\* A successful SendObjectInfo arms the SendObject that must follow;
+\* anything else that finishes clears the pairing on the initiator side.
 RecvResp ==
   /\ phase = "await"
   /\ respPipe /= <<>>
   /\ Head(respPipe).kind = "RESP"
+  /\ Head(respPipe).tid = outCmd.tid
   /\ pc' = NextPC(pc, Head(respPipe).rc)
+  /\ objInfoDone' = IF outCmd.op = "SendObjectInfo" /\ Head(respPipe).rc = "OK"
+                    THEN TRUE
+                    ELSE IF outCmd.op = "SendObjectInfo"
+                             \/ outCmd.op \in {"SendObject", "OpenSession",
+                                               "CloseSession"}
+                    THEN FALSE
+                    ELSE objInfoDone
   /\ phase' = "ready"
   /\ gotData' = FALSE
   /\ outCmd' = NoCmd
   /\ respPipe' = Tail(respPipe)
-  /\ UNCHANGED <<nextTid, cmdPipe, devSession>>
+  /\ UNCHANGED <<nextTid, cmdPipe, devSession, devObjInfo>>
+
+\* transaction() now compares the RESPONSE container's tid against the
+\* command's tid and throws on mismatch (stale container on the pipe)
+\* instead of accepting the response.  Against a conforming responder this
+\* action is never enabled -- NoTransportFailure proves it.
+RecvRespBadTid ==
+  /\ phase = "await"
+  /\ respPipe /= <<>>
+  /\ Head(respPipe).kind = "RESP"
+  /\ Head(respPipe).tid /= outCmd.tid
+  /\ pc' = "failed"
+  /\ phase' = "ready"
+  /\ gotData' = FALSE
+  /\ outCmd' = NoCmd
+  /\ respPipe' = Tail(respPipe)
+  /\ UNCHANGED <<nextTid, objInfoDone, cmdPipe, devSession, devObjInfo>>
 
 (***************************************************************************)
-(* Responder (device) action: consume a command, produce optional Data     *)
-(* then a Response, echoing the command's transaction ID.                  *)
+(* Responder (device) action: consume a command (plus its I->R data phase  *)
+(* when the operation has one), produce optional R->I Data then a          *)
+(* Response, echoing the command's transaction ID.  A successful           *)
+(* SendObjectInfo leaves the responder holding a valid ObjectInfo; any     *)
+(* other operation clears it, and SendObject without it is answered with   *)
+(* NoValidObjectInfo.                                                      *)
 (***************************************************************************)
 DevHandle ==
   /\ cmdPipe /= <<>>
+  /\ Head(cmdPipe).kind = "CMD"
   /\ LET c == Head(cmdPipe) IN
-       /\ cmdPipe' = Tail(cmdPipe)
+       /\ IF c.op \in DataOutOps
+          THEN \* Drain the I->R data phase along with the command.
+               /\ Len(cmdPipe) >= 2
+               /\ cmdPipe[2].kind = "DATA"
+               /\ cmdPipe[2].tid = c.tid
+               /\ cmdPipe' = SubSeq(cmdPipe, 3, Len(cmdPipe))
+          ELSE cmdPipe' = Tail(cmdPipe)
        /\ CASE c.op = "GetDeviceInfo" ->
-                \* Allowed outside a session; has a data phase.
+                \* Allowed outside a session; R->I data phase.
                 /\ respPipe' = respPipe \o <<DataC(c.tid), RespC("OK", c.tid)>>
+                /\ devObjInfo' = FALSE
                 /\ UNCHANGED devSession
             [] c.op = "OpenSession" ->
-                IF devSession
-                THEN /\ respPipe' = Append(respPipe,
-                                           RespC("SessionAlreadyOpen", c.tid))
-                     /\ UNCHANGED devSession
-                ELSE /\ devSession' = TRUE
-                     /\ respPipe' = Append(respPipe, RespC("OK", c.tid))
+                /\ devObjInfo' = FALSE
+                /\ IF devSession
+                   THEN /\ respPipe' = Append(respPipe,
+                                              RespC("SessionAlreadyOpen", c.tid))
+                        /\ UNCHANGED devSession
+                   ELSE /\ devSession' = TRUE
+                        /\ respPipe' = Append(respPipe, RespC("OK", c.tid))
             [] c.op = "CloseSession" ->
-                IF devSession
-                THEN /\ devSession' = FALSE
-                     /\ respPipe' = Append(respPipe, RespC("OK", c.tid))
-                ELSE /\ respPipe' = Append(respPipe,
-                                           RespC("SessionNotOpen", c.tid))
-                     /\ UNCHANGED devSession
-            [] c.op \in SessionOps ->
-                IF devSession
-                THEN \* Data phase then OK.
-                     /\ respPipe' = respPipe \o <<DataC(c.tid),
+                /\ devObjInfo' = FALSE
+                /\ IF devSession
+                   THEN /\ devSession' = FALSE
+                        /\ respPipe' = Append(respPipe, RespC("OK", c.tid))
+                   ELSE /\ respPipe' = Append(respPipe,
+                                              RespC("SessionNotOpen", c.tid))
+                        /\ UNCHANGED devSession
+            [] c.op = "GetStorageIDs" ->
+                /\ devObjInfo' = FALSE
+                /\ respPipe' = IF devSession
+                               THEN respPipe \o <<DataC(c.tid),
                                                   RespC("OK", c.tid)>>
-                     /\ UNCHANGED devSession
-                ELSE \* Reject rather than misbehave: no data phase.
-                     /\ respPipe' = Append(respPipe,
+                               ELSE Append(respPipe,
                                            RespC("SessionNotOpen", c.tid))
-                     /\ UNCHANGED devSession
-  /\ UNCHANGED <<pc, phase, nextTid, gotData, outCmd>>
+                /\ UNCHANGED devSession
+            [] c.op = "SendObjectInfo" ->
+                \* I->R data phase already drained above; on success the
+                \* responder now expects SendObject next.
+                /\ IF devSession
+                   THEN /\ devObjInfo' = TRUE
+                        /\ respPipe' = Append(respPipe, RespC("OK", c.tid))
+                   ELSE /\ devObjInfo' = FALSE
+                        /\ respPipe' = Append(respPipe,
+                                              RespC("SessionNotOpen", c.tid))
+                /\ UNCHANGED devSession
+            [] c.op = "SendObject" ->
+                /\ devObjInfo' = FALSE  \* consumed (or rejected) either way
+                /\ respPipe' = IF ~devSession
+                               THEN Append(respPipe,
+                                           RespC("SessionNotOpen", c.tid))
+                               ELSE IF devObjInfo
+                               THEN Append(respPipe, RespC("OK", c.tid))
+                               ELSE Append(respPipe,
+                                           RespC("NoValidObjectInfo", c.tid))
+                /\ UNCHANGED devSession
+            [] c.op = "DeleteObject" ->
+                /\ devObjInfo' = FALSE
+                /\ respPipe' = IF devSession
+                               THEN Append(respPipe, RespC("OK", c.tid))
+                               ELSE Append(respPipe,
+                                           RespC("SessionNotOpen", c.tid))
+                /\ UNCHANGED devSession
+  /\ UNCHANGED <<pc, phase, nextTid, gotData, objInfoDone, outCmd>>
 
 Terminating ==
   /\ pc \in {"done", "failed"}
@@ -187,6 +286,7 @@ Next ==
   \/ RecvData
   \/ RecvUnexpectedData
   \/ RecvResp
+  \/ RecvRespBadTid
   \/ DevHandle
   \/ Terminating
 
@@ -201,28 +301,33 @@ TypeOK ==
   /\ phase \in {"ready", "await"}
   /\ nextTid \in 0..MaxTid
   /\ gotData \in BOOLEAN
+  /\ objInfoDone \in BOOLEAN
   /\ outCmd \in [op : AllOps \cup {"none"}, tid : 0..MaxTid]
   /\ cmdPipe \in Seq(Containers)
   /\ respPipe \in Seq(Containers)
   /\ devSession \in BOOLEAN
+  /\ devObjInfo \in BOOLEAN
 
 \* The initiator never has to treat an unexpected container as a
-\* response, and no operation the initiator issues is rejected: pc
-\* "failed" (a thrown Error in mtp.js) is unreachable against a
-\* spec-conforming device, including the stale-session start.
+\* response, no operation it issues is rejected, and the new tid check in
+\* transaction() never fires: pc "failed" (a thrown Error in mtp.js) is
+\* unreachable against a spec-conforming device, including the
+\* stale-session start.
 NoTransportFailure == pc /= "failed"
 
 \* Every container heading to the initiator carries the transaction ID of
-\* the one outstanding command, so completing on FIFO order is sound even
-\* though mtp.js never compares c.tid against the command tid.
+\* the one outstanding command, so transaction()'s tid check accepts
+\* exactly the response it is waiting for.
 RespTidMatchesOutstanding ==
   \A i \in 1..Len(respPipe) :
     /\ outCmd /= NoCmd
     /\ respPipe[i].tid = outCmd.tid
 
-\* At most one transaction is outstanding on the pipe at any time.
+\* At most one transaction is outstanding on the pipes at any time
+\* (command plus at most one I->R data container outbound, data plus
+\* response inbound).
 AtMostOneOutstanding ==
-  /\ Len(cmdPipe) <= 1
+  /\ Len(cmdPipe) <= 2
   /\ Len(respPipe) <= 2
   /\ (phase = "ready") => (cmdPipe = <<>> /\ respPipe = <<>>)
   /\ (phase = "ready") <=> (outCmd = NoCmd)
@@ -246,5 +351,28 @@ SingleDataPhase ==
     respPipe[i].kind = "DATA" =>
       /\ ~gotData
       /\ \A j \in 1..Len(respPipe) : j /= i => respPipe[j].kind /= "DATA"
+
+\* The data phase runs in the direction the operation dictates: R->I data
+\* only for read operations, I->R data only for write operations, and an
+\* I->R data container always trails its own command on the bulk-out pipe.
+DataDirectionOK ==
+  /\ \A i \in 1..Len(respPipe) :
+       respPipe[i].kind = "DATA" => outCmd.op \in DataInOps
+  /\ \A i \in 1..Len(cmdPipe) :
+       cmdPipe[i].kind = "DATA" =>
+         /\ cmdPipe[i].op \in DataOutOps
+         /\ i > 1
+         /\ cmdPipe[i-1].kind = "CMD"
+         /\ cmdPipe[i-1].op = cmdPipe[i].op
+         /\ cmdPipe[i-1].tid = cmdPipe[i].tid
+
+\* Pairing: the initiator never issues SendObject without a successful
+\* SendObjectInfo earlier in the current session, and whenever SendObject
+\* is in flight the responder is still holding that valid ObjectInfo (no
+\* operation slipped in between), so NoValidObjectInfo is unreachable.
+SendObjectPaired ==
+  /\ outCmd.op = "SendObject" => objInfoDone
+  /\ \A i \in 1..Len(cmdPipe) :
+       cmdPipe[i].op = "SendObject" => (objInfoDone /\ devObjInfo)
 
 =======================================================================
