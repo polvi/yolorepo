@@ -19,6 +19,7 @@ const matches = version ? JSON.parse(version.match_patterns) : [];
   <p>{script.description}</p>
   <p style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
     <a class="btn" href={`/scripts/${script.slug}.user.js`}>Install {script.slug}.user.js</a>
+    <a class="btn secondary" href={`/publish?slug=${script.slug}`}>Edit</a>
     <span class="muted">Runs on: {matches.map((m: string) => <code style="margin-right:0.5rem;">{m}</code>)}</span>
   </p>
   <p class="muted" style="max-width:42rem;">

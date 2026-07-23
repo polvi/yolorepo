@@ -39,6 +39,37 @@ import Base from "../layouts/Base.astro";
   <script>
     const form = document.getElementById("publish-form") as HTMLFormElement;
     const status = document.getElementById("f-status")!;
+    const slugInput = document.getElementById("f-slug") as HTMLInputElement;
+    const codeInput = document.getElementById("f-code") as HTMLTextAreaElement;
+
+    // Editing flow: load an existing script's latest code into the form,
+    // from ?slug=… (the script page's Edit button) or a typed slug.
+    async function loadExisting(slug: string) {
+      status.textContent = `loading ${slug}…`;
+      try {
+        const res = await fetch(
+          `https://api.openmonkey.proc.io/api/scripts/${encodeURIComponent(slug)}`
+        );
+        if (!res.ok) {
+          status.textContent = "No script with that slug.";
+          return;
+        }
+        const { version } = await res.json();
+        codeInput.value = version.code;
+        status.textContent = `loaded v${version.version} — edit (or describe a change to your model), then publish`;
+      } catch {
+        status.textContent = "Network error loading the script.";
+      }
+    }
+    const querySlug = new URLSearchParams(location.search).get("slug");
+    if (querySlug) {
+      slugInput.value = querySlug;
+      loadExisting(querySlug);
+    }
+    slugInput.addEventListener("change", () => {
+      const s = slugInput.value.trim();
+      if (s && !codeInput.value.trim()) loadExisting(s);
+    });
     const ERRORS: Record<string, string> = {
       invalid_code: "Code is missing or over 200 KB.",
       missing_name: "No name given and no @name in the metadata block.",
@@ -79,6 +110,30 @@ import Base from "../layouts/Base.astro";
         }
         const data = await res.json();
         if (!res.ok) {
+          if (data.error === "forbidden" && slug) {
+            status.innerHTML =
+              'Only the author can publish a new version — <a href="#" id="f-fork">fork it with your changes</a> instead.';
+            document.getElementById("f-fork")!.addEventListener("click", async (ev) => {
+              ev.preventDefault();
+              status.textContent = "forking…";
+              const fres = await fetch(
+                `https://api.openmonkey.proc.io/api/scripts/${encodeURIComponent(slug)}/fork`,
+                {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ code }),
+                }
+              );
+              const fdata = await fres.json();
+              if (!fres.ok) {
+                status.textContent = `Fork failed (${fdata.error ?? fres.status}).`;
+                return;
+              }
+              location.href = `/scripts/${fdata.script.slug}`;
+            });
+            return;
+          }
           status.textContent = ERRORS[data.error] ?? `Publish failed (${data.error ?? res.status}).`;
           return;
         }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         openmonkey composer (TPX)
-// @description  Adds a "Generate with my model" box to the openmonkey publish page. Describe the userscript you want; a metered TPX grant you approve (OAuth, no API keys) writes it into the form for review before you publish.
-// @version      2.0.0
+// @description  Adds a "Generate with my model" box to the openmonkey publish page. Describe a new userscript, or a change to the one loaded in the form; a metered TPX grant you approve (OAuth, no API keys) writes the result into the form for review before you publish.
+// @version      2.1.0
 // @match        https://openmonkey.proc.io/publish
 // @grant        GM.xmlHttpRequest
 // @grant        GM.getValue
@@ -243,10 +243,12 @@
       { role: "system", content: SYSTEM },
       { role: "user", content: desc },
     ];
-    // If the form already holds code, treat this as a revision request.
+    // If the form already holds code (typed, or an existing script loaded for
+    // editing via the slug field), treat this as a revision request.
     if (codeBox.value.trim()) {
       messages[1].content =
-        "Revise this userscript per the request below. Same output rules.\n\nRequest: " +
+        "Revise this userscript per the request below. Same output rules. Keep the metadata block, " +
+        "changing only what the request requires, and bump the @version patch number.\n\nRequest: " +
         desc + "\n\nCurrent script:\n" + codeBox.value;
     }
     return ensureModel(false).then(function (mod) {
@@ -292,7 +294,7 @@
     card.style.maxWidth = "42rem";
     var label = document.createElement("p");
     label.style.cssText = "margin:0 0 0.5rem;";
-    label.textContent = "Generate with your model (TPX): describe the userscript you want. It lands in the form below for review — read it before you publish.";
+    label.textContent = "Generate with your model (TPX): describe the userscript you want — or, with a script loaded in the form, describe the change to make. The result lands below for review; read it before you publish.";
     var desc = document.createElement("textarea");
     desc.rows = 3;
     desc.placeholder = "e.g. On github.com pull request pages, add a button that copies the branch name";

@@ -17,8 +17,12 @@ import Base from "../layouts/Base.astro";
     The metadata block supplies the name and description, and a <code>@match</code> or
     <code>@include</code> line is required. The script is public the moment you submit,
     served at its own <code>.user.js</code> URL, and gets a slug derived from its name.
-    New versions of an existing script are published with
-    <code>POST /api/scripts/&lt;slug&gt;/versions</code>.
+  </p>
+  <p style="max-width:42rem;">
+    To edit an existing script, hit Edit on its page (or open
+    <code>/publish?slug=&lt;slug&gt;</code>): the latest code loads into the form, and
+    submitting publishes a new immutable version. Authors only — for anyone else the
+    form offers a fork with your changes, lineage recorded.
   </p>
   <p style="max-width:42rem;">
     Everything the publish page does goes through the public JSON API, so scripts,
@@ -29,7 +33,8 @@ import Base from "../layouts/Base.astro";
   <p style="max-width:42rem;">
     Don't want to write it by hand? Install
     <a href="/scripts?q=composer">openmonkey composer (TPX)</a>: it adds a
-    "Generate with my model" box to the publish page. Describe the script you want,
+    "Generate with my model" box to the publish page. Describe the script you want
+    (or, with an existing script loaded for editing, the change you want made),
     a metered TPX grant you approve writes it into the form, you review it, you
     publish it. Scripts that need inference do the full OAuth flow themselves
     (dynamic client registration, PKCE, popup approval) using
