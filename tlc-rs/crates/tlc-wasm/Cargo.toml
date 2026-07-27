@@ -1,0 +1,14 @@
+[package]
+name = "tlc-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "wasm-bindgen shim exposing tlc-core to the Cloudflare Worker"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+tlc-core = { path = "../tlc-core" }
+wasm-bindgen = "0.2"
+serde_json = "1"

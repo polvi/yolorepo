@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.astro/
+.wrangler/
+.svelte-kit/
+.dev.vars
+*.log
+.DS_Store
+**/.claude/settings.local.json
+
+# Rust / TLC artifacts (tlc-rs)
+/tlc-rs/target/
+/tlc-rs/states/
+/tlc-rs/engine/build/

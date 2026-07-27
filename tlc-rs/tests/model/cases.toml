@@ -1,0 +1,663 @@
+# Conformance case manifest — generated from the Java TLC run-gate sweep.
+# Oracle: tla2tools.jar (TLC2 2.19), flags: -tool -workers 1 -fp 0.
+# Regenerate: tools/mine_testmodel.sh + tlc-diff sweep tests/model.
+
+[[case]]
+path = "AssertExpressionStack.tla"
+outcome = "EvalError"
+states_generated = 2
+distinct_states = 2
+trace_len = 2
+
+[[case]]
+path = "AssignmentInit.tla"
+outcome = "Deadlock"
+states_generated = 6
+distinct_states = 5
+trace_len = 1
+
+[[case]]
+path = "AssignmentInitExpensive.tla"
+outcome = "Ok"
+states_generated = 10002
+distinct_states = 1
+
+[[case]]
+path = "AssignmentInitNeg.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "AssignmentNext.tla"
+outcome = "Ok"
+states_generated = 3
+distinct_states = 2
+
+[[case]]
+path = "AssignmentNext2.tla"
+outcome = "Ok"
+states_generated = 3
+distinct_states = 2
+
+[[case]]
+path = "AssignmentNext3.tla"
+outcome = "Ok"
+states_generated = 26
+distinct_states = 5
+
+[[case]]
+path = "BagsTest.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "CodePlexBug21.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "ConstantOperatorConfiguration.tla"
+outcome = "EvalError"
+
+[[case]]
+path = "Continue.tla"
+outcome = "InvariantViolation"
+states_generated = 3
+distinct_states = 2
+trace_len = 2
+
+[[case]]
+path = "DepthFirstErrorTrace.tla"
+outcome = "InvariantViolation"
+states_generated = 8
+distinct_states = 8
+trace_len = 8
+
+[[case]]
+path = "DepthFirstTerminate.tla"
+outcome = "Ok"
+states_generated = 399
+distinct_states = 349
+
+[[case]]
+path = "DieHard.tla"
+outcome = "InvariantViolation"
+states_generated = 252
+distinct_states = 54
+trace_len = 7
+
+[[case]]
+path = "DistributedTrace.tla"
+outcome = "InvariantViolation"
+states_generated = 29
+distinct_states = 20
+trace_len = 11
+
+[[case]]
+path = "Empty.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "EmptySubsetEq.tla"
+outcome = "EvalError"
+states_generated = 1
+distinct_states = 1
+trace_len = 1
+
+# The 2.19 oracle jar reports Ok (gen=2) here because it still has the
+# github#1145 soundness bug this regression spec was written to catch
+# (FcnLambdaValue.toTuple dropping pending EXCEPTs under KeepLazy). The fix
+# is in the tlaplus sources (post-2.19); the spec's header documents the
+# fixed behavior: x = 1, Inv violated. We conform to the fixed engine.
+[[case]]
+path = "Github1145b.tla"
+outcome = "InvariantViolation"
+states_generated = 1
+distinct_states = 1
+trace_len = 1
+
+[[case]]
+path = "Github179c.tla"
+outcome = "EvalError"
+states_generated = 1
+distinct_states = 1
+trace_len = 1
+
+[[case]]
+path = "Github361.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "Github391.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "Github407.tla"
+outcome = "Ok"
+states_generated = 9
+distinct_states = 4
+
+[[case]]
+path = "Github461.tla"
+outcome = "EvalError"
+states_generated = 5
+distinct_states = 5
+trace_len = 5
+
+[[case]]
+path = "Github726.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+# The 2.19 oracle jar prints a 3-state trace that omits the violating state
+# (x = TRUE, y = 5). The tlaplus sources' own regression test
+# (test/tlc2/tool/Github743Test.java) asserts the 4-state trace ending in
+# y = 5, which is what this engine reports. We conform to the fixed engine.
+[[case]]
+path = "Github743.tla"
+outcome = "InvariantViolation"
+states_generated = 11
+distinct_states = 9
+trace_len = 4
+
+[[case]]
+path = "Gratos_AAuth.tla"
+outcome = "Ok"
+states_generated = 1267
+distinct_states = 552
+
+[[case]]
+path = "MinimalSetOfInitStates.tla"
+outcome = "Ok"
+states_generated = 14
+distinct_states = 6
+
+[[case]]
+path = "MinimumDiameter.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "PossibleTest.tla"
+outcome = "EvalError"
+
+[[case]]
+path = "PostConditionsTest.tla"
+outcome = "EvalError"
+
+[[case]]
+path = "RandomElement.tla"
+outcome = "InvariantViolation"
+states_generated = 926
+distinct_states = 834
+trace_len = 11
+
+[[case]]
+path = "RandomElementXandY.tla"
+outcome = "InvariantViolation"
+states_generated = 2
+distinct_states = 2
+trace_len = 2
+
+[[case]]
+path = "SetPredValue.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "SubsetEq.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "TLCSetInit.tla"
+outcome = "EvalError"
+
+[[case]]
+path = "TraceWithLargeSetOfInitialStatesTest.tla"
+outcome = "InvariantViolation"
+states_generated = 12
+distinct_states = 12
+trace_len = 2
+
+[[case]]
+path = "suite/etest3.tla"
+outcome = "Deadlock"
+states_generated = 2
+distinct_states = 2
+trace_len = 2
+
+[[case]]
+path = "suite/etest4.tla"
+outcome = "EvalError"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/etest6.tla"
+outcome = "EvalError"
+states_generated = 1
+distinct_states = 1
+trace_len = 1
+
+[[case]]
+path = "suite/etest8.tla"
+outcome = "Deadlock"
+states_generated = 2
+distinct_states = 2
+trace_len = 1
+
+[[case]]
+path = "suite/test1.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test10.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test11.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test12.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test13.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test14.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test15.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test16.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test17.tla"
+outcome = "Ok"
+states_generated = 7
+distinct_states = 2
+
+[[case]]
+path = "suite/test18.tla"
+outcome = "Ok"
+states_generated = 14
+distinct_states = 1
+
+[[case]]
+path = "suite/test19.tla"
+outcome = "Ok"
+states_generated = 800000
+distinct_states = 400000
+
+[[case]]
+path = "suite/test2.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test20.tla"
+outcome = "Ok"
+states_generated = 5
+distinct_states = 1
+
+[[case]]
+path = "suite/test201.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test202.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test203.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test204.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test205.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test207.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test21.tla"
+outcome = "Ok"
+states_generated = 8
+distinct_states = 2
+
+[[case]]
+path = "suite/test22.tla"
+outcome = "Ok"
+states_generated = 1344
+distinct_states = 64
+
+[[case]]
+path = "suite/test23.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test24.tla"
+outcome = "Ok"
+states_generated = 21
+distinct_states = 2
+
+[[case]]
+path = "suite/test25.tla"
+outcome = "Ok"
+states_generated = 3
+distinct_states = 1
+
+[[case]]
+path = "suite/test26.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test27.tla"
+outcome = "Ok"
+states_generated = 1109824
+distinct_states = 63504
+
+[[case]]
+path = "suite/test28.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test29.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test3.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test30.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test31.tla"
+outcome = "Ok"
+states_generated = 13
+distinct_states = 3
+
+[[case]]
+path = "suite/test32.tla"
+outcome = "Ok"
+states_generated = 3
+distinct_states = 1
+
+[[case]]
+path = "suite/test33.tla"
+outcome = "Ok"
+states_generated = 235298
+distinct_states = 117649
+
+[[case]]
+path = "suite/test34.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test35.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test36.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test37.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test39.tla"
+outcome = "Ok"
+states_generated = 6
+distinct_states = 3
+
+[[case]]
+path = "suite/test4.tla"
+outcome = "Ok"
+states_generated = 11
+distinct_states = 1
+
+[[case]]
+path = "suite/test40.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test41.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test42.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test43.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test44.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test45.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test46.tla"
+outcome = "Ok"
+states_generated = 121
+distinct_states = 6
+
+[[case]]
+path = "suite/test48.tla"
+outcome = "Ok"
+states_generated = 64
+distinct_states = 1
+
+[[case]]
+path = "suite/test49.tla"
+outcome = "Ok"
+states_generated = 10
+distinct_states = 1
+
+[[case]]
+path = "suite/test49a.tla"
+outcome = "Ok"
+states_generated = 10
+distinct_states = 1
+
+[[case]]
+path = "suite/test5.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test50.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test53.tla"
+outcome = "Ok"
+states_generated = 10
+distinct_states = 1
+
+[[case]]
+path = "suite/test54.tla"
+outcome = "Ok"
+states_generated = 10
+distinct_states = 1
+
+[[case]]
+path = "suite/test58.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test6.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test60.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test62.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test63a.tla"
+outcome = "Ok"
+states_generated = 24
+distinct_states = 12
+
+[[case]]
+path = "suite/test64.tla"
+outcome = "Ok"
+states_generated = 3
+distinct_states = 2
+
+[[case]]
+path = "suite/test64a.tla"
+outcome = "Ok"
+states_generated = 3
+distinct_states = 2
+
+[[case]]
+path = "suite/test65.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test65a.tla"
+outcome = "Ok"
+states_generated = 0
+distinct_states = 0
+
+[[case]]
+path = "suite/test7.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test8.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test9.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test99.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1
+
+[[case]]
+path = "suite/test999.tla"
+outcome = "Ok"
+states_generated = 2
+distinct_states = 1

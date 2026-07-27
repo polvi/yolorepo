@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tlc-engine",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  // Headroom over the 30s user-facing max so the engine's internal deadline
+  // always fires before Cloudflare's uncatchable CPU kill (error 1102).
+  "limits": { "cpu_ms": 60000 },
+  // No routes: this worker is only reachable through the tlc worker's
+  // ENGINE service binding.
+  "workers_dev": false,
+  "observability": { "enabled": true },
+  "build": {
+    "command": "bash ../tools/build_wasm.sh"
+  },
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true }
+  ]
+}

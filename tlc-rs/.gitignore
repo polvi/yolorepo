@@ -1,0 +1,12 @@
+# Rust
+/target
+
+# Node / wrangler
+node_modules
+.wrangler
+
+# Generated wasm-bindgen output (built by tools/build_wasm.sh)
+engine/build/
+
+
+.DS_Store

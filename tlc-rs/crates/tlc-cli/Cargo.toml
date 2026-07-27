@@ -1,0 +1,13 @@
+[package]
+name = "tlc-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "tlc-rs"
+path = "src/main.rs"
+
+[dependencies]
+tlc-core = { path = "../tlc-core" }
+serde_json = "1"

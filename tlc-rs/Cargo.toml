@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = ["crates/tlc-core", "crates/tlc-cli", "crates/tlc-diff", "crates/tlc-wasm"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+lto = true
+opt-level = 3
+
+# Used when building tlc-wasm for the Worker (added later).
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+panic = "abort"

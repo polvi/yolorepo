@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "happybook-app",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./build",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "routes": [
+    {
+      "pattern": "app.happybook.proc.io",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "AUTH_ENDPOINT": "https://authgravity.proc.io"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "happybook",
+      "database_id": "370b871f-1a54-4150-92ab-f94206037216"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BLOBS",
+      "bucket_name": "happybook-blobs"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

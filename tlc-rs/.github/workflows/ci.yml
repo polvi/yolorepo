@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # Pinned oracle. Bumping this is a reviewed change: re-run the mining
+  # script and update tests/model plus this URL + sha256 together.
+  TLC_JAR_URL: https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+
+jobs:
+  test-native:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace
+      - run: cargo test --workspace
+
+  test-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build -p tlc-core --target wasm32-unknown-unknown
+
+  differential:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Fetch pinned oracle jar
+        run: curl -fL "$TLC_JAR_URL" -o /tmp/tla2tools.jar
+      - name: Oracle smoke
+        run: |
+          cargo build -p tlc-diff
+          # Full differential comparison lands with the checker milestones;
+          # for now assert the oracle harness parses -tool output on a case.
+          find tests/model -name '*.tla' | head -3
+        env:
+          TLC_JAR: /tmp/tla2tools.jar

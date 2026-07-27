@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# tlc — check a TLA+ spec via the hosted tlc-rs service (open, no auth).
+#
+# Usage: tlc Spec.tla [Spec.cfg]
+# Env:   TLC_API_URL (default https://tlc.proc.io)
+#
+# Output is the service's JSON. Check .status; on invariant_violation read
+# .violation.trace; on timeout read .diagnostic.hint.
+set -euo pipefail
+
+TLA="${1:?usage: tlc Spec.tla [Spec.cfg]}"
+CFG="${2:-${TLA%.tla}.cfg}"
+: "${TLC_API_URL:=https://tlc.proc.io}"
+
+name="$(basename "$TLA" .tla)"
+
+jq -n --rawfile src "$TLA" --rawfile cfg "$CFG" --arg name "$name" \
+  '{modules: [{name: $name, source: $src}], config: $cfg, timeoutSeconds: 30, output: "both"}' \
+| curl -sf "$TLC_API_URL/check" \
+    -H "Content-Type: application/json" \
+    -d @-

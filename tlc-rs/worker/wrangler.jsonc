@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tlc",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "tlc.proc.io", "custom_domain": true }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tlc-hub",
+      "database_id": "554b8574-917e-41e9-878b-7fd1a5d5b5c8"
+    }
+  ],
+  // The wasm checker lives in the tlc-engine worker (engine/), so a heavy
+  // check runs in its own isolate with its own cpu_ms budget instead of
+  // sharing this one with website traffic.
+  "services": [{ "binding": "ENGINE", "service": "tlc-engine" }],
+  "observability": { "enabled": true }
+}

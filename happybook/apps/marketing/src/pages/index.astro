@@ -1,0 +1,152 @@
+---
+const title = 'Happybook — notebooks made of PDFs & EPUBs';
+const description =
+  'Collect PDFs and EPUBs into notebooks, highlight what matters, and link passages across documents. Works offline, syncs with a passkey.';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <style>
+      :root {
+        --bg: #faf7f2;
+        --ink: #1e1a16;
+        --muted: #6b6259;
+        --accent: #c2542e;
+        --card: #ffffff;
+        --rule: #e6ddd2;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16130f;
+          --ink: #ece5db;
+          --muted: #9c9287;
+          --accent: #e0764f;
+          --card: #201c17;
+          --rule: #322c25;
+        }
+      }
+      * { box-sizing: border-box; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Charter, Georgia, 'Times New Roman', serif;
+        line-height: 1.55;
+      }
+      main { max-width: 42rem; margin: 0 auto; padding: 4rem 1.25rem 6rem; }
+      .brand {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        font-size: 1rem;
+      }
+      .brand span { color: var(--accent); }
+      h1 {
+        font-size: clamp(2rem, 6vw, 3.1rem);
+        line-height: 1.12;
+        letter-spacing: -0.015em;
+        margin: 2.5rem 0 1rem;
+        font-weight: 600;
+      }
+      .lede { font-size: 1.15rem; color: var(--muted); max-width: 34rem; }
+      .cta {
+        display: inline-block;
+        margin-top: 2rem;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-weight: 600;
+        padding: 0.8rem 1.5rem;
+        border-radius: 0.5rem;
+      }
+      .cta:hover { filter: brightness(1.08); }
+      .note {
+        display: block;
+        margin-top: 0.75rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      section.features {
+        margin-top: 4rem;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      }
+      .feature {
+        background: var(--card);
+        border: 1px solid var(--rule);
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+      }
+      .feature h2 {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 0.95rem;
+        margin-bottom: 0.4rem;
+      }
+      .feature p { font-size: 0.95rem; color: var(--muted); }
+      footer {
+        margin-top: 5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--rule);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">happy<span>book</span></div>
+      <h1>Your PDFs and EPUBs, reading each other.</h1>
+      <p class="lede">
+        Happybook turns a pile of PDFs and EPUBs into a notebook: highlight the passages that matter and draw
+        links between documents, so page 12 of one paper can point straight at the figure that
+        answers it in another.
+      </p>
+      <a class="cta" href="https://app.happybook.proc.io">Open Happybook</a>
+      <span class="note">Free, works offline, no account needed. Sign in with a passkey to sync.</span>
+
+      <section class="features">
+        <div class="feature">
+          <h2>Notebooks of documents</h2>
+          <p>Drop in a PDF or EPUB to start a notebook, then keep adding sources as the project grows.</p>
+        </div>
+        <div class="feature">
+          <h2>Cross-links</h2>
+          <p>
+            Select a passage, link it to a spot in any other document, and jump between the two in either
+            direction.
+          </p>
+        </div>
+        <div class="feature">
+          <h2>Offline first</h2>
+          <p>
+            Documents and notes live on your device. Airplane mode is a reading room, not an error
+            page.
+          </p>
+        </div>
+        <div class="feature">
+          <h2>E-reader ready</h2>
+          <p>
+            Every account is an OPDS catalog: browse your notebooks and download their books in
+            <a href="/docs/koreader" style="color: inherit">KOReader or any OPDS reader</a>. Reading
+            progress <a href="/docs/koreader#progress-sync" style="color: inherit">syncs both ways</a>,
+            so the device and the web reader stay on the same page.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        Happybook · <a href="/docs/koreader" style="color: inherit">Read on your e-reader</a> ·
+        <a href="/docs/koreader#progress-sync" style="color: inherit">Sync reading progress</a> ·
+        <a href="/llms.txt" style="color: inherit">llms.txt</a>
+      </footer>
+    </main>
+  </body>
+</html>

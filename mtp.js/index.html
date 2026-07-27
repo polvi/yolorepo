@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mtp.js</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #101418; color: #d8dee6; margin: 0; padding: 1.5rem; }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; }
+  h1 span { color: #6a737d; font-weight: normal; }
+  button { font: inherit; background: #2563eb; color: #fff; border: 0;
+           border-radius: 6px; padding: .5rem 1rem; cursor: pointer; }
+  button:disabled { background: #374151; cursor: default; }
+  #toolbar { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+  input[type=file] { color: #8b949e; }
+  #status { margin: 1rem 0; color: #93c5fd; }
+  #crumbs { margin: 1rem 0 0; }
+  #crumbs a { color: #34d399; cursor: pointer; text-decoration: none; }
+  #crumbs a:hover { text-decoration: underline; }
+  #crumbs .sep { color: #6a737d; padding: 0 .35rem; }
+  #crumbs .here { color: #d8dee6; }
+  table { border-collapse: collapse; margin: .5rem 0 1.5rem; width: 100%; max-width: 800px; }
+  th, td { text-align: left; padding: .2rem .8rem .2rem 0; border-bottom: 1px solid #1f2937; }
+  th { color: #6a737d; font-weight: normal; }
+  a.folder { color: #fbbf24; cursor: pointer; text-decoration: none; }
+  a.folder:hover { text-decoration: underline; }
+  a.act { color: #60a5fa; cursor: pointer; text-decoration: underline; }
+  a.act.danger { color: #f87171; }
+  #log { background: #0a0d10; border: 1px solid #1f2937; border-radius: 6px;
+         padding: .8rem; white-space: pre-wrap; max-height: 40vh; overflow-y: auto;
+         color: #8b949e; font-size: 12px; }
+  .storage-head { color: #34d399; margin: 1rem 0 .2rem; }
+</style>
+</head>
+<body>
+<h1>mtp.js <span>— MTP over WebUSB, research build</span></h1>
+<div id="toolbar">
+  <button id="connect">Connect MTP device</button>
+  <button id="refresh" disabled>Refresh</button>
+  <input type="file" id="file">
+  <button id="upload" disabled>Send to device</button>
+</div>
+<div id="crumbs"></div>
+<div id="status">idle</div>
+<div id="listing"></div>
+<pre id="log"></pre>
+<script type="module" src="/demo/app.js"></script>
+</body>
+</html>
