@@ -1,8 +1,11 @@
-# mtp.js
+# mtp-ts
 
 MTP (Media Transfer Protocol) over WebUSB, as a TypeScript library. Talk to
 Android phones, e-readers, and other MTP devices directly from a browser page
 (Chromium, secure context): list storages, walk folders, read and write files.
+
+Try it live at [mtp.proc.io](https://mtp.proc.io) — a file browser
+(browse, upload, download, new folder, delete) running entirely client-side.
 
 Verified byte-exact against real hardware. The session/transaction state
 machine is modeled in TLA+ (`specs/`) and checked with TLC.
@@ -27,13 +30,13 @@ The package ships raw TypeScript (`exports` points at `src/index.ts`), so
 consume it from a TS-aware bundler (Vite, bun). Depend on it by path:
 
 ```json
-"dependencies": { "mtp.js": "file:../mtp.js" }
+"dependencies": { "mtp-ts": "file:../mtp-ts" }
 ```
 
 ```ts
 import {
   usbSupported, requestMtpDevice, connectMtp, mountedStorageIds, MtpFs,
-} from 'mtp.js';
+} from 'mtp-ts';
 
 if (!usbSupported()) throw new Error('needs WebUSB');
 const device = await requestMtpDevice(); // must be called from a user gesture
@@ -55,3 +58,12 @@ bun serve.ts   # file browser on http://localhost:8321
 
 Plug in an MTP device (an Android phone with file transfer enabled, or a USB
 e-reader), click connect, and browse.
+
+## Deploy
+
+The demo deploys as a static-assets Cloudflare Worker at
+[mtp.proc.io](https://mtp.proc.io):
+
+```sh
+bun run deploy   # bundles demo + index.html into dist/, then wrangler deploy
+```

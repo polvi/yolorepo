@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>mtp.js</title>
+<title>mtp-ts</title>
 <style>
   :root { color-scheme: dark; }
   body { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -14,7 +14,12 @@
            border-radius: 6px; padding: .5rem 1rem; cursor: pointer; }
   button:disabled { background: #374151; cursor: default; }
   #toolbar { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
-  input[type=file] { color: #8b949e; }
+  input[type=file] { color: #8b949e; max-width: 14rem; }
+  input[type=text] { font: inherit; background: #0a0d10; color: #d8dee6;
+                     border: 1px solid #1f2937; border-radius: 6px; padding: .45rem .6rem;
+                     width: 9rem; }
+  footer { margin-top: 1.2rem; color: #6a737d; font-size: 12px; max-width: 800px; }
+  footer a { color: #60a5fa; }
   #status { margin: 1rem 0; color: #93c5fd; }
   #crumbs { margin: 1rem 0 0; }
   #crumbs a { color: #34d399; cursor: pointer; text-decoration: none; }
@@ -35,17 +40,25 @@
 </style>
 </head>
 <body>
-<h1>mtp.js <span>— MTP over WebUSB, research build</span></h1>
+<h1>mtp-ts <span>— browse an MTP device from your browser (WebUSB)</span></h1>
 <div id="toolbar">
   <button id="connect">Connect MTP device</button>
   <button id="refresh" disabled>Refresh</button>
   <input type="file" id="file">
   <button id="upload" disabled>Send to device</button>
+  <input type="text" id="foldername" placeholder="folder name">
+  <button id="mkdir" disabled>New folder</button>
 </div>
 <div id="crumbs"></div>
 <div id="status">idle</div>
 <div id="listing"></div>
 <pre id="log"></pre>
+<footer>
+  Runs entirely in your browser; files go straight between the page and the
+  device over USB. Needs a Chromium browser (WebUSB). Plug in an Android
+  phone (file-transfer mode) or a USB e-reader and hit Connect.
+  Source: <a href="https://github.com/polvi/yolorepo/tree/main/mtp-ts">github.com/polvi/yolorepo</a>
+</footer>
 <script type="module" src="/demo/app.js"></script>
 </body>
 </html>

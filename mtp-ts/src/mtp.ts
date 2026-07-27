@@ -206,7 +206,7 @@ function objectInfoDataset(
 
 export class MtpDevice {
   readonly device: UsbDeviceLike;
-  log: (msg: string) => void = (msg) => console.log('[mtp.js] ' + msg);
+  log: (msg: string) => void = (msg) => console.log('[mtp-ts] ' + msg);
   private tid = 0;
   private ifaceNum = 0;
   private epIn = 0;

@@ -1,4 +1,4 @@
-// Research/demo UI for the mtp.js library: file browser with folder
+// Research/demo UI for the mtp-ts library: file browser with folder
 // navigation, transfers both directions, and an automation surface on window.
 
 import {
@@ -35,7 +35,7 @@ let mtp: MtpDevice | null = null;
 let fsBySid = new Map<number, MtpFs>();
 
 function log(msg: string): void {
-  console.log('[mtp.js] ' + msg);
+  console.log('[mtp-ts] ' + msg);
   $('log').textContent += msg + '\n';
   $('log').scrollTop = $('log').scrollHeight;
 }
@@ -49,7 +49,7 @@ function fail(e: unknown): void {
   state.error = String(e);
   state.status = 'error';
   $('status').textContent = 'error: ' + (e instanceof Error ? e.message : String(e));
-  console.error('[mtp.js]', e);
+  console.error('[mtp-ts]', e);
   if (/claim/i.test(String(e))) {
     log('hint: on macOS another process may hold the PTP interface (ptpcamerad / Image Capture / Photos).');
   }
@@ -136,16 +136,17 @@ function objectTable(storageId: number, objects: ObjectInfo[]): HTMLTableElement
       get.onclick = () => { downloadObject(o).catch(fail); };
       act.appendChild(get);
       act.appendChild(document.createTextNode(' '));
-      const del = document.createElement('a');
-      del.className = 'act danger';
-      del.textContent = 'del';
-      del.onclick = () => {
-        if (confirm('Delete ' + o.filename + ' from the device?')) {
-          deleteObject(o).catch(fail);
-        }
-      };
-      act.appendChild(del);
     }
+    const del = document.createElement('a');
+    del.className = 'act danger';
+    del.textContent = 'del';
+    del.onclick = () => {
+      const what = o.isFolder ? o.filename + '/ (and its contents)' : o.filename;
+      if (confirm('Delete ' + what + ' from the device?')) {
+        deleteObject(o).catch(fail);
+      }
+    };
+    act.appendChild(del);
     tr.appendChild(act);
     table.appendChild(tr);
   }
@@ -253,6 +254,17 @@ async function uploadBytes(filename: string, bytes: Uint8Array): Promise<number>
   return handle;
 }
 
+async function makeFolder(name: string): Promise<number> {
+  const sid = state.cwd ? state.cwd.storageId : state.storages[0]!.id;
+  const parent = state.cwd && state.cwd.path.length
+    ? state.cwd.path[state.cwd.path.length - 1]!.handle : ROOT_PARENT;
+  setStatus(`SendObjectInfo (folder) ${name} in ${breadcrumbText()}`);
+  const handle = await mtp!.createFolder(sid, parent, name);
+  log(`created folder ${name}, handle 0x${handle.toString(16)}`);
+  await refresh();
+  return handle;
+}
+
 function fs(): MtpFs {
   const sid = state.cwd ? state.cwd.storageId : state.storages[0]!.id;
   let f = fsBySid.get(sid);
@@ -284,6 +296,7 @@ async function connect(fromPicker: boolean): Promise<void> {
     window.__mtpDevice = mtp;
     ($('refresh') as HTMLButtonElement).disabled = false;
     ($('upload') as HTMLButtonElement).disabled = false;
+    ($('mkdir') as HTMLButtonElement).disabled = false;
     await refresh();
   } catch (e) {
     fail(e);
@@ -291,6 +304,15 @@ async function connect(fromPicker: boolean): Promise<void> {
 }
 
 $('connect').addEventListener('click', () => { connect(true); });
+$('mkdir').addEventListener('click', () => {
+  (async () => {
+    const input = $('foldername') as HTMLInputElement;
+    const name = input.value.trim();
+    if (!name) { setStatus('type a folder name first'); return; }
+    await makeFolder(name);
+    input.value = '';
+  })().catch(fail);
+});
 $('refresh').addEventListener('click', () => { refresh().catch(fail); });
 $('upload').addEventListener('click', () => {
   (async () => {
@@ -302,7 +324,7 @@ $('upload').addEventListener('click', () => {
 
 // Automation/debug surface.
 window.__mtpApi = {
-  refresh, enterFolder, navigateTo, uploadBytes,
+  refresh, enterFolder, navigateTo, uploadBytes, makeFolder,
   fs,
   getBytes: (handle: number) => mtp!.getObject(handle),
   download: downloadObject,

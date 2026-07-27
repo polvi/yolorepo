@@ -6,7 +6,7 @@
 import {
   MtpFs, connectMtp, getGrantedMtpDevice, mountedStorageIds,
   requestMtpDevice, usbSupported, type MtpDevice,
-} from 'mtp.js';
+} from 'mtp-ts';
 import { db } from '$lib/db';
 import { blobStore } from '$lib/blobstore';
 

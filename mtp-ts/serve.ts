@@ -22,4 +22,4 @@ Bun.serve({
   },
 });
 
-console.log('mtp.js dev server on http://localhost:8321');
+console.log('mtp-ts dev server on http://localhost:8321');

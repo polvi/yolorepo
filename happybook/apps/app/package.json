@@ -17,7 +17,7 @@
     "fflate": "^0.8.3",
     "hono": "^4.6.0",
     "pdfjs-dist": "4.10.38",
-    "mtp.js": "file:../../../mtp.js",
+    "mtp-ts": "file:../../../mtp-ts",
     "zod": "^3.24.0"
   },
   "devDependencies": {
