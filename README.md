@@ -39,5 +39,4 @@ bun run dev
 
 ## License
 
-MIT (see [LICENSE](LICENSE)), except `tlc-rs/`, which is licensed under
-AGPL-3.0 (see [tlc-rs/LICENSE](tlc-rs/LICENSE)).
+AGPL-3.0-or-later (see [LICENSE](LICENSE)).

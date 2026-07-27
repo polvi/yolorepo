@@ -1,6 +1,7 @@
 {
   "name": "openmonkey",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "workspaces": [
     "apps/*",
     "packages/*"

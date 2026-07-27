@@ -5,7 +5,7 @@ members = ["crates/tlc-core", "crates/tlc-cli", "crates/tlc-diff", "crates/tlc-w
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 
 [profile.release]
 lto = true
