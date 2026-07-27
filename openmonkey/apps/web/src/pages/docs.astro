@@ -1,5 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
+import { siteBase } from "../lib/origins";
+const base = siteBase(Astro.url.hostname);
 ---
 <Base title="Docs — openmonkey">
   <h1>How openmonkey works</h1>
@@ -27,7 +29,7 @@ import Base from "../layouts/Base.astro";
   <p style="max-width:42rem;">
     Everything the publish page does goes through the public JSON API, so scripts,
     CLIs, and agents can publish the same way: <code>POST /api/scripts</code> with
-    <code>{`{"code": "..."}`}</code> and your proc.io session cookie. The full API is
+    <code>{`{"code": "..."}`}</code> and your {base} session cookie. The full API is
     described in <a href="/llms.txt">/llms.txt</a>.
   </p>
   <p style="max-width:42rem;">

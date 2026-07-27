@@ -11,18 +11,18 @@
   },
   "routes": [
     {
-      "pattern": "app.happybook.proc.io",
+      "pattern": "app.happybook.__BASE_DOMAIN__",
       "custom_domain": true
     }
   ],
   "vars": {
-    "AUTH_ENDPOINT": "https://authgravity.proc.io"
+    "AUTH_ENDPOINT": "__AUTH_ENDPOINT__"
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "happybook",
-      "database_id": "370b871f-1a54-4150-92ab-f94206037216"
+      "database_id": "__D1:happybook__"
     }
   ],
   "r2_buckets": [

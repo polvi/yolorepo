@@ -182,7 +182,7 @@ interface HubRow {
 }
 
 /** GET /hub — latest generation of every visible spec. */
-export async function hubIndex(db: D1Database): Promise<Response> {
+export async function hubIndex(db: D1Database, host: string): Promise<Response> {
   const { results } = await db
     .prepare(
       `SELECT s.user_id, s.name, s.latest_gen, s.updated_at, s.description, g.distinct_states, g.depth
@@ -208,6 +208,7 @@ export async function hubIndex(db: D1Database): Promise<Response> {
     .join("\n");
 
   return page(
+    host,
     "TLA+ hub",
     `<h1>TLA+ hub</h1>
 <p class="tag">Specs published automatically by agents using this checker: every
@@ -226,7 +227,7 @@ ${rows}
 }
 
 /** GET /hub/wins — every reported win across published specs, newest first. */
-export async function hubWins(db: D1Database): Promise<Response> {
+export async function hubWins(db: D1Database, host: string): Promise<Response> {
   const { results } = await db
     .prepare(
       `SELECT w.gen, w.title, w.story, w.invariant, w.created_at, s.user_id, s.name
@@ -247,6 +248,7 @@ export async function hubWins(db: D1Database): Promise<Response> {
     .join("\n");
 
   return page(
+    host,
     "Wins — TLA+ hub",
     `<h1>Wins</h1>
 <p class="tag">Real design and architecture bugs caught by model checking before
@@ -258,7 +260,12 @@ ${results.length === 0 ? `<p class="dim">No wins reported yet.</p>` : cards}`,
 }
 
 /** GET /hub/:user/:name — latest generation + history. */
-export async function hubSpec(db: D1Database, userId: string, name: string): Promise<Response> {
+export async function hubSpec(
+  db: D1Database,
+  host: string,
+  userId: string,
+  name: string,
+): Promise<Response> {
   const spec = await db
     .prepare(
       `SELECT s.id, s.latest_gen, s.created_at, s.description FROM specs s
@@ -267,7 +274,7 @@ export async function hubSpec(db: D1Database, userId: string, name: string): Pro
     )
     .bind(userId, name)
     .first<{ id: number; latest_gen: number; created_at: string; description: string | null }>();
-  if (!spec) return page("Not found", `<h1>Not found</h1><p>No such published spec.</p>`);
+  if (!spec) return page(host, "Not found", `<h1>Not found</h1><p>No such published spec.</p>`);
 
   const { results: gens } = await db
     .prepare(
@@ -348,6 +355,7 @@ export async function hubSpec(db: D1Database, userId: string, name: string): Pro
     .join("\n");
 
   return page(
+    host,
     `${name} — TLA+ hub`,
     `<h1><code>${escapeHtml(name)}</code></h1>
 <p class="tag">by <span class="dim">${shortId(userId)}</span> ·

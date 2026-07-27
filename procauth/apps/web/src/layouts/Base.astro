@@ -1,12 +1,18 @@
 ---
+import { authgravityOrigin, stackBase } from "../lib/stack";
 import { resolveTheme, themeStyle } from "../lib/theme";
 
 interface Props {
   title: string;
   description?: string;
 }
-const { title, description = "Sign-in for proc.io projects. Passkeys and 12-word account keys, no passwords." } = Astro.props;
+const base = stackBase(Astro.url.hostname);
+const { title, description = `Sign-in for ${base} projects. Passkeys and 12-word account keys, no passwords.` } = Astro.props;
 const theme = resolveTheme(Astro.url);
+// Logo renders the base domain with its TLD accented: proc<span>.io</span>.
+const dot = base.indexOf(".");
+const logoName = dot === -1 ? base : base.slice(0, dot);
+const logoTld = dot === -1 ? "" : base.slice(dot);
 ---
 <html lang="en" style={themeStyle(theme)}>
   <head>
@@ -89,7 +95,7 @@ const theme = resolveTheme(Astro.url);
   <body>
     <header class="site">
       <div class="wrap">
-        <a class="logo" href="/">proc<span>.io</span> auth</a>
+        <a class="logo" href="/">{logoName}<span>{logoTld}</span> auth</a>
         {theme.app && <span class="badge">{theme.app}</span>}
         <nav>
           <a href="/account">Account</a>
@@ -103,8 +109,8 @@ const theme = resolveTheme(Astro.url);
     </main>
     <footer class="site">
       <div class="wrap muted">
-        One sign-in for every proc.io project. Passkeys via
-        <a href="https://authgravity.proc.io">AuthGravity</a>, interface by procauth.
+        One sign-in for every {base} project. Passkeys via
+        <a href={authgravityOrigin(Astro.url.hostname)}>AuthGravity</a>, interface by procauth.
         <a href="/llms.txt">/llms.txt</a>
       </div>
     </footer>

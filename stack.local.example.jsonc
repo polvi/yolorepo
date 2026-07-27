@@ -1,0 +1,15 @@
+{
+  // Copy this file to stack.local.jsonc (gitignored) and edit. Values here
+  // deep-merge over stack.config.jsonc; your fork's entire divergence from
+  // upstream lives in that one untracked file.
+  "baseDomain": "yourdomain.example",
+
+  // null derives https://authgravity.<baseDomain>; set explicitly if your
+  // AuthGravity deployment lives elsewhere on the same registrable domain.
+  "authEndpoint": null,
+
+  // Leave the IDs out: on your account the databases don't exist yet, and an
+  // absent ID lets wrangler provision one on first deploy. After deploying,
+  // paste the created IDs here (wrangler d1 list) so later deploys reuse them.
+  "d1": {}
+}

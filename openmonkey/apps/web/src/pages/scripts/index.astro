@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import { apiFetch } from "../../lib/api";
 const q = Astro.url.searchParams.get("q") ?? "";
-const data = await apiFetch(Astro.locals, `/scripts?limit=100${q ? `&q=${encodeURIComponent(q)}` : ""}`);
+const data = await apiFetch(Astro, `/scripts?limit=100${q ? `&q=${encodeURIComponent(q)}` : ""}`);
 const scripts = data?.scripts ?? [];
 ---
 <Base title="Scripts — openmonkey">

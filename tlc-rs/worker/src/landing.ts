@@ -1,11 +1,12 @@
-// Landing page served at GET /.
+// Landing page served at GET /. Rendered per request so the page names the
+// host it is actually served on (forks run on their own domain).
 
-export const LANDING_HTML = `<!doctype html>
+export const landingHtml = (url: URL) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>tlc.proc.io: hosted TLA+ model checking</title>
+<title>${url.host}: hosted TLA+ model checking</title>
 <style>
   :root {
     --bg: #faf9f6; --fg: #1a1a1a; --dim: #6b6b6b; --accent: #0d5c4d;
@@ -73,7 +74,7 @@ export const LANDING_HTML = `<!doctype html>
 <main>
   <nav><a href="/hub">hub</a> <a href="/account">account</a>
   <a href="https://github.com/polvi/tlc-rs">source</a></nav>
-  <h1><code>tlc.proc.io</code>: hosted TLA+ model checking</h1>
+  <h1><code>${url.host}</code>: hosted TLA+ model checking</h1>
   <p class="tag">The TLA+ tools (SANY + TLC, safety subset) rewritten in Rust,
   compiled to a 509&nbsp;KB WebAssembly module, and served from Cloudflare's
   edge. Onboarding consists of a free passkey account and an API key, and any
@@ -107,7 +108,7 @@ export const LANDING_HTML = `<!doctype html>
   <code>tlc_check</code>, <code>tlc_parse</code>, and
   <code>tlc_report_win</code>:</p>
   <div class="copywrap">
-  <pre><code id="copy-mcp">claude mcp add --scope user --transport http tlc https://tlc.proc.io/mcp \\
+  <pre><code id="copy-mcp">claude mcp add --scope user --transport http tlc ${url.origin}/mcp \\
   --header "Authorization: Bearer &lt;your key&gt;"</code></pre>
   <button class="copybtn" data-copy="copy-mcp" aria-label="Copy command"></button>
   </div>
@@ -165,7 +166,7 @@ diagnostic hint and shrink constants.</code></pre>
 
   <h2>REST, for everything else</h2>
   <p>The same API key authenticates the raw endpoints:</p>
-  <pre><code>curl -s https://tlc.proc.io/check \\
+  <pre><code>curl -s ${url.origin}/check \\
   -H "Authorization: Bearer &lt;your key&gt;" \\
   -H "Content-Type: application/json" \\
   -d '{"modules":[{"name":"Spec","source":"---- MODULE Spec ----\\n..."}],

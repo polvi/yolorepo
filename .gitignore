@@ -1,4 +1,7 @@
 node_modules/
+stack.local.jsonc
+stack.generated.json
+wrangler.jsonc
 dist/
 build/
 .astro/

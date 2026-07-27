@@ -1,4 +1,6 @@
 ---
+import { appHost, appUrl } from '../../lib/stack';
+
 const title = 'Read your notebooks in KOReader — Happybook';
 const description =
   'Connect KOReader (or any OPDS e-reader) to your Happybook account: enable the catalog, add it on the device, and download your books anywhere.';
@@ -143,7 +145,7 @@ const description =
 
       <h2><span class="step">1.</span> Turn on the catalog in Happybook</h2>
       <p>
-        Open <a href="https://app.happybook.proc.io">app.happybook.proc.io</a>, sign in, and press
+        Open <a href={appUrl}>{appHost}</a>, sign in, and press
         the <strong>OPDS</strong> button in the header. Press <strong>Enable OPDS catalog</strong>
         and Happybook generates your catalog password: three short words, all lowercase.
       </p>
@@ -169,7 +171,7 @@ const description =
       </p>
       <table>
         <tr><td>Catalog name</td><td>anything you like, e.g. <code>happybook</code></td></tr>
-        <tr><td>Catalog URL</td><td><code>https://app.happybook.proc.io/api/opds</code></td></tr>
+        <tr><td>Catalog URL</td><td><code>{appUrl}/api/opds</code></td></tr>
         <tr><td>Username</td><td><code>reader</code> — any value, but not blank</td></tr>
         <tr><td>Password</td><td>the three words from step 1</td></tr>
       </table>
@@ -220,7 +222,7 @@ const description =
         username, and a password. Then in KOReader, open the top menu's tools tab →
         <strong>Progress sync</strong> → <strong>Custom sync server</strong> and enter the URL:
       </p>
-      <p><code>https://app.happybook.proc.io/api/kosync</code></p>
+      <p><code>{appUrl}/api/kosync</code></p>
       <p>
         Back in the Progress sync menu, choose <strong>Login</strong> (not Register: accounts come
         from Happybook) and enter the username and password. Unlike the catalog password, this one
@@ -238,7 +240,7 @@ const description =
       <h2>Try it without an account</h2>
       <p>
         The screenshots above use our live demo catalog. Point any OPDS client at
-        <code>https://app.happybook.proc.io/api/opds</code> with username <code>reader</code> and
+        <code>{appUrl}/api/opds</code> with username <code>reader</code> and
         password <code>lamp frog mint</code> to browse it yourself.
       </p>
 
@@ -250,7 +252,7 @@ const description =
       </p>
 
       <footer>
-        <a href="/">Happybook</a> · <a href="https://app.happybook.proc.io">Open the app</a> ·
+        <a href="/">Happybook</a> · <a href={appUrl}>Open the app</a> ·
         <a href="/llms.txt">llms.txt</a>
       </footer>
     </main>

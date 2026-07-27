@@ -38,8 +38,44 @@ export interface ScanReport {
 
 export const DEFAULT_TPX_ENDPOINT = "https://api.tokenpony.dev/v1";
 export const DEFAULT_TPX_MODEL = "llama-3.3-70b";
+
+// The canonical upstream deployment. These stay proc.io on purpose: they name
+// the upstream registry, and forks derive their own origins from the serving
+// hostname (see baseDomainFromHostname / rewriteUpstreamHosts below).
+export const UPSTREAM_BASE_DOMAIN = "proc.io";
 export const REGISTRY_URL = "https://api.openmonkey.proc.io";
 export const SITE_URL = "https://openmonkey.proc.io";
+
+// ---- Deployment-relative origins --------------------------------------------
+
+// Strip an app's own subdomain prefix off the serving hostname to recover the
+// base domain the whole stack hangs off of, e.g.
+//   baseDomainFromHostname("openmonkey.example.dev", "openmonkey.") === "example.dev"
+// Falls back to the upstream base domain for localhost and previews.
+export function baseDomainFromHostname(hostname: string, appPrefix: string): string {
+  return hostname.startsWith(appPrefix)
+    ? hostname.slice(appPrefix.length)
+    : UPSTREAM_BASE_DOMAIN;
+}
+
+// Userscript sources published to the upstream registry (including the
+// dogfood scripts in userscripts/) reference the upstream hosts. When a fork
+// serves those scripts, rewrite the hostnames to the fork's own equivalents
+// at serve time. No-op when serving from the upstream base domain itself.
+// Replacement order matters: longest / most specific hostname first, so
+// api.openmonkey.* is not clobbered by the openmonkey.* replacement.
+export function rewriteUpstreamHosts(code: string, baseDomain: string): string {
+  if (!baseDomain || baseDomain === UPSTREAM_BASE_DOMAIN) return code;
+  const replacements: Array<[string, string]> = [
+    [`api.openmonkey.${UPSTREAM_BASE_DOMAIN}`, `api.openmonkey.${baseDomain}`],
+    [`authgravity.${UPSTREAM_BASE_DOMAIN}`, `authgravity.${baseDomain}`],
+    [`openmonkey.${UPSTREAM_BASE_DOMAIN}`, `openmonkey.${baseDomain}`],
+    [`auth.${UPSTREAM_BASE_DOMAIN}`, `auth.${baseDomain}`],
+  ];
+  let out = code;
+  for (const [from, to] of replacements) out = out.replaceAll(from, to);
+  return out;
+}
 
 // ---- Userscript metadata block parsing -------------------------------------
 

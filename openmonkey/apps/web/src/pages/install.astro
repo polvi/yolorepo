@@ -1,5 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
+import { authOrigin, siteOrigin } from "../lib/origins";
+const host = Astro.url.hostname;
+const registerHref = `${authOrigin(host)}/register?return_to=${siteOrigin(host)}/scripts`;
 ---
 <Base title="Install scripts — openmonkey">
   <h1>Installing scripts</h1>
@@ -35,7 +38,7 @@ import Base from "../layouts/Base.astro";
 
   <h2>Publishing</h2>
   <ol style="max-width:42rem;">
-    <li><a href="https://auth.proc.io/register?return_to=https://openmonkey.proc.io/scripts">Create an account</a> — a passkey or 12-word account key.</li>
+    <li><a href={registerHref}>Create an account</a> — a passkey or 12-word account key.</li>
     <li>Publish through the <a href="/llms.txt">registry API</a>: <code>POST /api/scripts</code> with your code. Creation is publication.</li>
   </ol>
 </Base>

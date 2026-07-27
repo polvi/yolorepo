@@ -1,11 +1,14 @@
 ---
 import Base from "../layouts/Base.astro";
+import { stackBase } from "../lib/stack";
+
+const base = stackBase(Astro.url.hostname);
 ---
-<Base title="proc.io auth — one sign-in for every project">
-  <h1>One sign-in, every proc.io project</h1>
+<Base title={`${base} auth — one sign-in for every project`}>
+  <h1>One sign-in, every {base} project</h1>
   <p class="muted">
-    This is the shared auth surface for proc.io projects. Sign in once — with a
-    passkey or a 12-word account key — and every <code>*.proc.io</code> app sees
+    This is the shared auth surface for {base} projects. Sign in once — with a
+    passkey or a 12-word account key — and every <code>*.{base}</code> app sees
     the same session. No passwords, no email, nothing to leak.
   </p>
   <p>
@@ -16,9 +19,9 @@ import Base from "../layouts/Base.astro";
   <h2>For project authors</h2>
   <div class="card">
     <p style="margin-top:0;">Send users here with a <code>return_to</code> back to your app
-    (any <code>https</code> URL on <code>proc.io</code> or a subdomain):</p>
-    <p><code>https://auth.proc.io/login?return_to=https://yourapp.proc.io/…</code></p>
+    (any <code>https</code> URL on <code>{base}</code> or a subdomain):</p>
+    <p><code>https://auth.{base}/login?return_to=https://yourapp.{base}/…</code></p>
     <p style="margin-bottom:0;">Validate sessions by forwarding the <code>Cookie</code> header to
-    <code>authgravity.proc.io/v1/whoami</code>. Details in <a href="/llms.txt">/llms.txt</a>.</p>
+    <code>authgravity.{base}/v1/whoami</code>. Details in <a href="/llms.txt">/llms.txt</a>.</p>
   </div>
 </Base>

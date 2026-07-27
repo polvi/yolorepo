@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "procauth-web",
+  "name": "openmonkey-web",
   "main": "dist/_worker.js/index.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,8 +10,14 @@
   },
   "routes": [
     {
-      "pattern": "auth.proc.io",
+      "pattern": "openmonkey.__BASE_DOMAIN__",
       "custom_domain": true
+    }
+  ],
+  "services": [
+    {
+      "binding": "API",
+      "service": "openmonkey-api"
     }
   ],
   "observability": {

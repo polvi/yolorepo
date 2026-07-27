@@ -3,14 +3,14 @@
 // AuthGravity user UUID; the plaintext API key exists only in the response
 // that mints it.
 
-import { AUTHGRAVITY, generateApiKey, sha256Hex, whoami } from "./auth";
+import { authgravityOrigin, generateApiKey, sha256Hex, whoami } from "./auth";
 import { escapeHtml, page } from "./page";
 
 // Two-button passkey UI per the AuthGravity integration guide: no usernames,
 // no email, no forms. Uses the browser's native WebAuthn JSON helpers
 // (parseCreationOptionsFromJSON / toJSON), so there is no client dependency.
-const AUTH_SCRIPT = `<script>
-const AG = ${JSON.stringify(AUTHGRAVITY)};
+const authScript = (authgravity: string) => `<script>
+const AG = ${JSON.stringify(authgravity)};
 const api = (path, init = {}) => fetch(AG + path, { ...init, credentials: "include" });
 const fail = (err) => {
   const el = document.getElementById("autherr");
@@ -73,6 +73,8 @@ async function loadUser(db: D1Database, userId: string): Promise<{ publish: bool
 }
 
 function accountPage(
+  url: URL,
+  authgravity: string,
   userId: string,
   publish: boolean,
   keys: KeyRow[],
@@ -106,7 +108,7 @@ cannot be shown again.</p>
 </div>
 <p>Then point Claude Code at the checker with your key:</p>
 <div class="copywrap">
-<pre><code id="copy-add">claude mcp add --scope user --transport http tlc https://tlc.proc.io/mcp \\
+<pre><code id="copy-add">claude mcp add --scope user --transport http tlc ${url.origin}/mcp \\
   --header "Authorization: Bearer ${escapeHtml(freshKey)}"</code></pre>
 <button class="copybtn" data-copy="copy-add" aria-label="Copy add command"></button>
 </div>
@@ -114,7 +116,8 @@ cannot be shown again.</p>
     : "";
 
   return page(
-    "Account — tlc.proc.io",
+    url.host,
+    `Account — ${url.host}`,
     `<h1>Account</h1>
 <p class="tag">Signed in as <code>${escapeHtml(userId)}</code> ·
 <button id="btn-logout" class="plain">Sign out</button></p>
@@ -140,13 +143,14 @@ ${keyRows}
 </table>`
     }
 <form method="post" action="/account/keys"><button>Create API key</button></form>
-${AUTH_SCRIPT}`,
+${authScript(authgravity)}`,
   );
 }
 
-function signInPage(): Response {
+function signInPage(url: URL, authgravity: string): Response {
   return page(
-    "Sign in — tlc.proc.io",
+    url.host,
+    `Sign in — ${url.host}`,
     `<h1>Sign in</h1>
 <p class="tag">Checking requires an account: it gets you an API key for the
 MCP and REST endpoints, and (by default) publishes your passing specs to
@@ -158,22 +162,27 @@ username; the service learns nothing about you but a UUID.</p>
 </p>
 <p id="autherr" class="dim"></p>
 <p class="dim">Powered by <a href="https://authgravity.org">AuthGravity</a>.</p>
-${AUTH_SCRIPT}`,
+${authScript(authgravity)}`,
   );
 }
 
 /** Routes GET /account and POST /account/{keys,keys/revoke,publish}. */
-export async function handleAccount(request: Request, db: D1Database): Promise<Response> {
+export async function handleAccount(
+  request: Request,
+  env: { DB: D1Database; AUTH_ENDPOINT?: string },
+): Promise<Response> {
+  const db = env.DB;
+  const authgravity = authgravityOrigin(env);
   const url = new URL(request.url);
-  const userId = await whoami(request);
+  const userId = await whoami(request, authgravity);
   if (!userId) {
     if (request.method === "POST") return new Response("sign in first\n", { status: 401 });
-    return signInPage();
+    return signInPage(url, authgravity);
   }
 
   if (request.method === "GET" && url.pathname === "/account") {
     const { publish, keys } = await loadUser(db, userId);
-    return accountPage(userId, publish, keys);
+    return accountPage(url, authgravity, userId, publish, keys);
   }
 
   if (request.method !== "POST") return new Response("method not allowed\n", { status: 405 });
@@ -190,7 +199,7 @@ export async function handleAccount(request: Request, db: D1Database): Promise<R
         .bind(await sha256Hex(key), userId)
         .run();
       const { keys } = await loadUser(db, userId);
-      return accountPage(userId, publish, keys, key);
+      return accountPage(url, authgravity, userId, publish, keys, key);
     }
     case "/account/keys/revoke": {
       const form = await request.formData();

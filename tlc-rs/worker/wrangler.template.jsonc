@@ -4,12 +4,13 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-01",
   "workers_dev": false,
-  "routes": [{ "pattern": "tlc.proc.io", "custom_domain": true }],
+  "routes": [{ "pattern": "tlc.__BASE_DOMAIN__", "custom_domain": true }],
+  "vars": { "AUTH_ENDPOINT": "__AUTH_ENDPOINT__" },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "tlc-hub",
-      "database_id": "554b8574-917e-41e9-878b-7fd1a5d5b5c8"
+      "database_id": "__D1:tlc__"
     }
   ],
   // The wasm checker lives in the tlc-engine worker (engine/), so a heavy

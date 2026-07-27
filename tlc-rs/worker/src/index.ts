@@ -4,7 +4,7 @@
 // requests served here. Checking requires an API key (AuthGravity identity
 // + D1-stored keys — see auth.ts); the hub and account pages stay public.
 import { handleMcp } from "./mcp";
-import { LANDING_HTML } from "./landing";
+import { landingHtml } from "./landing";
 import { authenticateBearer } from "./auth";
 import { handleAccount } from "./account";
 import { hubIndex, hubPath, hubRaw, hubSpec, hubWins, publishSpec, reportWin } from "./hub";
@@ -31,7 +31,8 @@ function engineFailure(): { status: string; errors: object[] } {
   };
 }
 
-const KEY_HINT = "mint an API key at https://tlc.proc.io/account and send it as `Authorization: Bearer <key>`";
+const keyHint = (origin: string) =>
+  `mint an API key at ${origin}/account and send it as \`Authorization: Bearer <key>\``;
 
 const HUB_SPEC_RE = /^\/hub\/([^/]+)\/([^/]+)$/;
 const HUB_RAW_RE = /^\/hub\/([^/]+)\/([^/]+)\/(\d+)\.(tla|cfg)$/;
@@ -43,20 +44,25 @@ export default {
 
     if (request.method === "GET") {
       if (url.pathname === "/" || url.pathname === "/index.html") {
-        return new Response(LANDING_HTML, {
+        return new Response(landingHtml(url), {
           headers: { "Content-Type": "text/html; charset=utf-8" },
         });
       }
-      if (url.pathname === "/account") return handleAccount(request, env.DB);
-      if (url.pathname === "/llms.txt") return llmsTxt();
+      if (url.pathname === "/account") return handleAccount(request, env);
+      if (url.pathname === "/llms.txt") return llmsTxt(url.host);
       if (url.pathname === "/tpx/client") return tpxClient(request, env.DB);
-      if (url.pathname === "/tpx/callback") return tpxCallback();
+      if (url.pathname === "/tpx/callback") return tpxCallback(url.host);
       if (url.pathname === "/tpx.js") return tpxJs();
-      if (url.pathname === "/hub") return hubIndex(env.DB);
-      if (url.pathname === "/hub/wins") return hubWins(env.DB);
+      if (url.pathname === "/hub") return hubIndex(env.DB, url.host);
+      if (url.pathname === "/hub/wins") return hubWins(env.DB, url.host);
       const specMatch = url.pathname.match(HUB_SPEC_RE);
       if (specMatch) {
-        return hubSpec(env.DB, decodeURIComponent(specMatch[1]), decodeURIComponent(specMatch[2]));
+        return hubSpec(
+          env.DB,
+          url.host,
+          decodeURIComponent(specMatch[1]),
+          decodeURIComponent(specMatch[2]),
+        );
       }
       const rawMatch = url.pathname.match(HUB_RAW_RE);
       if (rawMatch) {
@@ -71,7 +77,7 @@ export default {
     }
 
     if (request.method === "POST" && url.pathname.startsWith("/account")) {
-      return handleAccount(request, env.DB);
+      return handleAccount(request, env);
     }
 
     if (request.method !== "POST") {
@@ -96,14 +102,15 @@ export default {
             error: {
               code: -32001,
               message: user === "invalid"
-                ? `invalid bearer token (${KEY_HINT})`
-                : `authentication required (${KEY_HINT})`,
+                ? `invalid bearer token (${keyHint(url.origin)})`
+                : `authentication required (${keyHint(url.origin)})`,
             },
           },
           { status: 401 },
         );
       }
       return handleMcp(body, engine, {
+        host: url.host,
         user,
         publish: (name, tla, cfg, stats, meta) => {
           ctx.waitUntil(publishSpec(env.DB, user.id, name, tla, cfg, stats, meta));
@@ -129,7 +136,9 @@ export default {
               errors: [{
                 code: "R0006",
                 category: "request",
-                message: user === "invalid" ? `invalid API key; ${KEY_HINT}` : `authentication required; ${KEY_HINT}`,
+                message: user === "invalid"
+                  ? `invalid API key; ${keyHint(url.origin)}`
+                  : `authentication required; ${keyHint(url.origin)}`,
               }],
             },
             { status: 401 },

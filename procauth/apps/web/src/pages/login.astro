@@ -1,10 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
+import { stackBase } from "../lib/stack";
+
+const base = stackBase(Astro.url.hostname);
 ---
-<Base title="Sign in — proc.io" description="Sign in to proc.io projects with a passkey or account key.">
+<Base title={`Sign in — ${base}`} description={`Sign in to ${base} projects with a passkey or account key.`}>
   <h1>Sign in</h1>
   <p class="muted">
-    One sign-in works on every proc.io project. No passwords, no email.
+    One sign-in works on every {base} project. No passwords, no email.
     New here? <a href="/register" id="register-link">Create an account</a>.
   </p>
 
@@ -22,7 +25,7 @@ import Base from "../layouts/Base.astro";
   </div>
 
   <script>
-    import { passkeyLogin, safeReturnTo, withReturnTo, AUTHG } from "../lib/authg-client";
+    import { passkeyLogin, safeReturnTo, withReturnTo, AUTHG, AUTHG_LABEL } from "../lib/authg-client";
     import { decodeKey, loginWithAccountKey, trySilentLogin, enableDeviceKey, supportsPasskeys } from "@authgravity/browser";
 
     const $ = (id: string) => document.getElementById(id)!;
@@ -35,7 +38,7 @@ import Base from "../layouts/Base.astro";
     ($("register-link") as HTMLAnchorElement).href = withReturnTo("/register");
 
     async function done(fresh: boolean) {
-      if (fresh) await enableDeviceKey(AUTHG, "proc.io auth").catch(() => {});
+      if (fresh) await enableDeviceKey(AUTHG, AUTHG_LABEL).catch(() => {});
       location.href = safeReturnTo();
     }
 

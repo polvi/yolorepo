@@ -11,11 +11,14 @@ import Base from "../../layouts/Base.astro";
     localStorage plus BroadcastChannel) and closes itself. The code is useless
     without the PKCE verifier held by the requesting script, so relaying it
     on this origin is safe. Any script on this registry may use
-    <code>https://openmonkey.proc.io/oauth/tpx</code> as its registered
+    <code id="redirect-uri"></code> as its registered
     redirect URI.
   </p>
 
   <script>
+    // This page's own origin is the registered redirect URI, whatever domain
+    // the deployment serves from.
+    document.getElementById("redirect-uri")!.textContent = `${location.origin}/oauth/tpx`;
     const p = new URLSearchParams(location.search);
     const state = p.get("state");
     const msg = document.getElementById("msg")!;

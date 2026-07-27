@@ -9,7 +9,8 @@ export function escapeHtml(text: string): string {
     .replaceAll('"', "&quot;");
 }
 
-export function page(title: string, body: string, extraHead = ""): Response {
+/** `host` is the hostname the request arrived on (drives the nav brand link). */
+export function page(host: string, title: string, body: string, extraHead = ""): Response {
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -142,7 +143,7 @@ ${extraHead}<style>
 </head>
 <body>
 <main>
-<nav><a href="/">tlc.proc.io</a> <a href="/hub">hub</a> <a href="/hub/wins">wins</a> <a href="/account">account</a></nav>
+<nav><a href="/">${escapeHtml(host)}</a> <a href="/hub">hub</a> <a href="/hub/wins">wins</a> <a href="/account">account</a></nav>
 ${body}
 <footer>Source: <a href="https://github.com/polvi/tlc-rs">github.com/polvi/tlc-rs</a>
 (AGPL-3.0). Sign-in powered by <a href="https://authgravity.org">AuthGravity</a>.</footer>

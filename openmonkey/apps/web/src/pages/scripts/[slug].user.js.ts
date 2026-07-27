@@ -1,15 +1,20 @@
 import type { APIRoute } from "astro";
+import { rewriteUpstreamHosts } from "@openmonkey/shared";
+import { apiOrigin, siteBase } from "../../lib/origins";
 
-// Serves the latest code at openmonkey.proc.io/scripts/<slug>.user.js.
+// Serves the latest code at openmonkey.<base>/scripts/<slug>.user.js.
 // Userscript managers (Userscripts for Safari, Tampermonkey, Violentmonkey)
 // trigger their install flow on URLs ending in .user.js, so this link is the
-// whole install story.
-export const GET: APIRoute = async ({ params, locals }) => {
-  const url = `https://api.openmonkey.proc.io/api/scripts/${params.slug}.user.js`;
+// whole install story. The api origin is derived from the serving hostname,
+// and upstream hostnames in the script body are rewritten to this
+// deployment's equivalents (a no-op on the upstream proc.io deployment).
+export const GET: APIRoute = async ({ params, locals, url }) => {
+  const apiUrl = `${apiOrigin(url.hostname)}/api/scripts/${params.slug}.user.js`;
   const binding = (locals as any)?.runtime?.env?.API;
-  const res = binding ? await binding.fetch(new Request(url)) : await fetch(url);
+  const res = binding ? await binding.fetch(new Request(apiUrl)) : await fetch(apiUrl);
   if (!res.ok) return new Response("not found", { status: 404 });
-  return new Response(await res.text(), {
+  const code = rewriteUpstreamHosts(await res.text(), siteBase(url.hostname));
+  return new Response(code, {
     headers: { "Content-Type": "text/javascript; charset=utf-8" },
   });
 };

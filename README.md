@@ -29,13 +29,23 @@ project keeps its passing spec and config in a `specs/` folder.
 
 ## Develop
 
-Each project has its own README with setup instructions. In general:
+Run `bun run configure` once after cloning — it renders each app's
+`wrangler.jsonc` from its `wrangler.template.jsonc` using
+`stack.config.jsonc` (plus your `stack.local.jsonc` override, if any). Then
+each project has its own README with setup instructions. In general:
 
 ```sh
+bun run configure   # once, at the repo root
 cd <project>
 bun install
 bun run dev
 ```
+
+## Fork it
+
+The stack runs on any domain: your fork's entire divergence from this repo
+is one untracked file, so pulling upstream stays clean. See
+[FORKING.md](FORKING.md).
 
 ## License
 

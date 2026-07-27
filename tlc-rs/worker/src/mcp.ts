@@ -10,6 +10,8 @@ type Json = Record<string, unknown>;
 
 /** Auth context + publish hooks, wired up by index.ts. */
 export interface McpContext {
+  /** Hostname the request arrived on; names the hub in tool metadata. */
+  host: string;
   /** Bearer-authenticated user; index.ts rejects unauthenticated calls. */
   user: AuthedUser;
   /** Fire-and-forget hub publish; returns the public URL of the spec. */
@@ -27,7 +29,7 @@ interface RpcRequest {
 
 const PROTOCOL_VERSION = "2025-06-18";
 
-const TOOLS = [
+const tools = (host: string) => [
   {
     name: "tlc_check",
     description:
@@ -68,7 +70,7 @@ const TOOLS = [
         publish: {
           type: "boolean",
           description:
-            "A passing check publishes the spec+config to tlc.proc.io/hub as the next generation of " +
+            `A passing check publishes the spec+config to ${host}/hub as the next generation of ` +
             "this module. Defaults to the account's publish setting; pass false to skip publishing " +
             "this call.",
         },
@@ -125,7 +127,7 @@ const TOOLS = [
       "tlc_check invariant/property violation exposed a genuine flaw in the system being modeled " +
       "(not a typo in the spec itself), the design was corrected, and the fixed spec passed and " +
       "published. The win appears on the spec's hub page and in the public hub-wide wins list " +
-      "(tlc.proc.io/hub/wins). Requires a spec you've already published.",
+      `(${host}/hub/wins). Requires a spec you've already published.`,
     inputSchema: {
       type: "object",
       properties: {
@@ -214,7 +216,7 @@ export async function handleMcp(
           "TLA+ finite model checking (safety subset). Use tlc_parse to validate a spec, tlc_check to " +
           "model-check it. On invariant_violation read the trace in the result; on timeout read the " +
           "diagnostic hint and shrink CONSTANT bounds. Specs must be finite. " +
-          "Passing checks are published to tlc.proc.io/hub " +
+          `Passing checks are published to ${ctx.host}/hub ` +
           (ctx.user.publish
             ? "(your account setting: on; pass publish:false on a call to skip it). "
             : "only if the call sets publish:true (your account setting: off). ") +
@@ -223,7 +225,7 @@ export async function handleMcp(
           "confidential names and business context; share the abstract design. " +
           "When a check's violation exposes a real bug in the system's design (not a spec typo) and " +
           "the corrected design passes, report it with tlc_report_win — it showcases the save on the " +
-          "spec's hub page and at tlc.proc.io/hub/wins.",
+          `spec's hub page and at ${ctx.host}/hub/wins.`,
       });
 
     case "notifications/initialized":
@@ -235,7 +237,7 @@ export async function handleMcp(
       return rpcResult(req.id, {});
 
     case "tools/list":
-      return rpcResult(req.id, { tools: TOOLS });
+      return rpcResult(req.id, { tools: tools(ctx.host) });
 
     case "tools/call": {
       const params = (req.params ?? {}) as { name?: string; arguments?: Json };

@@ -1,13 +1,16 @@
 ---
 import Base from "../layouts/Base.astro";
+import { stackBase } from "../lib/stack";
+
+const base = stackBase(Astro.url.hostname);
 ---
-<Base title="Account — proc.io" description="Manage your proc.io credentials and session.">
+<Base title={`Account — ${base}`} description={`Manage your ${base} credentials and session.`}>
   <h1>Account</h1>
   <div class="card" id="who"><div class="muted">Loading…</div></div>
 
   <h2>Credentials</h2>
   <p class="muted">
-    Every way you can sign in, on any proc.io project. Keep at least one recovery
+    Every way you can sign in, on any {base} project. Keep at least one recovery
     option — if you lose them all, the account is gone (that's the point).
   </p>
   <div id="creds"><div class="card muted">Loading…</div></div>

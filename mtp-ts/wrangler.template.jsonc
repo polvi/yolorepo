@@ -1,14 +1,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "happybook-marketing",
+  "name": "mtp-demo",
   "compatibility_date": "2026-07-01",
   "assets": {
-    "directory": "./dist"
+    "directory": "dist"
   },
   "routes": [
     {
-      "pattern": "happybook.proc.io",
+      "pattern": "mtp.__BASE_DOMAIN__",
       "custom_domain": true
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true
+  }
 }

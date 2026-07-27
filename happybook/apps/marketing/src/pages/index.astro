@@ -1,4 +1,6 @@
 ---
+import { appUrl } from '../lib/stack';
+
 const title = 'Happybook — notebooks made of PDFs & EPUBs';
 const description =
   'Collect PDFs and EPUBs into notebooks, highlight what matters, and link passages across documents. Works offline, syncs with a passkey.';
@@ -109,7 +111,7 @@ const description =
         links between documents, so page 12 of one paper can point straight at the figure that
         answers it in another.
       </p>
-      <a class="cta" href="https://app.happybook.proc.io">Open Happybook</a>
+      <a class="cta" href={appUrl}>Open Happybook</a>
       <span class="note">Free, works offline, no account needed. Sign in with a passkey to sync.</span>
 
       <section class="features">

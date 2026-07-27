@@ -1,27 +1,40 @@
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
-import { parseUserscriptMeta } from "@openmonkey/shared";
+import { parseUserscriptMeta, rewriteUpstreamHosts } from "@openmonkey/shared";
 
 type Env = {
   DB: D1Database;
+  AUTH_ENDPOINT?: string;
+  BASE_DOMAIN?: string;
 };
 
 type Vars = {
   userId: string;
 };
 
-const AUTH_ENDPOINT = "https://authgravity.proc.io";
+// Upstream default; forks set AUTH_ENDPOINT via wrangler.template.jsonc vars.
+const DEFAULT_AUTH_ENDPOINT = "https://authgravity.proc.io";
+
+// The api serves at api.openmonkey.<base>. Derive <base> from the incoming
+// request so sibling origins (the web site, auth) point at the same
+// deployment; fall back to the configured BASE_DOMAIN (then proc.io) for
+// localhost dev and previews where the hostname carries no base.
+function baseDomainOf(c: { req: { url: string }; env: Env }): string {
+  const hostname = new URL(c.req.url).hostname;
+  return hostname.startsWith("api.openmonkey.")
+    ? hostname.slice("api.openmonkey.".length)
+    : c.env.BASE_DOMAIN || "proc.io";
+}
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>().basePath("/api");
 
 // ---- CORS: site + local dev, with credentials -------------------------------
 
-const ALLOWED_ORIGIN_RE =
-  /^(https:\/\/openmonkey\.proc\.io|https?:\/\/localhost(:\d+)?)$/;
-
 app.use("*", async (c, next) => {
   const origin = c.req.header("origin");
-  const allowed = origin && ALLOWED_ORIGIN_RE.test(origin);
+  const siteOrigin = `https://openmonkey.${baseDomainOf(c)}`;
+  const allowed =
+    origin && (origin === siteOrigin || /^https?:\/\/localhost(:\d+)?$/.test(origin));
   if (allowed) {
     c.header("Access-Control-Allow-Origin", origin);
     c.header("Access-Control-Allow-Credentials", "true");
@@ -41,7 +54,8 @@ app.use("*", async (c, next) => {
 async function requireAuth(c: Context<{ Bindings: Env; Variables: Vars }>, next: Next) {
   const cookie = c.req.header("cookie");
   if (!cookie) return c.json({ error: "unauthenticated" }, 401);
-  const res = await fetch(`${AUTH_ENDPOINT}/v1/whoami`, { headers: { cookie } });
+  const authEndpoint = c.env.AUTH_ENDPOINT || DEFAULT_AUTH_ENDPOINT;
+  const res = await fetch(`${authEndpoint}/v1/whoami`, { headers: { cookie } });
   if (!res.ok) return c.json({ error: "unauthenticated" }, 401);
   const { user_id } = (await res.json()) as { user_id: string };
   await c.env.DB.prepare("INSERT OR IGNORE INTO users (id) VALUES (?)").bind(user_id).run();
@@ -68,10 +82,10 @@ const SCRIPT_COLS = `s.id, s.slug, s.name, s.description, s.author_id, s.forked_
 // Serve-time metadata injection: stored code is immutable, but managers need
 // @downloadURL/@updateURL to register the canonical URL and check for updates,
 // and a @version to compare against. Injected only when the author omitted them.
-function withInjectedMeta(code: string, slug: string, version: number): string {
+function withInjectedMeta(code: string, slug: string, version: number, siteOrigin: string): string {
   const close = code.match(/^\s*\/\/\s*==\/UserScript==.*$/m);
   if (!close || typeof close.index !== "number") return code;
-  const base = `https://openmonkey.proc.io/scripts/${slug}`;
+  const base = `${siteOrigin}/scripts/${slug}`;
   const has = (k: string) => new RegExp(`^\\s*//\\s*@${k}\\b`, "m").test(code);
   const lines: string[] = [];
   if (!has("version")) lines.push(`// @version      ${version}.0.0`);
@@ -130,7 +144,12 @@ app.get("/scripts/:file{.+\\.user\\.js}", async (c) => {
       .bind(script.id)
       .run()
   );
-  return c.text(withInjectedMeta(version.code, script.slug as string, version.version), 200, {
+  // Forks serve scripts published against the upstream deployment: rewrite the
+  // upstream hostnames to this deployment's before injecting metadata.
+  const baseDomain = baseDomainOf(c);
+  const code = rewriteUpstreamHosts(version.code, baseDomain);
+  const siteOrigin = `https://openmonkey.${baseDomain}`;
+  return c.text(withInjectedMeta(code, script.slug as string, version.version, siteOrigin), 200, {
     "Content-Type": "text/javascript; charset=utf-8",
   });
 });
@@ -237,7 +256,7 @@ app.post("/scripts", requireAuth, async (c) => {
 
 // Publish a new version (author only).
 app.post("/scripts/:slug/versions", requireAuth, async (c) => {
-  const script = await getScriptBySlug(c.env.DB, c.req.param("slug"));
+  const script = await getScriptBySlug(c.env.DB, c.req.param("slug") ?? "");
   if (!script) return c.json({ error: "not_found" }, 404);
   if (script.author_id !== c.get("userId")) return c.json({ error: "forbidden" }, 403);
   const body = await c.req.json<{ code: string; changelog?: string }>();
@@ -257,7 +276,7 @@ app.post("/scripts/:slug/versions", requireAuth, async (c) => {
 // Fork: new script authored by the caller, lineage recorded, seeded from latest
 // source version (or caller-modified code).
 app.post("/scripts/:slug/fork", requireAuth, async (c) => {
-  const source = await getScriptBySlug(c.env.DB, c.req.param("slug"));
+  const source = await getScriptBySlug(c.env.DB, c.req.param("slug") ?? "");
   if (!source) return c.json({ error: "not_found" }, 404);
   const latest = await c.env.DB.prepare(
     "SELECT code, match_patterns FROM versions WHERE script_id = ? ORDER BY version DESC LIMIT 1"

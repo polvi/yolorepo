@@ -2,10 +2,10 @@
 import Base from "../../layouts/Base.astro";
 import { apiFetch } from "../../lib/api";
 const { slug } = Astro.params;
-const data = await apiFetch(Astro.locals, `/scripts/${slug}`);
+const data = await apiFetch(Astro, `/scripts/${slug}`);
 if (!data?.script) return new Response("Not found", { status: 404 });
 const { script, version } = data;
-const scansData = version ? await apiFetch(Astro.locals, `/versions/${version.id}/scans`) : null;
+const scansData = version ? await apiFetch(Astro, `/versions/${version.id}/scans`) : null;
 const scans = scansData?.scans ?? [];
 const matches = version ? JSON.parse(version.match_patterns) : [];
 ---

@@ -5,15 +5,19 @@
   "compatibility_date": "2026-07-01",
   "routes": [
     {
-      "pattern": "api.openmonkey.proc.io",
+      "pattern": "api.openmonkey.__BASE_DOMAIN__",
       "custom_domain": true
     }
   ],
+  "vars": {
+    "AUTH_ENDPOINT": "__AUTH_ENDPOINT__",
+    "BASE_DOMAIN": "__BASE_DOMAIN__"
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "openmonkey",
-      "database_id": "43bbd871-ad28-43f1-b03f-184c7c85a5a4"
+      "database_id": "__D1:openmonkey__"
     }
   ],
   "observability": {

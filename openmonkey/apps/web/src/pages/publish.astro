@@ -1,5 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import { authOrigin, siteBase, siteOrigin } from "../lib/origins";
+const host = Astro.url.hostname;
+const base = siteBase(host);
+const signInHref = `${authOrigin(host)}/login?return_to=${siteOrigin(host)}/publish`;
 ---
 <Base title="Publish — openmonkey" description="Publish a userscript to the open registry. Creation is publication.">
   <h1>Publish a script</h1>
@@ -7,7 +11,7 @@ import Base from "../layouts/Base.astro";
     Publishing is public and immediate. The metadata block supplies the name and
     description unless you override them here; <code>@match</code> or
     <code>@include</code> is required. You need a
-    <a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/publish">proc.io session</a> to publish.
+    <a href={signInHref}>{base} session</a> to publish.
   </p>
 
   <form id="publish-form" style="display:flex; flex-direction:column; gap:0.75rem; max-width:42rem;">
@@ -37,6 +41,9 @@ import Base from "../layouts/Base.astro";
   </p>
 
   <script>
+    import { apiOrigin, authOrigin } from "../lib/origins";
+    const API = apiOrigin(location.hostname);
+    const AUTH = authOrigin(location.hostname);
     const form = document.getElementById("publish-form") as HTMLFormElement;
     const status = document.getElementById("f-status")!;
     const slugInput = document.getElementById("f-slug") as HTMLInputElement;
@@ -47,9 +54,7 @@ import Base from "../layouts/Base.astro";
     async function loadExisting(slug: string) {
       status.textContent = `loading ${slug}…`;
       try {
-        const res = await fetch(
-          `https://api.openmonkey.proc.io/api/scripts/${encodeURIComponent(slug)}`
-        );
+        const res = await fetch(`${API}/api/scripts/${encodeURIComponent(slug)}`);
         if (!res.ok) {
           status.textContent = "No script with that slug.";
           return;
@@ -83,8 +88,8 @@ import Base from "../layouts/Base.astro";
       const slug = (document.getElementById("f-slug") as HTMLInputElement).value.trim();
       const code = (document.getElementById("f-code") as HTMLTextAreaElement).value;
       const url = slug
-        ? `https://api.openmonkey.proc.io/api/scripts/${encodeURIComponent(slug)}/versions`
-        : "https://api.openmonkey.proc.io/api/scripts";
+        ? `${API}/api/scripts/${encodeURIComponent(slug)}/versions`
+        : `${API}/api/scripts`;
       const body = slug
         ? {
             code,
@@ -104,8 +109,7 @@ import Base from "../layouts/Base.astro";
           body: JSON.stringify(body),
         });
         if (res.status === 401) {
-          status.innerHTML =
-            'Sign in first: <a href="https://auth.proc.io/login?return_to=https://openmonkey.proc.io/publish">auth.proc.io</a>';
+          status.innerHTML = `Sign in first: <a href="${AUTH}/login?return_to=${location.origin}/publish">${new URL(AUTH).hostname}</a>`;
           return;
         }
         const data = await res.json();
@@ -117,7 +121,7 @@ import Base from "../layouts/Base.astro";
               ev.preventDefault();
               status.textContent = "forking…";
               const fres = await fetch(
-                `https://api.openmonkey.proc.io/api/scripts/${encodeURIComponent(slug)}/fork`,
+                `${API}/api/scripts/${encodeURIComponent(slug)}/fork`,
                 {
                   method: "POST",
                   credentials: "include",

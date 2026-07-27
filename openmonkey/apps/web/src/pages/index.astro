@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import { apiFetch } from "../lib/api";
-const data = await apiFetch(Astro.locals, "/scripts?limit=6");
+const data = await apiFetch(Astro, "/scripts?limit=6");
 const recent = data?.scripts ?? [];
 ---
 <Base title="openmonkey — userscripts in the open">

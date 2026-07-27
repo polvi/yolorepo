@@ -3,6 +3,15 @@ This is a meta mono repo of random ideas. For each distinct idea, create a subfo
 Use auth.proc.io/llms.txt for auth
 Use tokenpony.dev/llms.txt for inference
 
+Domain configuration: every `wrangler.jsonc` is GENERATED from a sibling
+`wrangler.template.jsonc` by `bun run configure` (tokens `__BASE_DOMAIN__`,
+`__AUTH_ENDPOINT__`, `__D1:<key>__` resolved from `stack.config.jsonc` +
+gitignored `stack.local.jsonc`). Edit templates, never generated files, and
+never hardcode proc.io in code: browser code derives peer origins from
+location.hostname, workers read vars (AUTH_ENDPOINT etc.) with proc.io
+fallbacks, build-time code reads `stack.generated.json`. This keeps forks
+runnable on their own domain from one untracked file (see FORKING.md).
+
 You can commit and deploy as you go. 
 Use subagents when it makes sense to go faster.
 

@@ -1,10 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
+import { stackBase } from "../lib/stack";
+
+const base = stackBase(Astro.url.hostname);
 ---
-<Base title="Create an account — proc.io" description="Create a proc.io account with a passkey or a 12-word account key.">
+<Base title={`Create an account — ${base}`} description={`Create a ${base} account with a passkey or a 12-word account key.`}>
   <h1>Create an account</h1>
   <p class="muted">
-    One account for every proc.io project. A passkey (Face ID, Touch ID, security
+    One account for every {base} project. A passkey (Face ID, Touch ID, security
     key) or a 12-word account key — no passwords, no email.
     Already have one? <a href="/login" id="login-link">Sign in</a>.
   </p>
@@ -14,7 +17,7 @@ import Base from "../layouts/Base.astro";
   </div>
 
   <script>
-    import { passkeyRegister, safeReturnTo, withReturnTo, AUTHG } from "../lib/authg-client";
+    import { passkeyRegister, safeReturnTo, withReturnTo, AUTHG, AUTHG_LABEL } from "../lib/authg-client";
     import { createAccountKeySetup, enableDeviceKey } from "@authgravity/browser";
 
     const wizard = document.getElementById("wizard")!;
@@ -23,10 +26,10 @@ import Base from "../layouts/Base.astro";
 
     (document.getElementById("login-link") as HTMLAnchorElement).href = withReturnTo("/login");
 
-    const setup = createAccountKeySetup({ endpoint: AUTHG, label: "proc.io auth" });
+    const setup = createAccountKeySetup({ endpoint: AUTHG, label: AUTHG_LABEL });
 
     async function finish() {
-      await enableDeviceKey(AUTHG, "proc.io auth").catch(() => {});
+      await enableDeviceKey(AUTHG, AUTHG_LABEL).catch(() => {});
       location.href = safeReturnTo();
     }
 

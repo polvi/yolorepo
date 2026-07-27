@@ -2,7 +2,14 @@
 // Account-key and device-key flows come from @authgravity/browser; WebAuthn
 // ceremonies are the app's job, implemented here.
 
-export const AUTHG = "https://authgravity.proc.io";
+import { authgravityOrigin, stackBase } from "./stack";
+
+// Browser-only module (WebAuthn), so the endpoint derives from where the
+// page is served: authgravity.<base> next to auth.<base>.
+export const AUTHG = authgravityOrigin(location.hostname);
+
+// Label attached to device and account keys minted from this surface.
+export const AUTHG_LABEL = `${stackBase(location.hostname)} auth`;
 
 export interface VerifyResult {
   verified: boolean;
@@ -104,16 +111,18 @@ export async function logout(): Promise<void> {
   await fetch(`${AUTHG}/v1/logout`, { method: "POST", credentials: "include" });
 }
 
-// This surface serves every proc.io app: return_to may be a local path or an
-// https URL on proc.io / any *.proc.io subdomain. Anything else falls back.
+// This surface serves every app on the stack: return_to may be a local path
+// or an https URL on the base domain / any of its subdomains. Anything else
+// falls back.
 export function safeReturnTo(fallback = "/account"): string {
   const raw = new URLSearchParams(location.search).get("return_to") || "";
   if (!raw) return fallback;
   try {
+    const base = stackBase(location.hostname);
     const u = new URL(raw, location.origin);
     const local = u.origin === location.origin;
-    const procio = u.protocol === "https:" && (u.hostname === "proc.io" || u.hostname.endsWith(".proc.io"));
-    if ((local || procio) && !u.pathname.startsWith("//")) return local ? u.pathname + u.search + u.hash : u.href;
+    const onBase = u.protocol === "https:" && (u.hostname === base || u.hostname.endsWith(`.${base}`));
+    if ((local || onBase) && !u.pathname.startsWith("//")) return local ? u.pathname + u.search + u.hash : u.href;
   } catch {}
   return fallback;
 }

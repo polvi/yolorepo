@@ -1,12 +1,13 @@
 // Light skinning for the shared auth surface. Two conventions, both optional:
 //
-// 1. Registry: apps on *.proc.io get a palette here, resolved from the
-//    return_to hostname — linking with return_to is all an app has to do.
+// 1. Registry: apps on the stack's base domain get a palette here, keyed by
+//    their subdomain label and resolved from the return_to hostname —
+//    linking with return_to is all an app has to do, on any base domain.
 // 2. Query overrides: ?accent=3fb950&app=name etc. for apps not registered
 //    yet. Values are clamped to hex colors / a short display name.
 //
 // The surface stays structurally identical either way — colors and an app
-// chip only, so the page is always recognizably auth.proc.io.
+// chip only, so the page is always recognizably the auth surface.
 
 export interface Theme {
   app?: string;
@@ -16,8 +17,10 @@ export interface Theme {
 const VAR_KEYS = ["bg", "panel", "border", "text", "muted", "accent", "fail"] as const;
 const HEX = /^#[0-9a-fA-F]{3,8}$/;
 
+// Keyed by the app's subdomain label (the first label of the return_to
+// hostname), so registrations hold on any base domain.
 const REGISTRY: Record<string, { app: string; vars: Partial<Record<(typeof VAR_KEYS)[number], string>> }> = {
-  "openmonkey.proc.io": {
+  openmonkey: {
     app: "openmonkey",
     vars: {
       bg: "#0d1117",
@@ -35,7 +38,7 @@ export function resolveTheme(url: URL): Theme {
   try {
     host = new URL(url.searchParams.get("return_to") || "").hostname;
   } catch {}
-  const reg = REGISTRY[host];
+  const reg = REGISTRY[host.split(".")[0] ?? ""];
   const vars: Record<string, string> = { ...(reg?.vars ?? {}) };
   for (const k of VAR_KEYS) {
     const v = url.searchParams.get(k);

@@ -1,7 +1,21 @@
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import { initSync, stopSync } from './sync-client';
 
-export const AUTH_ENDPOINT = 'https://authgravity.proc.io';
+// AuthGravity lives at authgravity.<base domain>, where the base domain is
+// the app's hostname minus the 'app.happybook.' prefix. Local dev has no
+// deployed base domain, so it falls back to proc.io.
+function deriveAuthEndpoint(): string {
+  const host = typeof location === 'undefined' ? 'localhost' : location.hostname;
+  const base =
+    host === 'localhost' || host === '127.0.0.1'
+      ? 'proc.io'
+      : host.startsWith('app.happybook.')
+        ? host.slice('app.happybook.'.length)
+        : host;
+  return `https://authgravity.${base}`;
+}
+
+export const AUTH_ENDPOINT = deriveAuthEndpoint();
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`auth request failed: ${res.status}`);

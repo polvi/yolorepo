@@ -1,6 +1,7 @@
-// GET /llms.txt — a plain-text map of the site for LLM agents.
+// GET /llms.txt — a plain-text map of the site for LLM agents. Rendered per
+// request so the heading names the host it is served on.
 
-const LLMS_TXT = `# tlc.proc.io
+const llmsText = (host: string) => `# ${host}
 
 A TLA+ model checker (safety subset) as an API, plus a public hub of
 machine-published specs. The checker is a Rust engine compiled to wasm; every
@@ -49,8 +50,8 @@ https://tokenpony.dev/llms.txt); the browser then calls the provider's
 metered API directly. The site never sees tokens.
 `;
 
-export function llmsTxt(): Response {
-  return new Response(LLMS_TXT, {
+export function llmsTxt(host: string): Response {
+  return new Response(llmsText(host), {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }

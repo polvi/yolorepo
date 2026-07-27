@@ -28,11 +28,13 @@ function normalizeIssuer(raw: string | null): string | null {
 // The origin the *browser* is on, derived from the Host header rather than
 // url.origin: wrangler dev rewrites the request URL to the route's custom
 // domain, which would register a prod redirect_uri for a localhost browser.
-// The hard allowlist means a forged Host header can't poison the
+// The allowlist is the route's own host (request.url comes from Cloudflare's
+// routing, not the client), so a forged Host header can't poison the
 // registration cache with an attacker-controlled redirect_uri origin.
 function clientOrigin(request: Request): string | null {
-  const host = request.headers.get("host") ?? new URL(request.url).host;
-  if (host === "tlc.proc.io") return "https://tlc.proc.io";
+  const routeHost = new URL(request.url).host;
+  const host = request.headers.get("host") ?? routeHost;
+  if (host === routeHost) return `https://${host}`;
   if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return `http://${host}`;
   return null;
 }
@@ -99,7 +101,7 @@ export async function tpxClient(request: Request, db: D1Database): Promise<Respo
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_name: "tlc.proc.io spec defense",
+        client_name: `${new URL(origin).host} spec defense`,
         redirect_uris: [redirectUri],
         token_endpoint_auth_method: "none",
       }),
@@ -128,8 +130,9 @@ export async function tpxClient(request: Request, db: D1Database): Promise<Respo
  * PKCE verifier, token storage) runs client-side in /tpx.js, since only the
  * browser holds the verifier and receives the tokens.
  */
-export function tpxCallback(): Response {
+export function tpxCallback(host: string): Response {
   return page(
+    host,
     "Connecting to tokenpony",
     `<h1>Connecting to tokenpony</h1>
 <p id="tpx-cb-status" class="dim">Exchanging authorization code…</p>
