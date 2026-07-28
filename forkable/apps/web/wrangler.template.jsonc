@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "forkable-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "routes": [
+    {
+      "pattern": "forkable.__BASE_DOMAIN__",
+      "custom_domain": true
+    },
+    {
+      "pattern": "*.forkable.__BASE_DOMAIN__/*",
+      "zone_name": "__BASE_DOMAIN__"
+    }
+  ],
+  "vars": {
+    "AUTH_ENDPOINT": "__AUTH_ENDPOINT__",
+    "BASE_DOMAIN": "__BASE_DOMAIN__"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "forkable",
+      "database_id": "__D1:forkable__"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REPO",
+        "class_name": "RepoDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RepoDO"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

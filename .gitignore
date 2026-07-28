@@ -16,3 +16,6 @@ build/
 /tlc-rs/target/
 /tlc-rs/states/
 /tlc-rs/engine/build/
+
+# forkable dev-only generated config
+forkable/apps/web/wrangler.dev.jsonc
