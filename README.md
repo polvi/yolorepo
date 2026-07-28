@@ -15,6 +15,7 @@ project keeps its passing spec and config in a `specs/` folder.
 | [`happybook/`](happybook/) | Local-first PWA for notebooks made of PDFs/EPUBs: highlights, cross-links, passkey sync, an OPDS catalog for e-readers, and USB e-reader sync over MTP. | [happybook.proc.io](https://happybook.proc.io) |
 | [`mtp-ts/`](mtp-ts/) | MTP (Media Transfer Protocol) over WebUSB as a TypeScript library: protocol core plus a path-based filesystem layer. Verified on real hardware. | [mtp.proc.io](https://mtp.proc.io) |
 | [`sandcastle/`](sandcastle/) | Memory-only replicated KV on Cloudflare Durable Objects: no persistent storage, a 3-replica ring keeps state alive. Design phase. | — |
+| [`forkable/`](forkable/) | Git-native self-editing websites: sites are repos of plain files served from their main branch; visitors edit by chatting with an LLM and silently fork. | [forkable.proc.io](https://forkable.proc.io) |
 
 ## Stack
 

@@ -63,7 +63,22 @@ zone active on it, and `wrangler login` completed (any project's
    first deploy; afterwards run `bunx wrangler d1 list` and paste the created
    IDs into the `d1` map in `stack.local.jsonc` so later deploys reuse them.
 
-4. **Pull upstream whenever:**
+4. **forkable only — wildcard subdomain, two manual zone steps.** Sites are
+   served at `<site>.forkable.<base>`, which wrangler cannot fully set up:
+
+   - DNS: add a proxied record covering the wildcard, e.g. type `AAAA`,
+     name `*.forkable`, value `100::`, proxy ON.
+   - TLS: Universal SSL covers only one label (`*.<base>`), so
+     `*.forkable.<base>` needs Advanced Certificate Manager (or Total TLS):
+     SSL/TLS → Edge Certificates → Order Advanced Certificate with
+     hostnames `*.forkable.<base>` and `forkable.<base>`.
+
+   ```sh
+   cd ../forkable && bun install && bun run deploy
+   bunx wrangler d1 migrations apply forkable --remote
+   ```
+
+5. **Pull upstream whenever:**
 
    ```sh
    git pull upstream main
