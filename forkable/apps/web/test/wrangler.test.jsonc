@@ -1,0 +1,13 @@
+// Token-free wrangler config used ONLY by vitest-pool-workers.
+// The deployable config is generated from wrangler.template.jsonc; this one is
+// self-contained so tests never depend on stack.local.jsonc or secrets.
+{
+  "name": "forkable-git-test",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "REPO", "class_name": "RepoDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RepoDO"] }]
+}
