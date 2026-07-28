@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>forkable editor</title>
+<style>
+:root { --ink:#1c1b1a; --paper:#faf8f5; --accent:#c04e2a; --muted:#8a857e; }
+* { box-sizing:border-box; }
+html,body { height:100%; }
+body { margin:0; font-family:system-ui,sans-serif; font-size:14px; color:var(--ink);
+  background:var(--paper); display:flex; flex-direction:column; }
+header { display:flex; align-items:center; gap:.5rem; padding:.6rem .8rem;
+  border-bottom:1px solid rgba(0,0,0,.08); }
+header b { font-family:Georgia,serif; font-weight:normal; }
+header b span { color:var(--accent); }
+header .spacer { flex:1; }
+button { font:inherit; cursor:pointer; border-radius:.4rem; border:1px solid rgba(0,0,0,.2);
+  background:#fff; padding:.3rem .7rem; }
+button.primary { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+#files { padding:.4rem .8rem; border-bottom:1px solid rgba(0,0,0,.08); }
+#files select { font:inherit; width:100%; padding:.25rem; }
+#editor { flex:1; display:flex; flex-direction:column; padding:.8rem; gap:.6rem; }
+textarea { flex:1; font:12px/1.5 ui-monospace,Menlo,monospace; padding:.6rem;
+  border:1px solid rgba(0,0,0,.15); border-radius:.4rem; background:#fff; resize:none; }
+#status { color:var(--muted); min-height:1.2em; padding:0 .8rem .6rem; }
+.row { display:flex; gap:.5rem; }
+</style>
+</head>
+<body>
+<header>
+  <b>fork<span>able</span></b>
+  <div class="spacer"></div>
+  <button id="view-original" title="See the live site without your changes">original</button>
+  <button id="close">close</button>
+</header>
+<div id="files"><select id="file-select"></select></div>
+<div id="editor">
+  <textarea id="content" spellcheck="false"></textarea>
+  <div class="row">
+    <button class="primary" id="save">Save to my draft</button>
+  </div>
+</div>
+<p id="status">loading…</p>
+<script type="module" src="./main.ts"></script>
+</body>
+</html>

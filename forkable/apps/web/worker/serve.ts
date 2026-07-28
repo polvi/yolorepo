@@ -57,7 +57,7 @@ function cacheHeaders(res: Response): Record<string, string> {
 }
 
 function injectWidget(res: Response): Response {
-  const tag = `<script src="${NS_WIDGET}" defer></script>`;
+  const tag = `<script type="module" src="${NS_WIDGET}"></script>`;
   let injected = false;
   return new HTMLRewriter()
     .on('head', {

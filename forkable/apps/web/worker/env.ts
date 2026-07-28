@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   REPO: DurableObjectNamespace;
+  ASSETS: Fetcher;
   AUTH_ENDPOINT?: string;
   BASE_DOMAIN?: string;
   DEV_USER_ID?: string;

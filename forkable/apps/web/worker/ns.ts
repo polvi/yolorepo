@@ -8,30 +8,23 @@ import { REPO_BASE, getSite, repoStub } from './sites';
 // git upload-pack and the widget must work anonymously.
 export const ns = new Hono<AppContext>();
 
-// Phase 0 widget stub; replaced by a built asset in Phase 2.
-const WIDGET_STUB = `(() => {
-  if (window.__forkableWidget) return;
-  window.__forkableWidget = true;
-  const btn = document.createElement('button');
-  btn.textContent = '✎ edit';
-  btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;' +
-    'font:14px system-ui,sans-serif;padding:8px 14px;border-radius:999px;' +
-    'border:1px solid #0002;background:#fff;color:#1c1b1a;cursor:pointer;' +
-    'box-shadow:0 2px 8px #0002';
-  btn.addEventListener('click', () => {
-    btn.textContent = 'editing is coming soon';
-    setTimeout(() => (btn.textContent = '✎ edit'), 2000);
-  });
-  document.body.appendChild(btn);
-})();
-`;
+// Built client assets (vite: dist/{widget.js,sw.js,panel/,chunks/,assets/}).
+// The /__forkable__ prefix is stripped before hitting the assets binding.
+async function asset(c: { env: { ASSETS: Fetcher }; req: { raw: Request } }, path: string, extra?: Record<string, string>) {
+  const res = await c.env.ASSETS.fetch(new Request(`https://assets.local${path}`, { headers: c.req.raw.headers }));
+  if (!extra) return res;
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(extra)) out.headers.set(k, v);
+  return out;
+}
 
-ns.get('/widget.js', (c) =>
-  c.body(WIDGET_STUB, 200, {
-    'Content-Type': 'text/javascript; charset=utf-8',
-    'Cache-Control': 'public, max-age=60',
-  })
-);
+ns.get('/widget.js', (c) => asset(c, '/widget.js'));
+// Service-Worker-Allowed lets a script under /__forkable__/ control scope '/'.
+ns.get('/sw.js', (c) => asset(c, '/sw.js', { 'Service-Worker-Allowed': '/' }));
+ns.get('/panel/', (c) => asset(c, '/panel/index.html'));
+ns.get('/panel.js', (c) => asset(c, '/panel.js'));
+ns.get('/chunks/*', (c) => asset(c, new URL(c.req.url).pathname.replace('/__forkable__', '')));
+ns.get('/assets/*', (c) => asset(c, new URL(c.req.url).pathname.replace('/__forkable__', '')));
 
 ns.get('/api/me', async (c) => {
   const userId = await resolveUser(c.req.raw, c.env);

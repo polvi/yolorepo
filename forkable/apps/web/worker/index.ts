@@ -9,9 +9,7 @@ import { ns } from './ns';
 import { dashboardPage, landingPage } from './dashboard';
 import { llmsTxt } from './llms';
 
-// Phase 0 stub; Phase 1 swaps this export for the real git-backed DO in
-// worker/git/repo-do.ts.
-export { RepoDO } from './repo-do';
+export { RepoDO } from './git/repo-do';
 
 // --- Apex: forkable.<base> — landing, dashboard, sites API -----------------
 

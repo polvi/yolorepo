@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun tools/make-dev-config.ts && wrangler dev -c wrangler.dev.jsonc",
-    "build": "echo 'no client build yet (vite lands in Phase 2)'",
+    "dev": "vite build && bun tools/make-dev-config.ts && wrangler dev -c wrangler.dev.jsonc",
+    "build": "vite build",
     "test": "vitest run",
-    "deploy": "wrangler deploy"
+    "deploy": "vite build && wrangler deploy"
   },
   "dependencies": {
     "@forkable/shared": "workspace:*",
