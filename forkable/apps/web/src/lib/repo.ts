@@ -86,6 +86,12 @@ export async function deleteFile(path: string): Promise<void> {
   await pfs.unlink(`${DIR}/${path}`);
 }
 
+/** Any difference between working tree and HEAD? */
+export async function hasChanges(): Promise<boolean> {
+  const matrix = await git.statusMatrix(base);
+  return matrix.some(([, head, worktree]) => head !== 1 || worktree !== 1);
+}
+
 /** Stage everything, commit, force-push the draft to the user's fork ref. */
 export async function commitAndPush(userId: string, message: string): Promise<string> {
   const matrix = await git.statusMatrix(base);

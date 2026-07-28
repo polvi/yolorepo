@@ -16,6 +16,7 @@ export default defineConfig({
         widget: resolve(__dirname, 'src/widget/main.ts'),
         sw: resolve(__dirname, 'src/sw/main.ts'),
         panel: resolve(__dirname, 'src/panel/index.html'),
+        callback: resolve(__dirname, 'src/callback/index.html'),
       },
       output: {
         entryFileNames: '[name].js',

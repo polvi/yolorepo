@@ -3,6 +3,7 @@ import { HDR_OWNER, HDR_USER, forkRefFor } from '@forkable/shared';
 import type { AppContext } from './env';
 import { resolveUser } from './auth';
 import { REPO_BASE, getSite, repoStub } from './sites';
+import { tpxClient } from './tpx';
 
 // Routes under /__forkable__/ on every site origin. Mounted before any auth:
 // git upload-pack and the widget must work anonymously.
@@ -23,6 +24,11 @@ ns.get('/widget.js', (c) => asset(c, '/widget.js'));
 ns.get('/sw.js', (c) => asset(c, '/sw.js', { 'Service-Worker-Allowed': '/' }));
 ns.get('/panel/', (c) => asset(c, '/panel/index.html'));
 ns.get('/panel.js', (c) => asset(c, '/panel.js'));
+ns.get('/callback.js', (c) => asset(c, '/callback.js'));
+
+// TPX: client registration cache + the OAuth callback page (popup).
+ns.get('/tpx/client', (c) => tpxClient(c.req.raw, c.env.DB));
+ns.get('/tpx/callback', (c) => asset(c, '/callback/index.html'));
 ns.get('/chunks/*', (c) => asset(c, new URL(c.req.url).pathname.replace('/__forkable__', '')));
 ns.get('/assets/*', (c) => asset(c, new URL(c.req.url).pathname.replace('/__forkable__', '')));
 
