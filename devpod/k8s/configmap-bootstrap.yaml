@@ -16,7 +16,7 @@ data:
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends \
       tmux git curl wget ca-certificates openssh-client \
-      less procps psmisc unzip zip jq ripgrep vim nano \
+      less procps psmisc unzip zip xz-utils jq ripgrep vim nano \
       locales sudo build-essential python3 >/dev/null
     grep -q '^en_US.UTF-8' /etc/locale.gen || {
       echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen && locale-gen >/dev/null
@@ -32,6 +32,24 @@ data:
     # Claude Code native build (persists in ~/.local)
     if [ ! -x "$HOME/.local/bin/claude" ]; then
       curl -fsSL https://claude.ai/install.sh | bash
+    fi
+
+    # Node LTS from the official tarball (persists in ~/.local/node);
+    # wrangler's bin shim runs via `env node`
+    if [ ! -x "$HOME/.local/node/bin/node" ]; then
+      TARBALL=$(curl -fsSL https://nodejs.org/dist/latest-v24.x/ \
+        | grep -o 'node-v24[0-9.]*-linux-x64\.tar\.xz' | head -1)
+      mkdir -p "$HOME/.local/node" "$HOME/.local/bin"
+      curl -fsSL "https://nodejs.org/dist/latest-v24.x/$TARBALL" \
+        | tar -xJ -C "$HOME/.local/node" --strip-components=1
+      for b in node npm npx; do
+        ln -sf "$HOME/.local/node/bin/$b" "$HOME/.local/bin/$b"
+      done
+    fi
+
+    # wrangler (persists in ~/.bun)
+    if [ ! -x "$HOME/.bun/bin/wrangler" ]; then
+      "$HOME/.bun/bin/bun" install -g wrangler
     fi
 
     # Shell profile: PATH and locale for exec'd login shells. Login shells

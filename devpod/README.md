@@ -41,6 +41,22 @@ Then, inside the pod (one time each, all persisted on the PVC):
    `cat ~/.ssh/id_ed25519.pub` and add it at github.com/settings/keys.
    The clone falls back to HTTPS, so switch the remote after adding the key:
    `git remote set-url origin git@github.com:polvi/yolorepo.git`.
+3. **Wrangler auth**: wrangler and Node LTS are installed by the bootstrap.
+   `wrangler login` in the pod prints an OAuth URL and listens on
+   localhost:8976 for the callback, so forward that port first from your
+   laptop, then open the URL in your laptop browser:
+
+   ```sh
+   # laptop
+   kubectl -n devpod port-forward deploy/devpod 8976:8976
+   # pod
+   wrangler login
+   ```
+
+   The OAuth token lands in `~/.config/.wrangler/` on the PVC and refreshes
+   itself from then on. Alternative for fully headless auth: create an API
+   token at dash.cloudflare.com/profile/api-tokens and add
+   `export CLOUDFLARE_API_TOKEN=...` to `~/.bashrc` in the pod.
 
 ## Daily use
 
