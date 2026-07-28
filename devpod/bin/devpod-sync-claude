@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Copy your local global Claude Code config into the devpod so sessions
+# there behave like the ones on your laptop. Credentials are NOT copied
+# (macOS stores them in the Keychain); run `claude` in the pod and log in
+# once instead — the login persists on the PVC.
+set -euo pipefail
+POD=$(kubectl get pod -n devpod -l app=devpod -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n devpod "$POD" -- mkdir -p /home/dev/.claude
+for f in CLAUDE.md settings.json keybindings.json; do
+  if [ -f "$HOME/.claude/$f" ]; then
+    kubectl cp "$HOME/.claude/$f" "devpod/$POD:/home/dev/.claude/$f"
+    echo "synced $f"
+  fi
+done

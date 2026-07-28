@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Plain login shell in the devpod (no tmux), for quick one-off commands.
+set -euo pipefail
+exec kubectl exec -it -n devpod deploy/devpod -c dev -- \
+  env HOME=/home/dev TERM="${TERM:-xterm-256color}" bash -l

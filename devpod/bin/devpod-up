@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Apply (or update) the devpod manifests and wait for the pod to be ready.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+kubectl apply -k k8s/
+kubectl -n devpod rollout status deploy/devpod --timeout=300s
+echo
+echo "Attach with: devpod/bin/devpod-attach"

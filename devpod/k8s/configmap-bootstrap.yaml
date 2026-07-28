@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devpod-bootstrap
+  namespace: devpod
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env bash
+    set -uo pipefail
+    export HOME=/home/dev
+    export DEBIAN_FRONTEND=noninteractive
+
+    # OS packages live in the ephemeral container layer, so reinstall on
+    # every pod start. Everything else installs into $HOME (the PVC) and
+    # only happens once.
+    apt-get update -qq
+    apt-get install -y -qq --no-install-recommends \
+      tmux git curl wget ca-certificates openssh-client \
+      less procps psmisc unzip zip jq ripgrep vim nano \
+      locales sudo build-essential python3 >/dev/null
+    grep -q '^en_US.UTF-8' /etc/locale.gen || {
+      echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen && locale-gen >/dev/null
+    }
+
+    mkdir -p "$HOME" && cd "$HOME"
+
+    # bun (persists in ~/.bun)
+    if [ ! -x "$HOME/.bun/bin/bun" ]; then
+      curl -fsSL https://bun.sh/install | bash
+    fi
+
+    # Claude Code native build (persists in ~/.local)
+    if [ ! -x "$HOME/.local/bin/claude" ]; then
+      curl -fsSL https://claude.ai/install.sh | bash
+    fi
+
+    # Shell profile: PATH and locale for exec'd login shells. Login shells
+    # read ~/.profile, interactive non-login read ~/.bashrc; cover both.
+    if ! grep -q devpod-profile "$HOME/.bashrc" 2>/dev/null; then
+      cat >> "$HOME/.bashrc" <<'PROFILE'
+    # devpod-profile
+    export HOME=/home/dev
+    export LANG=en_US.UTF-8
+    export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
+    PROFILE
+    fi
+    grep -q '\.bashrc' "$HOME/.profile" 2>/dev/null \
+      || echo '[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"' >> "$HOME/.profile"
+
+    # SSH key for GitHub (persists in ~/.ssh); add the pubkey to GitHub once
+    if [ ! -f "$HOME/.ssh/id_ed25519" ]; then
+      mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+      ssh-keygen -t ed25519 -N "" -C "devpod@proc" -f "$HOME/.ssh/id_ed25519"
+    fi
+    ssh-keyscan github.com 2>/dev/null > "$HOME/.ssh/known_hosts" || true
+
+    git config --global user.name  "Alex Polvi"
+    git config --global user.email "alex@polvi.net"
+    git config --global init.defaultBranch main
+    # OpenSSH resolves ~ from the passwd entry (/root, ephemeral), not
+    # $HOME, so point git at the PVC-backed key and known_hosts explicitly.
+    git config --global core.sshCommand \
+      "ssh -i $HOME/.ssh/id_ed25519 -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+
+    # Clone the repo if it is not there yet. SSH needs the pubkey added to
+    # GitHub first, so fall back to trying HTTPS and never fail the boot.
+    if [ ! -d "$HOME/yolorepo/.git" ]; then
+      git clone git@github.com:polvi/yolorepo.git "$HOME/yolorepo" \
+        || git clone https://github.com/polvi/yolorepo.git "$HOME/yolorepo" \
+        || echo "clone failed; add ~/.ssh/id_ed25519.pub to GitHub and clone manually"
+    fi
+
+    # Pre-start the tmux session so work keeps running across detaches
+    export PATH="$HOME/.local/bin:$HOME/.bun/bin:$PATH"
+    tmux new-session -d -s main -c "$HOME/yolorepo" 2>/dev/null || true
+
+    echo "devpod ready"
+    exec sleep infinity

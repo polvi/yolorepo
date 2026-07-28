@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: devpod-home
+  namespace: devpod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: mayastor-retain
+  resources:
+    requests:
+      storage: 50Gi

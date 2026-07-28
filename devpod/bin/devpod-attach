@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Attach to the tmux session inside the devpod. Detach with Ctrl-b d;
+# everything (including Claude Code) keeps running after you detach or
+# your laptop sleeps. Re-run this to pick the session back up.
+set -euo pipefail
+exec kubectl exec -it -n devpod deploy/devpod -c dev -- \
+  env HOME=/home/dev TERM="${TERM:-xterm-256color}" \
+  tmux new-session -A -s "${1:-main}" -c /home/dev/yolorepo

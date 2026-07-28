@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devpod
+  namespace: devpod
+  labels:
+    app: devpod
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # RWO volume: old pod must release it first
+  selector:
+    matchLabels:
+      app: devpod
+  template:
+    metadata:
+      labels:
+        app: devpod
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: dev
+          image: debian:bookworm
+          command: ["/bin/bash", "/opt/devpod/bootstrap.sh"]
+          env:
+            - name: HOME
+              value: /home/dev
+            - name: LANG
+              value: en_US.UTF-8
+          workingDir: /home/dev
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "16"
+              memory: 32Gi
+          volumeMounts:
+            - name: home
+              mountPath: /home/dev
+            - name: bootstrap
+              mountPath: /opt/devpod
+          readinessProbe:
+            exec:
+              command: ["/usr/bin/test", "-x", "/home/dev/.local/bin/claude"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: home
+          persistentVolumeClaim:
+            claimName: devpod-home
+        - name: bootstrap
+          configMap:
+            name: devpod-bootstrap
+            defaultMode: 0755
