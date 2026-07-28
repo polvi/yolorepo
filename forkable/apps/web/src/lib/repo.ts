@@ -86,6 +86,21 @@ export async function deleteFile(path: string): Promise<void> {
   await pfs.unlink(`${DIR}/${path}`);
 }
 
+/** Drop the draft: delete the server fork ref (best effort) and the local repo. */
+export async function discardDraft(userId: string): Promise<void> {
+  try {
+    await git.push({ ...base, ...remote, remoteRef: forkRefFor(userId), delete: true });
+  } catch {
+    // no server ref, or offline — the local wipe is what matters
+  }
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(FS_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => resolve();
+  });
+}
+
 /** Any difference between working tree and HEAD? */
 export async function hasChanges(): Promise<boolean> {
   const matrix = await git.statusMatrix(base);

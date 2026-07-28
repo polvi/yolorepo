@@ -31,6 +31,17 @@ const REGISTRY: Record<string, { app: string; vars: Partial<Record<(typeof VAR_K
       accent: "#3fb950",
     },
   },
+  forkable: {
+    app: "forkable",
+    vars: {
+      bg: "#faf8f5",
+      panel: "#ffffff",
+      border: "#e5e0d8",
+      text: "#1c1b1a",
+      muted: "#8a857e",
+      accent: "#c04e2a",
+    },
+  },
 };
 
 export function resolveTheme(url: URL): Theme {
@@ -38,7 +49,11 @@ export function resolveTheme(url: URL): Theme {
   try {
     host = new URL(url.searchParams.get("return_to") || "").hostname;
   } catch {}
-  const reg = REGISTRY[host.split(".")[0] ?? ""];
+  // First label wins (openmonkey.<base>); the second covers apps whose
+  // return_to comes from a deeper host (app.happybook.<base>,
+  // <site>.forkable.<base>).
+  const labels = host.split(".");
+  const reg = REGISTRY[labels[0] ?? ""] ?? REGISTRY[labels[1] ?? ""];
   const vars: Record<string, string> = { ...(reg?.vars ?? {}) };
   for (const k of VAR_KEYS) {
     const v = url.searchParams.get(k);

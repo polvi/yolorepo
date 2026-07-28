@@ -1,5 +1,5 @@
 import { kvSet, MODE_KEY } from '../lib/state';
-import { commitAndPush, ensureRepo, hasChanges, listFiles, readFile, writeFile } from '../lib/repo';
+import { commitAndPush, discardDraft, ensureRepo, hasChanges, listFiles, readFile, writeFile } from '../lib/repo';
 import { runTurn, type ChatMessage } from '../lib/agent';
 import {
   DEFAULT_BUDGET,
@@ -191,6 +191,14 @@ $('save').addEventListener('click', async () => {
 // ---------- header ----------
 $('view-original').addEventListener('click', () => tell('view-original'));
 $('close').addEventListener('click', () => tell('close'));
+$('discard').addEventListener('click', async () => {
+  if (!confirm('Throw away your draft? The live site is unaffected; your changes are gone for good.')) return;
+  status('discarding draft…');
+  await discardDraft(userId);
+  await kvSet(MODE_KEY, 'live');
+  sessionStorage.removeItem('forkable.chat');
+  tell('reload');
+});
 
 // ---------- boot ----------
 async function main(): Promise<void> {

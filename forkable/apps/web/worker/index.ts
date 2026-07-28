@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { CreateSiteRequest } from '@forkable/shared';
 import type { AppContext, Env } from './env';
-import { authEndpoint, baseDomain, requestHost, requestHostname, siteNameFromHostname } from './env';
+import { baseDomain, requestHost, requestHostname, siteNameFromHostname } from './env';
 import { requireUser, resolveUser } from './auth';
 import { createSite, deleteSite, ensureSeed, getSite, listSites } from './sites';
 import { serveSiteFile } from './serve';
@@ -20,7 +20,7 @@ apex.get('/', async (c) => {
   const proto = new URL(c.req.url).protocol;
   const host = requestHost(c.req.raw);
   if (!userId) {
-    const loginUrl = `${authEndpoint(c.env)}/login?return_to=${encodeURIComponent(`${proto}//${host}/`)}`;
+    const loginUrl = `https://auth.${baseDomain(c.env)}/login?return_to=${encodeURIComponent(`${proto}//${host}/`)}`;
     const seed = await ensureSeed(c.env);
     const seedUrl = `${proto}//${seed.name}.${host}/`;
     return c.html(landingPage(loginUrl, seedUrl));

@@ -6,10 +6,8 @@ export function baseDomain(): string {
   return m ? m[1]! : 'proc.io';
 }
 
-export function authgravityOrigin(): string {
-  return `https://authgravity.${baseDomain()}`;
-}
-
 export function loginUrl(): string {
-  return `${authgravityOrigin()}/login?return_to=${encodeURIComponent(location.href)}`;
+  // procauth, the stack's themed auth surface (resolves the forkable theme
+  // from return_to).
+  return `https://auth.${baseDomain()}/login?return_to=${encodeURIComponent(location.href)}`;
 }
