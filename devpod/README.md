@@ -57,6 +57,12 @@ Then, inside the pod (one time each, all persisted on the PVC):
    itself from then on. Alternative for fully headless auth: create an API
    token at dash.cloudflare.com/profile/api-tokens and add
    `export CLOUDFLARE_API_TOKEN=...` to `~/.bashrc` in the pod.
+4. **cloudflared** (installed by the bootstrap): for authenticated use
+   (named tunnels), run `cloudflared tunnel login` in the pod and open the
+   printed URL in your laptop browser; the cert arrives directly to the pod
+   (no port-forward needed) and persists at `~/.cloudflared/cert.pem`.
+   Quick tunnels (`cloudflared tunnel --url http://localhost:PORT`) need no
+   auth at all and are handy for exposing a dev server from the pod.
 
 ## Daily use
 

@@ -47,6 +47,13 @@ data:
       done
     fi
 
+    # cloudflared (persists in ~/.local/bin)
+    if [ ! -x "$HOME/.local/bin/cloudflared" ]; then
+      curl -fsSL -o "$HOME/.local/bin/cloudflared" \
+        https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+      chmod +x "$HOME/.local/bin/cloudflared"
+    fi
+
     # wrangler (persists in ~/.bun)
     if [ ! -x "$HOME/.bun/bin/wrangler" ]; then
       "$HOME/.bun/bin/bun" install -g wrangler
