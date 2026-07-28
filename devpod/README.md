@@ -63,6 +63,27 @@ Then, inside the pod (one time each, all persisted on the PVC):
    (no port-forward needed) and persists at `~/.cloudflared/cert.pem`.
    Quick tunnels (`cloudflared tunnel --url http://localhost:PORT`) need no
    auth at all and are handy for exposing a dev server from the pod.
+5. **Tailscale** (installed by the bootstrap, runs in userspace-networking
+   mode with node state on the PVC): enroll once with
+   `tailscale up --ssh --hostname=devpod` in the pod and open the printed
+   URL. From then on the pod joins your tailnet at every boot and accepts
+   Tailscale SSH, no sshd or keys involved. Your tailnet ACLs must allow
+   ssh to the node (the default policy allows you into your own devices).
+
+## Connecting from iOS (or any device)
+
+Install the Tailscale app, then any SSH client — Blink Shell or Termius
+work well on iOS:
+
+```sh
+ssh root@devpod
+tmux new -A -s main       # the same session your laptop attaches
+```
+
+iOS suspends connections on app switch; tmux absorbs that, so just
+reconnect and reattach. The bootstrap points root's home at `/home/dev`,
+so SSH logins get the full persistent environment (claude, bun, wrangler,
+cloudflared on PATH).
 
 ## Daily use
 

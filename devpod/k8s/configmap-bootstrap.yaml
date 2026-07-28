@@ -22,6 +22,10 @@ data:
       echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen && locale-gen >/dev/null
     }
 
+    # Point root's passwd home at the PVC so SSH logins (Tailscale SSH,
+    # OpenSSH ~ resolution) land in the persistent environment, not /root.
+    sed -i 's#^root:x:0:0:root:/root:#root:x:0:0:root:/home/dev:#' /etc/passwd
+
     mkdir -p "$HOME" && cd "$HOME"
 
     # bun (persists in ~/.bun)
@@ -58,6 +62,19 @@ data:
     if [ ! -x "$HOME/.bun/bin/wrangler" ]; then
       "$HOME/.bun/bin/bun" install -g wrangler
     fi
+
+    # tailscale, userspace networking (binaries + node state on the PVC).
+    # After the one-time `tailscale up --ssh --hostname=devpod` enrollment,
+    # tailscaled reconnects on its own here at every boot.
+    if [ ! -x "$HOME/.local/bin/tailscaled" ]; then
+      curl -fsSL https://pkgs.tailscale.com/stable/tailscale_latest_amd64.tgz | tar -xz -C /tmp
+      install /tmp/tailscale_*_amd64/tailscale /tmp/tailscale_*_amd64/tailscaled "$HOME/.local/bin/"
+      rm -rf /tmp/tailscale_*_amd64
+    fi
+    mkdir -p "$HOME/.local/state/tailscaled"
+    "$HOME/.local/bin/tailscaled" --tun=userspace-networking \
+      --statedir="$HOME/.local/state/tailscaled" \
+      >> "$HOME/.local/state/tailscaled/tailscaled.log" 2>&1 &
 
     # Shell profile: PATH and locale for exec'd login shells. Login shells
     # read ~/.profile, interactive non-login read ~/.bashrc; cover both.
