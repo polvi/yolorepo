@@ -88,6 +88,18 @@ async function main() {
     const stats = await generate(model, PROMPT, args.tokens);
     const t1 = Date.now();
 
+    // TLC-checked bound (specs/Calorimeter.tla): a window shorter than
+    // 2×interval can contain <2 samples, making integration silently yield 0.
+    const windowSamples = sampler.sampleCountIn(t0, t1);
+    if (windowSamples < 2) {
+      console.warn(
+        `[${model}] UNMEASURABLE: only ${windowSamples} power sample(s) in a ` +
+          `${t1 - t0}ms window. Increase --tokens or lower --interval ` +
+          `(window must exceed 2x interval). Skipping.\n`,
+      );
+      await unload(model);
+      continue;
+    }
     const joules = sampler.energyJoules(t0, t1, baselineMw);
     const wallSec = (t1 - t0) / 1000;
     const avgWatts = joules / wallSec;
