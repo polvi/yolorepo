@@ -16,6 +16,7 @@ project keeps its passing spec and config in a `specs/` folder.
 | [`mtp-ts/`](mtp-ts/) | MTP (Media Transfer Protocol) over WebUSB as a TypeScript library: protocol core plus a path-based filesystem layer. Verified on real hardware. | [mtp.proc.io](https://mtp.proc.io) |
 | [`sandcastle/`](sandcastle/) | Memory-only replicated KV on Cloudflare Durable Objects: no persistent storage, a 3-replica ring keeps state alive. Design phase. | — |
 | [`forkable/`](forkable/) | Git-native self-editing websites: sites are repos of plain files served from their main branch; visitors edit by chatting with an LLM and silently fork. | [forkable.proc.io](https://forkable.proc.io) |
+| [`downstream/`](downstream/) | Post-AI open source collaboration: an MCP server your coding harness signs into with GitHub to interrogate repos and publish findings, questions, ideas, and bugs on public per-repo pages. Send context, not patches. | [downstream.proc.io](https://downstream.proc.io) |
 
 ## Stack
 

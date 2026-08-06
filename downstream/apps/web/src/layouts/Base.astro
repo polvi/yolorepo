@@ -1,0 +1,232 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const {
+  title,
+  description = "Post-AI open source collaboration. Findings, questions, guides, ideas, and bug reports flow upstream; upstream writes the patch.",
+} = Astro.props;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <style is:global>
+      :root {
+        --bg: #0d1219;
+        --panel: #131a24;
+        --panel-2: #0a0e14;
+        --border: #24303f;
+        --text: #d8e1ec;
+        --muted: #8496aa;
+        --accent: #6cb6ff;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        /* Kind colors */
+        --k-finding: #58a6ff;
+        --k-question: #a78bfa;
+        --k-guide: #2dd4bf;
+        --k-idea: #e3b341;
+        --k-bug: #f47067;
+        /* Status colors */
+        --s-accepted: #3fb950;
+        --s-done: #58a6ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        line-height: 1.6;
+        -webkit-text-size-adjust: 100%;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      a:focus-visible, button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 2px;
+      }
+      h1, h2, h3 {
+        font-family: var(--mono);
+        letter-spacing: -0.02em;
+        line-height: 1.25;
+      }
+      h1 { font-size: clamp(1.6rem, 4.5vw, 2.4rem); margin: 0 0 0.75rem; }
+      h2 { font-size: 1.15rem; margin: 2.5rem 0 0.75rem; }
+      h3 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+      .wrap { max-width: 880px; margin: 0 auto; padding: 0 1rem; }
+      header.site { border-bottom: 1px solid var(--border); padding: 0.7rem 0; }
+      header.site .wrap { display: flex; align-items: baseline; gap: 1.25rem; flex-wrap: wrap; }
+      .logo {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: var(--text);
+      }
+      .logo span {
+        color: var(--accent);
+        display: inline-block;
+        transform: translateY(0.18em);
+      }
+      .logo:hover { text-decoration: none; }
+      nav.site { display: flex; gap: 1.1rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.85rem; }
+      nav.site a { color: var(--muted); }
+      nav.site a:hover { color: var(--text); text-decoration: none; }
+      main { padding: 2.25rem 0 4rem; }
+      .muted { color: var(--muted); }
+      .small { font-size: 0.85rem; }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+        margin: 0 0 0.5rem;
+      }
+      .eyebrow::before { content: "~/ "; color: var(--accent); }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+      }
+      pre {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.9rem 1rem;
+        overflow-x: auto;
+        font-size: 0.83rem;
+        line-height: 1.55;
+      }
+      code { font-family: var(--mono); }
+      :not(pre) > code {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.1em 0.35em;
+        font-size: 0.85em;
+      }
+      blockquote {
+        margin: 1rem 0;
+        padding: 0.25rem 1rem;
+        border-left: 3px solid var(--border);
+        color: var(--muted);
+      }
+      /* Kind badges */
+      .kind {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.05rem 0.5rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .kind.finding  { color: var(--k-finding);  border-color: color-mix(in srgb, var(--k-finding) 45%, transparent); }
+      .kind.question { color: var(--k-question); border-color: color-mix(in srgb, var(--k-question) 45%, transparent); }
+      .kind.guide    { color: var(--k-guide);    border-color: color-mix(in srgb, var(--k-guide) 45%, transparent); }
+      .kind.idea     { color: var(--k-idea);     border-color: color-mix(in srgb, var(--k-idea) 45%, transparent); }
+      .kind.bug      { color: var(--k-bug);      border-color: color-mix(in srgb, var(--k-bug) 45%, transparent); }
+      /* Status chips */
+      .status {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.05rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .status.accepted { color: var(--s-accepted); border-color: color-mix(in srgb, var(--s-accepted) 45%, transparent); }
+      .status.done     { color: var(--s-done);     border-color: color-mix(in srgb, var(--s-done) 45%, transparent); }
+      .status.declined { color: var(--muted); text-decoration: line-through; }
+      /* Post rows */
+      .rows { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.65rem 0.9rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        flex-wrap: wrap;
+      }
+      .row:last-child { border-bottom: none; }
+      .row .title { flex: 1 1 12rem; min-width: 0; font-weight: 600; color: var(--text); }
+      .row .title:hover { color: var(--accent); }
+      .who {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+        white-space: nowrap;
+      }
+      .avatar {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        vertical-align: middle;
+      }
+      /* Rendered markdown bodies */
+      .md { overflow-wrap: break-word; }
+      .md img { max-width: 100%; }
+      .md pre { max-width: 100%; }
+      .md h1, .md h2, .md h3 { margin-top: 1.5rem; }
+      .md h1 { font-size: 1.3rem; }
+      .md h2 { font-size: 1.1rem; }
+      .md table { border-collapse: collapse; display: block; overflow-x: auto; }
+      .md th, .md td { border: 1px solid var(--border); padding: 0.3rem 0.6rem; }
+      footer.site {
+        border-top: 1px solid var(--border);
+        padding: 1.5rem 0 2rem;
+        font-size: 0.85rem;
+      }
+      footer.site .wrap { display: flex; gap: 1rem; flex-wrap: wrap; }
+      footer.site a { color: var(--muted); }
+      footer.site a:hover { color: var(--text); }
+      @media (max-width: 600px) {
+        main { padding: 1.5rem 0 3rem; }
+        .row { gap: 0.5rem; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="logo" href="/">down<span>stream</span></a>
+        <nav class="site" aria-label="Site">
+          <a href="/">projects</a>
+          <a href="/docs">docs</a>
+          <a href="/llms.txt">llms.txt</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <div class="wrap">
+        <slot />
+      </div>
+    </main>
+    <footer class="site">
+      <div class="wrap muted">
+        <span>an <a href="https://infinitelogic.org">Infinite Logic PBC</a> experiment</span>
+        <a href="/docs">docs</a>
+        <a href="/llms.txt">/llms.txt</a>
+      </div>
+    </footer>
+  </body>
+</html>

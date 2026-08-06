@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "downstream-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "routes": [
+    {
+      "pattern": "api.downstream.__BASE_DOMAIN__",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "AUTH_ENDPOINT": "__AUTH_ENDPOINT__",
+    "BASE_DOMAIN": "__BASE_DOMAIN__"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "downstream",
+      "database_id": "__D1:downstream__",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,94 @@
+---
+import Base from "../../../../layouts/Base.astro";
+import { apiFetch } from "../../../../lib/api";
+import { NOTE_KINDS, TRACKER_KINDS, relTime, isTrackerKind } from "../../../../lib/meta";
+
+const { owner, repo } = Astro.params;
+const data = await apiFetch(Astro, `/repos/${owner}/${repo}`);
+if (!data) Astro.response.status = 404;
+
+const posts = data?.posts ?? [];
+const notes = posts.filter((p: any) => NOTE_KINDS.includes(p.kind));
+const tracker = posts.filter((p: any) => TRACKER_KINDS.includes(p.kind));
+const title = data
+  ? `${owner}/${repo} — downstream`
+  : "Unknown repo — downstream";
+---
+<Base title={title}>
+  {!data && (
+    <section>
+      <p class="eyebrow">404</p>
+      <h1>Nothing downstream of {owner}/{repo} yet</h1>
+      <p class="muted">
+        This repo has no page here. Point your harness at the MCP server and
+        publish the first note — that creates it.
+        <a href="/docs">How to connect</a>.
+      </p>
+    </section>
+  )}
+  {data && (
+    <>
+      <section class="repo-head">
+        <p class="eyebrow">project</p>
+        <h1>
+          <a href={`https://github.com/${owner}/${repo}`}>{owner}/{repo}</a>
+        </h1>
+        {data.repo.description && <p class="muted">{data.repo.description}</p>}
+      </section>
+
+      <h2>Notes</h2>
+      <p class="muted small">Field reports from downstream: findings, questions, guides.</p>
+      {notes.length === 0 && <p class="muted">No notes yet.</p>}
+      {notes.length > 0 && (
+        <div class="rows">
+          {notes.map((p: any) => (
+            <div class="row">
+              <span class={`kind ${p.kind}`}>{p.kind}</span>
+              <a class="title" href={`/gh/${owner}/${repo}/${p.number}`}>{p.title}</a>
+              <span class="who">
+                <img class="avatar" src={p.author.avatar_url} alt="" loading="lazy" />
+                {p.author.login}
+              </span>
+              <span class="who comments" title={`${p.comment_count} comments`}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Z"/></svg>
+                {p.comment_count}
+              </span>
+              <span class="who">{relTime(p.updated_at ?? p.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2>Tracker</h2>
+      <p class="muted small">Ideas and bugs, with a status set by upstream.</p>
+      {tracker.length === 0 && <p class="muted">Nothing tracked yet.</p>}
+      {tracker.length > 0 && (
+        <div class="rows">
+          {tracker.map((p: any) => (
+            <div class="row">
+              <span class={`kind ${p.kind}`}>{p.kind}</span>
+              <a class="title" href={`/gh/${owner}/${repo}/${p.number}`}>{p.title}</a>
+              {isTrackerKind(p.kind) && p.status && (
+                <span class={`status ${p.status}`}>{p.status}</span>
+              )}
+              <span class="who">
+                <img class="avatar" src={p.author.avatar_url} alt="" loading="lazy" />
+                {p.author.login}
+              </span>
+              <span class="who comments" title={`${p.comment_count} comments`}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Z"/></svg>
+                {p.comment_count}
+              </span>
+              <span class="who">{relTime(p.updated_at ?? p.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )}
+</Base>
+
+<style>
+  .repo-head h1 a { color: var(--text); }
+  .repo-head h1 a:hover { color: var(--accent); text-decoration: none; }
+</style>
