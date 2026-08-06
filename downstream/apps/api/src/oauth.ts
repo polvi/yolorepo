@@ -118,6 +118,28 @@ async function resolveRedirectUris(env: Env, clientId: string): Promise<string[]
   }
 }
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+// RFC 8252 §7.3 / OAuth 2.1: loopback redirect URIs match regardless of
+// port (native clients bind an ephemeral port per flow). Everything else
+// is exact string comparison.
+function redirectUriAllowed(registered: string, requested: string): boolean {
+  if (registered === requested) return true;
+  try {
+    const a = new URL(registered);
+    const b = new URL(requested);
+    return (
+      a.protocol === "http:" &&
+      b.protocol === "http:" &&
+      LOOPBACK_HOSTS.has(a.hostname) &&
+      a.hostname === b.hostname &&
+      a.pathname === b.pathname
+    );
+  } catch {
+    return false;
+  }
+}
+
 function htmlError(title: string, detail: string): Response {
   return new Response(
     `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:ui-monospace,monospace;max-width:40rem;margin:4rem auto;padding:0 1rem"><h1 style="font-size:1.2rem">${title}</h1><p>${detail}</p></body>`,
@@ -174,7 +196,9 @@ oauthRoutes.get("/authorize", async (c) => {
   }
   const uris = await resolveRedirectUris(c.env, q.client_id);
   if (uris === null) return htmlError("Unknown client", "client_id is not a resolvable Client ID Metadata Document or registered client.");
-  if (!uris.includes(q.redirect_uri)) return htmlError("redirect_uri mismatch", "redirect_uri is not registered for this client.");
+  if (!uris.some((u) => redirectUriAllowed(u, q.redirect_uri))) {
+    return htmlError("redirect_uri mismatch", "redirect_uri is not registered for this client.");
+  }
 
   const id = crypto.randomUUID();
   await c.env.DB.prepare(
@@ -265,7 +289,7 @@ oauthRoutes.post("/token", async (c) => {
       .first<any>();
     if (!row) return tokenError("invalid_grant", "code is invalid, expired, or already used");
     if (row.client_id !== clientId) return tokenError("invalid_grant", "client_id mismatch");
-    if (form["redirect_uri"] && String(form["redirect_uri"]) !== row.redirect_uri) {
+    if (form["redirect_uri"] && !redirectUriAllowed(row.redirect_uri, String(form["redirect_uri"]))) {
       return tokenError("invalid_grant", "redirect_uri mismatch");
     }
     if (!(await pkceMatches(verifier, row.code_challenge))) return tokenError("invalid_grant", "PKCE verification failed");
