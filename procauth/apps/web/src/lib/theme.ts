@@ -42,6 +42,17 @@ const REGISTRY: Record<string, { app: string; vars: Partial<Record<(typeof VAR_K
       accent: "#c04e2a",
     },
   },
+  tabby: {
+    app: "tabby",
+    vars: {
+      bg: "#171210",
+      panel: "#211a16",
+      border: "#3a2e26",
+      text: "#f3ece5",
+      muted: "#a8988c",
+      accent: "#f26822",
+    },
+  },
 };
 
 export function resolveTheme(url: URL): Theme {

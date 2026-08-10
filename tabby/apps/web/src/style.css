@@ -1,0 +1,413 @@
+/* tabby — mobile-first, warm dark, Monero-orange accent. */
+
+:root {
+  --bg: #171210;
+  --panel: #211a16;
+  --panel-2: #2a211c;
+  --border: #3a2e26;
+  --text: #f3ece5;
+  --muted: #a8988c;
+  --accent: #f26822;
+  --accent-soft: #f2682226;
+  --pos: #6fbf73;
+  --neg: #e4644b;
+  --radius: 14px;
+  --pad: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    ui-rounded,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+#app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--pad);
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+h2 {
+  font-size: 1.1rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--pad);
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.pos {
+  color: var(--pos);
+}
+.neg {
+  color: var(--neg);
+}
+
+/* Buttons: every tap target ≥ 44px. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: none;
+  width: 100%;
+}
+
+.btn:active {
+  transform: scale(0.98);
+  filter: brightness(1.1);
+}
+
+.btn.secondary {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.btn.small {
+  min-height: 44px;
+  width: auto;
+  padding: 0 14px;
+  font-size: 0.9rem;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+input[type='text'],
+input[type='search'],
+select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+label.field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+label.field > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Segmented control (currency picker). */
+.segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Participant checkboxes as chips. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chips input {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+}
+
+.chips label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Floating action button, thumb reach. */
+.fab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  min-height: 56px;
+  padding: 0 22px;
+  border-radius: 999px;
+  box-shadow: 0 6px 24px #00000066;
+  width: auto;
+  z-index: 5;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.topbar .back {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.2rem;
+}
+
+.feed-item {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.feed-item:last-child {
+  border-bottom: none;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.del {
+  background: none;
+  border: none;
+  color: var(--muted);
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 1rem;
+  align-self: center;
+}
+
+.error {
+  background: #4a221c;
+  border: 1px solid var(--neg);
+  color: #ffd9d1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+/* Transfer card: the payment path is the hero on phones. */
+.transfer .qr {
+  display: none;
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px;
+  max-width: 240px;
+  margin: 12px auto 0;
+}
+
+.transfer .qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.xmr-amount {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Desktop adaptation: QR becomes prominent (scan with the phone). */
+@media (min-width: 768px) {
+  #app {
+    padding-top: 32px;
+  }
+
+  .transfer .qr {
+    display: block;
+  }
+}
+
+/* Homepage (three.js explainer). */
+.home {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.home canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.home .overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent 40%, #171210ee 85%);
+  pointer-events: none;
+}
+
+.home .overlay > * {
+  pointer-events: auto;
+}
+
+.home .wordmark {
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.home .wordmark .paw {
+  color: var(--accent);
+}
+
+.home .tagline {
+  color: var(--muted);
+  font-size: 1.05rem;
+  margin-bottom: 24px;
+  max-width: 420px;
+}
+
+.home .cta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+}
+
+@media (min-width: 768px) {
+  .home .overlay {
+    justify-content: center;
+  }
+
+  .home .cta {
+    flex-direction: row;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active {
+    transform: none;
+  }
+}
