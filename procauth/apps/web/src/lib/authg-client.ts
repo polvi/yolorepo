@@ -54,7 +54,15 @@ function parseRequestOptions(json: any): PublicKeyCredentialRequestOptions {
 }
 
 function credentialToJSON(cred: any): any {
-  if (typeof cred.toJSON === "function") return cred.toJSON();
+  // Password-manager extensions can hand back wrapped credentials whose
+  // native toJSON throws a brand-check TypeError ("'toJSON' called on an
+  // object that does not implement interface PublicKeyCredential"); the
+  // manual field-by-field path below works on those, so fall through to it.
+  if (typeof cred.toJSON === "function") {
+    try {
+      return cred.toJSON();
+    } catch {}
+  }
   const r = cred.response;
   const response: any = { clientDataJSON: bufToB64u(r.clientDataJSON) };
   if ("attestationObject" in r) {

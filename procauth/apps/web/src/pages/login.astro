@@ -35,6 +35,16 @@ const base = stackBase(Astro.url.hostname);
       el.style.display = "block";
     };
 
+    // AuthGravity's verify errors are API-shaped; translate the ones a person
+    // can act on and keep anything unrecognized generic instead of raw.
+    const friendly = (msg?: string) => {
+      if (msg && /credential not found/i.test(msg))
+        return "That passkey isn't registered here anymore (it may have been removed from an account). Try a different passkey, use your account key, or create a new account.";
+      if (msg && /toJSON|PublicKeyCredential|illegal invocation/i.test(msg))
+        return "Couldn't read that passkey. Try again.";
+      return msg || "Sign-in failed.";
+    };
+
     ($("register-link") as HTMLAnchorElement).href = withReturnTo("/register");
 
     async function done(fresh: boolean) {
@@ -52,9 +62,9 @@ const base = stackBase(Astro.url.hostname);
     $("passkey").addEventListener("click", async () => {
       try {
         const r = await passkeyLogin();
-        r.verified ? done(true) : fail(r.error || "Sign-in failed.");
+        r.verified ? done(true) : fail(friendly(r.error));
       } catch (e: any) {
-        if (e?.name !== "NotAllowedError") fail(e?.message || "Sign-in failed.");
+        if (e?.name !== "NotAllowedError") fail(friendly(e?.message));
       }
     });
 
