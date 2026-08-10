@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireUser, resolveUser } from './auth';
 import type { AppContext } from './env';
-import { baseDomain } from './env';
 import * as db from './db';
 import { llmsTxt } from './llms';
 import { equalSplit, normalizeToTabMicro, tabMicroPerUnit, type Currency } from './money';
@@ -28,6 +27,9 @@ const expenseSchema = z.object({
   participant_ids: z.array(z.string().min(1)).min(1).max(50),
 });
 
+const ghostSchema = z.object({ name: z.string().trim().min(1).max(40) });
+const claimSchema = z.object({ ghost_id: z.string().min(1) });
+
 const paymentSchema = z.object({
   id: z.string().regex(UUID_RE),
   to_user: z.string().min(1),
@@ -43,16 +45,15 @@ app.get('/llms.txt', (c) => {
   return c.text(llmsTxt(host));
 });
 
-// Invite links: the join intent lives entirely in the URL, so an
-// unauthenticated visitor round-trips through procauth and lands right back.
+// Invite links: signed-in visitors join immediately; signed-out visitors get
+// the SPA, which shows the same two-button auth landing as the homepage and
+// completes the join client-side after the in-page passkey ceremony.
 app.get('/join/:token', async (c) => {
   const userId = await resolveUser(c.req.raw, c.env);
-  const requestUrl = new URL(c.req.url);
   if (!userId) {
-    const returnTo = `https://${c.req.header('host') ?? requestUrl.host}${requestUrl.pathname}`;
-    return c.redirect(
-      `https://auth.${baseDomain(c.env)}/login?return_to=${encodeURIComponent(returnTo)}`
-    );
+    const assetUrl = new URL(c.req.url);
+    assetUrl.pathname = '/';
+    return c.env.ASSETS.fetch(new Request(assetUrl.toString(), { headers: c.req.raw.headers }));
   }
   const group = await db.groupByToken(c.env.DB, c.req.param('token'));
   if (!group) return c.text('This invite link is not valid.', 404);
@@ -138,6 +139,32 @@ api.get('/groups/:id', async (c) => {
   });
 });
 
+// Ghost members: split with someone before they've ever signed in.
+api.post('/groups/:id/members', async (c) => {
+  const groupId = c.req.param('id');
+  if (!(await db.isMember(c.env.DB, groupId, c.get('userId')))) {
+    return c.json({ error: 'not a member' }, 403);
+  }
+  const parsed = ghostSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'invalid name' }, 400);
+  const id = await db.createGhostMember(c.env.DB, groupId, parsed.data.name);
+  return c.json({ user_id: id }, 201);
+});
+
+api.post('/groups/:id/claim', async (c) => {
+  const groupId = c.req.param('id');
+  const userId = c.get('userId');
+  if (!(await db.isMember(c.env.DB, groupId, userId))) return c.json({ error: 'not a member' }, 403);
+  const parsed = claimSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'invalid claim' }, 400);
+  const ok = await db.claimGhost(c.env.DB, {
+    groupId,
+    ghostId: parsed.data.ghost_id,
+    claimerId: userId,
+  });
+  return ok ? c.json({ ok: true }) : c.json({ error: 'already claimed or not found' }, 409);
+});
+
 api.post('/groups/:id/expenses', async (c) => {
   const groupId = c.req.param('id');
   const userId = c.get('userId');
@@ -208,6 +235,15 @@ api.post('/groups/:id/payments', async (c) => {
     xmrRateTabMicro: body.xmr_rate_tab_micro,
   });
   return c.json({ ok: true }, 201);
+});
+
+api.post('/join/:token', async (c) => {
+  const group = await db.groupByToken(c.env.DB, c.req.param('token'));
+  if (!group) return c.json({ error: 'invalid invite link' }, 404);
+  const userId = c.get('userId');
+  await db.upsertUser(c.env.DB, userId);
+  await db.addMember(c.env.DB, group.id, userId);
+  return c.json({ group_id: group.id });
 });
 
 api.get('/rate/xmr', async (c) => {

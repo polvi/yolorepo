@@ -6,6 +6,7 @@ export interface UserRow {
   id: string;
   display_name: string | null;
   xmr_address: string | null;
+  is_ghost: number;
 }
 
 export interface GroupSummary {
@@ -49,9 +50,81 @@ export async function upsertUser(db: D1Database, id: string): Promise<void> {
 
 export async function getUser(db: D1Database, id: string): Promise<UserRow | null> {
   return db
-    .prepare('SELECT id, display_name, xmr_address FROM users WHERE id = ?')
+    .prepare('SELECT id, display_name, xmr_address, is_ghost FROM users WHERE id = ?')
     .bind(id)
     .first<UserRow>();
+}
+
+export async function createGhostMember(
+  db: D1Database,
+  groupId: string,
+  displayName: string
+): Promise<string> {
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  await db.batch([
+    db
+      .prepare(
+        'INSERT INTO users (id, display_name, created_at, is_ghost) VALUES (?, ?, ?, 1)'
+      )
+      .bind(id, displayName, now),
+    db
+      .prepare('INSERT INTO group_members (group_id, user_id, joined_at) VALUES (?, ?, ?)')
+      .bind(groupId, id, now),
+  ]);
+  return id;
+}
+
+// Folds a ghost's entire ledger identity into the claiming user, atomically.
+// Where both already hold a share of the same expense the amounts merge, so
+// per-expense share sums (and therefore conservation) are untouched.
+export async function claimGhost(
+  db: D1Database,
+  args: { groupId: string; ghostId: string; claimerId: string }
+): Promise<boolean> {
+  const ghost = await db
+    .prepare(
+      `SELECT 1 AS x FROM users u JOIN group_members gm ON gm.user_id = u.id
+       WHERE u.id = ? AND u.is_ghost = 1 AND gm.group_id = ?`
+    )
+    .bind(args.ghostId, args.groupId)
+    .first();
+  if (!ghost) return false;
+
+  const { ghostId, claimerId } = args;
+  await db.batch([
+    // Merge overlapping shares into the claimer's rows...
+    db
+      .prepare(
+        `UPDATE expense_shares SET share_tab_micro = share_tab_micro +
+           COALESCE((SELECT g.share_tab_micro FROM expense_shares g
+                     WHERE g.user_id = ?1 AND g.expense_id = expense_shares.expense_id), 0)
+         WHERE user_id = ?2`
+      )
+      .bind(ghostId, claimerId),
+    // ...drop the ghost rows that were merged...
+    db
+      .prepare(
+        `DELETE FROM expense_shares WHERE user_id = ?1 AND expense_id IN
+           (SELECT expense_id FROM expense_shares WHERE user_id = ?2)`
+      )
+      .bind(ghostId, claimerId),
+    // ...and rename the rest.
+    db.prepare('UPDATE expense_shares SET user_id = ?2 WHERE user_id = ?1').bind(ghostId, claimerId),
+    db.prepare('UPDATE expenses SET paid_by = ?2 WHERE paid_by = ?1').bind(ghostId, claimerId),
+    db.prepare('UPDATE expenses SET created_by = ?2 WHERE created_by = ?1').bind(ghostId, claimerId),
+    db.prepare('UPDATE payments SET from_user = ?2 WHERE from_user = ?1').bind(ghostId, claimerId),
+    db.prepare('UPDATE payments SET to_user = ?2 WHERE to_user = ?1').bind(ghostId, claimerId),
+    db.prepare('DELETE FROM group_members WHERE user_id = ?1').bind(ghostId),
+    db
+      .prepare(
+        `UPDATE users SET display_name = COALESCE(display_name,
+           (SELECT display_name FROM users WHERE id = ?1)) WHERE id = ?2`
+      )
+      .bind(ghostId, claimerId),
+    db.prepare('DELETE FROM users WHERE id = ?1 AND is_ghost = 1').bind(ghostId),
+  ]);
+  return true;
 }
 
 export async function updateUser(
@@ -153,7 +226,7 @@ export async function loadGroup(db: D1Database, groupId: string): Promise<GroupD
   const [members, expenses, shares, payments] = (await db.batch([
     db
       .prepare(
-        `SELECT u.id, u.display_name, u.xmr_address FROM users u
+        `SELECT u.id, u.display_name, u.xmr_address, u.is_ghost FROM users u
          JOIN group_members gm ON gm.user_id = u.id WHERE gm.group_id = ?
          ORDER BY gm.joined_at`
       )

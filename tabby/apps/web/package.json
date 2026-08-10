@@ -11,6 +11,7 @@
     "migrate": "wrangler d1 migrations apply tabby --remote"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.2.0",
     "hono": "^4.6.0",
     "three": "^0.170.0",
     "uqr": "^0.1.2",

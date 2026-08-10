@@ -22,6 +22,13 @@ XMR via [Cake Wallet](https://cakewallet.com) (or any wallet that opens
   UUID + `INSERT OR IGNORE`), so double-taps and retries never double-count.
 - Your Monero address is set once (with copy-from-Cake-Wallet instructions)
   and carries across trips; update it any time in the profile.
+- **Ghost members**: add someone to a split by name before they've ever
+  signed in. When they eventually join (via the invite link), they tap
+  "This is me" and their whole ledger identity merges into their account
+  atomically (overlapping shares sum, so conservation is untouched).
+- Auth is fully in-page: Sign in / Create account run the WebAuthn ceremony
+  directly against AuthGravity from the homepage and invite landing. No
+  hosted auth screens.
 
 ## Architecture
 

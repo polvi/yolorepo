@@ -1,10 +1,31 @@
 import { api, ApiError, type GroupDetail, type Me, type Member } from './lib/api';
+import { friendlyAuthError, passkeyCreateAccount, passkeySignIn } from './lib/authg';
 import { buildMoneroUri, piconeroToXmr, tabMicroToPiconero } from './lib/moneroUri';
-import { loginUrl, registerUrl } from './lib/origins';
 import { qrSvg } from './lib/qr';
 
 const app = document.getElementById('app')!;
 let me: Me | null = null;
+
+// Invite deep link: /join/<token> serves this SPA when signed out; the token
+// rides along until the in-page auth completes, then the join happens via API.
+let joinToken: string | null = null;
+{
+  const m = location.pathname.match(/^\/join\/([\w-]+)$/);
+  if (m) joinToken = m[1]!;
+}
+
+async function completeJoin(): Promise<void> {
+  if (!joinToken) return;
+  const token = joinToken;
+  joinToken = null;
+  history.replaceState(null, '', '/');
+  try {
+    const { group_id } = await api.join(token);
+    location.hash = `#/g/${group_id}`;
+  } catch (err) {
+    showError(err);
+  }
+}
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -84,21 +105,50 @@ async function route(): Promise<void> {
 
 async function renderHome(): Promise<void> {
   document.title = 'tabby — split the trip, settle in Monero';
+  const tagline = joinToken
+    ? "You're invited to split a trip on tabby. Sign in or create an account with a passkey to join."
+    : 'Split trip expenses with friends. Everyone gets one simple Monero payment to make, straight into Cake Wallet.';
   app.innerHTML = `
     <div class="home">
       <canvas id="home-canvas" aria-hidden="true"></canvas>
       <div class="overlay">
         <div class="wordmark">tabby<span class="paw">.</span></div>
-        <p class="tagline">
-          Split trip expenses with friends. Everyone gets one simple Monero
-          payment to make — straight into Cake Wallet.
-        </p>
+        <p class="tagline">${tagline}</p>
         <div class="cta">
-          <a class="btn" href="${loginUrl()}">Sign in</a>
-          <a class="btn secondary" href="${registerUrl()}">Create account</a>
+          <button class="btn" id="cta-signin">Sign in</button>
+          <button class="btn secondary" id="cta-register">Create account</button>
         </div>
+        <p id="auth-error" class="muted hidden" style="color:var(--neg); margin-top:12px;"></p>
       </div>
     </div>`;
+
+  // Both buttons run the WebAuthn ceremony against AuthGravity right here;
+  // there is no hosted auth screen in this flow.
+  const authError = document.getElementById('auth-error')!;
+  const wire = (id: string, ceremony: () => Promise<void>) => {
+    const btn = document.getElementById(id) as HTMLButtonElement;
+    btn.addEventListener('click', async () => {
+      authError.classList.add('hidden');
+      btn.disabled = true;
+      try {
+        await ceremony();
+        me = await api.me();
+        await completeJoin();
+        await route();
+      } catch (err) {
+        const message = friendlyAuthError(err);
+        if (message) {
+          authError.textContent = message;
+          authError.classList.remove('hidden');
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  };
+  wire('cta-signin', passkeySignIn);
+  wire('cta-register', passkeyCreateAccount);
+
   const canvas = document.getElementById('home-canvas') as HTMLCanvasElement;
   const { startHomeScene } = await import('./home');
   startHomeScene(canvas);
@@ -279,6 +329,22 @@ async function renderGroup(groupId: string): Promise<void> {
     )
     .join('');
 
+  const ghosts = detail.members.filter((m) => m.is_ghost);
+  const claimCard = ghosts.length
+    ? `<div class="card">
+        <span class="muted">Added by name, not signed in yet:</span>
+        ${ghosts
+          .map(
+            (g) => `<div class="row" style="margin-top:8px;">
+              <span class="grow">${esc(g.display_name ?? 'someone')}</span>
+              <button class="btn small ghost" data-claim="${g.id}"
+                data-claim-name="${esc(g.display_name ?? 'someone')}">This is me</button>
+            </div>`
+          )
+          .join('')}
+      </div>`
+    : '';
+
   app.innerHTML = `
     <div class="topbar">
       <a class="back" href="#/" aria-label="Back">‹</a>
@@ -289,6 +355,7 @@ async function renderGroup(groupId: string): Promise<void> {
     </div>
     <div id="error-box" class="error hidden"></div>
     <div class="card">${headline}</div>
+    ${claimCard}
     ${detail.transfers.length ? `<h2>Settle up</h2>${transferCards}` : ''}
     <h2>Expenses</h2>
     <div class="card">${expenseFeed || '<p class="muted" style="margin:0;">Nothing yet — add the first expense.</p>'}</div>
@@ -318,6 +385,22 @@ async function renderGroup(groupId: string): Promise<void> {
           xmr_amount_piconero: Number(tabMicroToPiconero(t.amount_tab_micro, rate!.xmr_rate_tab_micro)),
           xmr_rate_tab_micro: rate!.xmr_rate_tab_micro,
         });
+        await renderGroup(groupId);
+      } catch (err) {
+        btn.disabled = false;
+        showError(err);
+      }
+    });
+  }
+
+  for (const btn of app.querySelectorAll<HTMLButtonElement>('[data-claim]')) {
+    btn.addEventListener('click', async () => {
+      const name = btn.dataset.claimName!;
+      if (!confirm(`Claim ${name}'s expenses as yours? This folds their balance into your account.`))
+        return;
+      btn.disabled = true;
+      try {
+        await api.claimGhost(groupId, btn.dataset.claim!);
         await renderGroup(groupId);
       } catch (err) {
         btn.disabled = false;
@@ -391,9 +474,38 @@ async function renderAddExpense(groupId: string): Promise<void> {
             )
             .join('')}
         </div>
+        <div class="row" style="margin-top:10px;">
+          <input type="text" id="x-ghost-name" class="grow" placeholder="Add someone by name"
+            maxlength="40" autocomplete="off" />
+          <button class="btn small secondary" type="button" id="x-ghost-add">Add</button>
+        </div>
+        <p class="muted" style="margin:6px 0 0;">
+          No account needed. They can claim their expenses when they join.
+        </p>
       </div>
       <button class="btn" type="submit">Add expense</button>
     </form>`;
+
+  // Ghost members join the chips and the paid-by select in place, keeping
+  // whatever is already typed into the form.
+  document.getElementById('x-ghost-add')!.addEventListener('click', async () => {
+    const input = document.getElementById('x-ghost-name') as HTMLInputElement;
+    const name = input.value.trim();
+    if (!name) return;
+    try {
+      const { user_id } = await api.addGhost(groupId, name);
+      const chip = document.createElement('label');
+      chip.innerHTML = `<input type="checkbox" value="${user_id}" checked /> ${esc(name)}`;
+      document.getElementById('x-participants')!.appendChild(chip);
+      const option = document.createElement('option');
+      option.value = user_id;
+      option.textContent = name;
+      (document.getElementById('x-paidby') as unknown as HTMLSelectElement).appendChild(option);
+      input.value = '';
+    } catch (err) {
+      showError(err);
+    }
+  });
 
   const hint = document.getElementById('cur-hint')!;
   const updateHint = () => {
@@ -493,5 +605,6 @@ window.addEventListener('hashchange', () => {
   } catch {
     me = null;
   }
+  if (me) await completeJoin();
   await route().catch(showError);
 })();

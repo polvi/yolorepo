@@ -16,6 +16,7 @@ export interface Member {
   id: string;
   display_name: string | null;
   xmr_address: string | null;
+  is_ghost: number;
 }
 
 export interface GroupDetail {
@@ -113,4 +114,15 @@ export const api = {
       body: JSON.stringify(payment),
     }),
   xmrRate: () => request<{ xmr_rate_tab_micro: number }>('/rate/xmr'),
+  join: (token: string) => request<{ group_id: string }>(`/join/${token}`, { method: 'POST' }),
+  addGhost: (groupId: string, name: string) =>
+    request<{ user_id: string }>(`/groups/${groupId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  claimGhost: (groupId: string, ghostId: string) =>
+    request<{ ok: true }>(`/groups/${groupId}/claim`, {
+      method: 'POST',
+      body: JSON.stringify({ ghost_id: ghostId }),
+    }),
 };
