@@ -46,6 +46,23 @@ function fmtUsd(tabMicro: number): string {
   });
 }
 
+// XMR leads everywhere a balance or transfer is shown; TAB and USD ride
+// along muted as the neutral comparison. Display only — payments record the
+// exact piconero integer separately.
+function fmtXmr(tabMicro: number, rateTabMicroPerXmr: number): string {
+  const xmr = Math.abs(tabMicro) / rateTabMicroPerXmr;
+  if (xmr > 0 && xmr < 0.00001) return '<0.00001 XMR';
+  const s = xmr
+    .toFixed(xmr >= 1 ? 4 : 5)
+    .replace(/(\.\d\d[\d]*?)0+$/, '$1');
+  return `${s} XMR`;
+}
+
+// "2.00 TAB · $20.00", the muted companion to every XMR amount.
+function fmtTabUsd(tabMicro: number): string {
+  return `${fmtTab(Math.abs(tabMicro))} TAB · ${fmtUsd(tabMicro)}`;
+}
+
 function memberName(members: Member[], id: string): string {
   const m = members.find((x) => x.id === id);
   if (!m) return 'someone';
@@ -192,7 +209,9 @@ function renderSetup(): void {
 
 async function renderGroups(): Promise<void> {
   document.title = 'tabby — your groups';
-  const { groups } = await api.groups();
+  const [{ groups }, rate] = await Promise.all([api.groups(), api.xmrRate().catch(() => null)]);
+  const inXmr = (net: number) =>
+    rate ? fmtXmr(net, rate.xmr_rate_tab_micro) : `${fmtTab(Math.abs(net))} TAB`;
   const list = groups
     .map((g) => {
       const net = g.your_net_tab_micro;
@@ -200,8 +219,8 @@ async function renderGroups(): Promise<void> {
         net === 0
           ? '<span class="muted">settled up</span>'
           : net > 0
-            ? `<span class="pos">you're owed ${fmtTab(net)} TAB</span>`
-            : `<span class="neg">you owe ${fmtTab(-net)} TAB</span>`;
+            ? `<span class="pos">you're owed ${inXmr(net)}</span>`
+            : `<span class="neg">you owe ${inXmr(net)}</span>`;
       return `
         <a class="card row" style="text-decoration:none; color:inherit;" href="#/g/${g.id}">
           <div class="grow">
@@ -255,12 +274,14 @@ async function renderGroup(groupId: string): Promise<void> {
   const myId = me!.user_id;
   const myNet = detail.nets.find((n) => n.user_id === myId)?.net_tab_micro ?? 0;
 
+  const inXmr = (net: number) =>
+    rate ? fmtXmr(net, rate.xmr_rate_tab_micro) : `${fmtTab(Math.abs(net))} TAB`;
   const headline =
     myNet === 0
       ? `<h2 class="muted" style="margin:0;">You're settled up 🐈</h2>`
       : myNet > 0
-        ? `<h2 class="pos" style="margin:0;">You're owed ${fmtTab(myNet)} TAB <span class="muted">(${fmtUsd(myNet)})</span></h2>`
-        : `<h2 class="neg" style="margin:0;">You owe ${fmtTab(-myNet)} TAB <span class="muted">(${fmtUsd(myNet)})</span></h2>`;
+        ? `<h2 class="pos" style="margin:0;">You're owed ${inXmr(myNet)} <span class="muted">(${fmtTabUsd(myNet)})</span></h2>`
+        : `<h2 class="neg" style="margin:0;">You owe ${inXmr(myNet)} <span class="muted">(${fmtTabUsd(myNet)})</span></h2>`;
 
   const transferCards = detail.transfers
     .map((t, i) => {
@@ -268,7 +289,10 @@ async function renderGroup(groupId: string): Promise<void> {
       const toName = memberName(detail.members, t.to);
       const line = `<div class="row">
           <div class="grow"><strong>${esc(fromName)}</strong> → <strong>${esc(toName)}</strong></div>
-          <div class="amount">${fmtTab(t.amount_tab_micro)} TAB <span class="muted">${fmtUsd(t.amount_tab_micro)}</span></div>
+          <div style="text-align:right;">
+            <div class="amount">${inXmr(t.amount_tab_micro)}</div>
+            <div class="muted">${fmtTabUsd(t.amount_tab_micro)}</div>
+          </div>
         </div>`;
       if (t.from !== myId) return `<div class="card transfer">${line}</div>`;
 
@@ -290,8 +314,8 @@ async function renderGroup(groupId: string): Promise<void> {
         `tabby: ${detail.group.name} ${fromName}->${toName}`
       );
       return `<div class="card transfer">${line}
-        <p class="xmr-amount" style="margin:10px 0 2px;">${piconeroToXmr(piconero)} XMR</p>
-        <p class="muted" style="margin:0 0 12px;">at today's rate, to ${esc(toName)}</p>
+        <p class="muted" style="margin:10px 0 12px;">${piconeroToXmr(piconero)} XMR exact,
+          at today's rate, to ${esc(toName)}</p>
         <a class="btn" href="${esc(uri)}">Pay in Cake Wallet</a>
         <div class="qr" aria-label="Scan with Cake Wallet">${qrSvg(uri)}</div>
         <button class="btn ghost" style="margin-top:10px;" data-pay="${i}"
@@ -322,9 +346,9 @@ async function renderGroup(groupId: string): Promise<void> {
         <div class="grow">
           <strong>${esc(memberName(detail.members, p.from_user))} paid
             ${esc(memberName(detail.members, p.to_user))}</strong>
-          <div class="muted">${piconeroToXmr(BigInt(p.xmr_amount_piconero))} XMR · ${fmtWhen(p.created_at)}</div>
+          <div class="muted">${fmtTabUsd(p.amount_tab_micro)} · ${fmtWhen(p.created_at)}</div>
         </div>
-        <span class="amount">${fmtTab(p.amount_tab_micro)} TAB</span>
+        <span class="amount">${piconeroToXmr(BigInt(p.xmr_amount_piconero))} XMR</span>
       </div>`
     )
     .join('');
@@ -375,7 +399,7 @@ async function renderGroup(groupId: string): Promise<void> {
   for (const btn of app.querySelectorAll<HTMLButtonElement>('[data-pay]')) {
     btn.addEventListener('click', async () => {
       const t = detail.transfers[Number(btn.dataset.pay)]!;
-      if (!confirm(`Record that you paid ${memberName(detail.members, t.to)} ${fmtTab(t.amount_tab_micro)} TAB?`)) return;
+      if (!confirm(`Record that you paid ${memberName(detail.members, t.to)} ${inXmr(t.amount_tab_micro)}?`)) return;
       btn.disabled = true;
       try {
         await api.addPayment(groupId, {
