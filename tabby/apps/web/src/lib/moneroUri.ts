@@ -15,10 +15,16 @@ export function tabMicroToPiconero(amountTabMicro: number, rateTabMicroPerXmr: n
   return (BigInt(amountTabMicro) * PICO_PER_XMR) / BigInt(rateTabMicroPerXmr);
 }
 
-// Standard wallet URI; Cake Wallet opens these directly on mobile.
+// Standard wallet URI; Cake Wallet opens these directly on mobile. Wallet
+// URI parsers are strict: URLSearchParams' form encoding ('+' for spaces)
+// and raw ':' made Cake Wallet drop the whole query, so the description is
+// sanitized to plain words and percent-encoded by hand (%20 spaces).
 export function buildMoneroUri(address: string, piconero: bigint, description: string): string {
-  const params = new URLSearchParams();
-  params.set('tx_amount', piconeroToXmr(piconero));
-  params.set('tx_description', description.slice(0, 120));
-  return `monero:${address}?${params.toString()}`;
+  const desc = description
+    .replace(/[^\w\s.-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  const query = `tx_amount=${piconeroToXmr(piconero)}${desc ? `&tx_description=${encodeURIComponent(desc)}` : ''}`;
+  return `monero:${address}?${query}`;
 }

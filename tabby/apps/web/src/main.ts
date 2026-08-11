@@ -367,7 +367,7 @@ async function renderGroup(groupId: string): Promise<void> {
       const uri = buildMoneroUri(
         payee.xmr_address,
         piconero,
-        `tabby: ${detail.group.name} ${fromName}->${toName}`
+        `tabby ${detail.group.name} ${fromName} to ${toName}`
       );
       return `<div class="card transfer">${line}
         <p class="muted" style="margin:10px 0 12px;">${piconeroToXmr(piconero)} XMR exact,
@@ -488,13 +488,34 @@ async function renderGroup(groupId: string): Promise<void> {
     ${nameNudge()}
     ${addressNudge()}
     ${claimCard}
-    ${detail.transfers.length || cashCard ? `<h2>Settle up</h2>${transferCards}${cashCard}` : ''}
+    ${
+      detail.transfers.length === 0 && !cashCard
+        ? ''
+        : detail.group.settling
+          ? `<h2>Settle up</h2>${transferCards}${cashCard}
+             <p style="text-align:center; margin:4px 0 16px;">
+               <button class="conv" id="settle-toggle">More expenses coming? Reopen the tab</button>
+             </p>`
+          : `<div class="card" style="text-align:center;">
+               <p class="muted" style="margin:0 0 12px;">Settle-up is hidden until everyone
+                 agrees the expenses are all in.</p>
+               <button class="btn" id="settle-toggle">Everyone's in, settle up</button>
+             </div>`
+    }
     <h2>Expenses</h2>
     <div class="card">${expenseFeed || '<p class="muted" style="margin:0;">Nothing yet — add the first expense.</p>'}</div>
     ${paymentFeed ? `<h2>Payments</h2><div class="card">${paymentFeed}</div>` : ''}
     <a class="btn fab" href="#/g/${groupId}/add">＋ Add expense</a>`;
 
   wireNameNudge();
+  document.getElementById('settle-toggle')?.addEventListener('click', async () => {
+    try {
+      await api.setSettling(groupId, !detail.group.settling);
+      await renderGroup(groupId);
+    } catch (err) {
+      showError(err);
+    }
+  });
   document.getElementById('invite-btn')!.addEventListener('click', async () => {
     const url = `${location.origin}/join/${detail.group.invite_token}`;
     if (navigator.share) {

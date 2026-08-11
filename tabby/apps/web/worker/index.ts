@@ -170,6 +170,20 @@ api.get('/groups/:id', async (c) => {
   });
 });
 
+// Settle-up gate: any member declares "all expenses are in" (or reopens).
+api.post('/groups/:id/settling', async (c) => {
+  const groupId = c.req.param('id');
+  if (!(await db.isMember(c.env.DB, groupId, c.get('userId')))) {
+    return c.json({ error: 'not a member' }, 403);
+  }
+  const parsed = z
+    .object({ settling: z.boolean() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: 'invalid' }, 400);
+  await db.setSettling(c.env.DB, groupId, parsed.data.settling);
+  return c.json({ ok: true });
+});
+
 // Ghost members: split with someone before they've ever signed in.
 api.post('/groups/:id/members', async (c) => {
   const groupId = c.req.param('id');

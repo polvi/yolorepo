@@ -19,7 +19,7 @@ export interface GroupSummary {
 }
 
 export interface GroupData {
-  group: { id: string; name: string; invite_token: string };
+  group: { id: string; name: string; invite_token: string; settling: number };
   members: UserRow[];
   expenses: {
     id: string;
@@ -163,6 +163,17 @@ export async function createGroup(
   ]);
 }
 
+export async function setSettling(
+  db: D1Database,
+  groupId: string,
+  settling: boolean
+): Promise<void> {
+  await db
+    .prepare('UPDATE groups SET settling = ? WHERE id = ?')
+    .bind(settling ? 1 : 0, groupId)
+    .run();
+}
+
 export async function groupByToken(
   db: D1Database,
   token: string
@@ -223,9 +234,9 @@ export async function listGroups(db: D1Database, userId: string): Promise<GroupS
 
 export async function loadGroup(db: D1Database, groupId: string): Promise<GroupData | null> {
   const group = await db
-    .prepare('SELECT id, name, invite_token FROM groups WHERE id = ?')
+    .prepare('SELECT id, name, invite_token, settling FROM groups WHERE id = ?')
     .bind(groupId)
-    .first<{ id: string; name: string; invite_token: string }>();
+    .first<{ id: string; name: string; invite_token: string; settling: number }>();
   if (!group) return null;
 
   const [members, expenses, shares, payments] = (await db.batch([

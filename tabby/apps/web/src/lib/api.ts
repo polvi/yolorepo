@@ -21,7 +21,7 @@ export interface Member {
 }
 
 export interface GroupDetail {
-  group: { id: string; name: string; invite_token: string };
+  group: { id: string; name: string; invite_token: string; settling: number };
   members: Member[];
   nets: { user_id: string; net_tab_micro: number }[];
   transfers: { from: string; to: string; amount_tab_micro: number }[];
@@ -150,6 +150,11 @@ export const api = {
     request<{ user_id: string }>(`/groups/${groupId}/members`, {
       method: 'POST',
       body: JSON.stringify({ name }),
+    }),
+  setSettling: (groupId: string, settling: boolean) =>
+    request<{ ok: true }>(`/groups/${groupId}/settling`, {
+      method: 'POST',
+      body: JSON.stringify({ settling }),
     }),
   claimGhost: (groupId: string, ghostId: string) =>
     request<{ ok: true }>(`/groups/${groupId}/claim`, {
