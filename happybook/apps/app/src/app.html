@@ -12,6 +12,21 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Happybook</title>
+    <script>
+      // backtalk feedback/error widget. The origin is derived from the page
+      // host (app.happybook.<base> -> backtalk.<base>) so forks report to
+      // their own stack; local dev has no such host and skips the widget.
+      (function () {
+        var base = location.hostname.replace(/^app\.happybook\./, '');
+        if (base === location.hostname) return;
+        var s = document.createElement('script');
+        s.src = 'https://backtalk.' + base + '/w.js';
+        s.dataset.key = 'pk_B3uSdUkp5mIDwS8Y';
+        s.dataset.release = 'v1';
+        s.defer = true;
+        document.head.appendChild(s);
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

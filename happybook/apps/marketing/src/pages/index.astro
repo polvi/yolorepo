@@ -1,5 +1,5 @@
 ---
-import { appUrl } from '../lib/stack';
+import { appUrl, baseDomain } from '../lib/stack';
 
 const title = 'Happybook — notebooks made of PDFs & EPUBs';
 const description =
@@ -13,6 +13,12 @@ const description =
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <script
+      src={`https://backtalk.${baseDomain}/w.js`}
+      data-key="pk_B3uSdUkp5mIDwS8Y"
+      data-release="v1"
+      defer
+      is:inline></script>
     <style>
       :root {
         --bg: #faf7f2;

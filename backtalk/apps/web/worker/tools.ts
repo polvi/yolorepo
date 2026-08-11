@@ -4,6 +4,7 @@
 // note the original submitter will see in the widget.
 
 import * as db from './db';
+import { generatePublicKey } from './auth';
 import {
   canTransitionError,
   canTransitionFeedback,
@@ -30,6 +31,16 @@ export const TOOLS: ToolDef[] = [
     description:
       'List the backtalk projects this account owns, with new-feedback and open-error counts. Start here to find the project id for the site you are working on.',
     inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'projects_create',
+    description:
+      'Create a backtalk project for a site you want to instrument. Returns the project id and its pk_ public key; embed the widget with <script src="https://backtalk.proc.io/w.js" data-key="pk_..." data-release="v1" defer></script>.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: { type: 'string', minLength: 1, maxLength: 80 } },
+      required: ['name'],
+    },
   },
   {
     name: 'feedback_list',
@@ -143,6 +154,16 @@ export async function callTool(
   switch (name) {
     case 'projects_list':
       return json({ projects: await db.listProjects(d1, userId) });
+
+    case 'projects_create': {
+      const name = str(args, 'name').trim().slice(0, 80);
+      if (!name) throw new ToolError('name is required');
+      await db.upsertUser(d1, userId);
+      const id = crypto.randomUUID();
+      const publicKey = generatePublicKey();
+      await db.createProject(d1, { id, ownerId: userId, name, publicKey });
+      return json({ id, public_key: publicKey });
+    }
 
     case 'feedback_list': {
       const project = await ownedProject(d1, userId, str(args, 'project_id'));

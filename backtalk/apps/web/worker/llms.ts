@@ -34,6 +34,7 @@ Mint bt_ tokens at ${origin}/#/settings (requires a passkey session; the
 plaintext is shown once). Tools:
 
 - projects_list — your projects with new-feedback / open-error counts
+- projects_create — new project; returns the pk_ key for the embed snippet
 - feedback_list, feedback_get — visitor-submitted bugs/ideas/feedback with breadcrumbs
 - feedback_set_status — seen/planned/done/declined; done+note = the submitter sees "shipped"
 - errors_list, errors_get — fingerprint-grouped JS errors with sample stacks
