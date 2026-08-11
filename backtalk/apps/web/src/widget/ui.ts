@@ -70,6 +70,13 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+// The shadow root is closed, so keydown events escaping the sheet retarget
+// to the bare host div and look like they came from a non-editable element.
+// Trigger code must check this before treating a keystroke as a hotkey.
+export function isSheetOpen(): boolean {
+  return host !== null;
+}
+
 export function openSheet(config: WidgetConfig): void {
   try {
     cfg = config;

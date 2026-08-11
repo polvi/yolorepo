@@ -15,7 +15,7 @@ import {
   trackPageview,
   type WidgetConfig,
 } from './capture';
-import { openSheet } from './ui';
+import { isSheetOpen, openSheet } from './ui';
 
 declare global {
   interface Window {
@@ -46,10 +46,28 @@ declare global {
     installVitals();
     trackPageview(location.pathname);
 
-    // Desktop trigger: Cmd/Ctrl+Shift+/ (i.e. Cmd+?).
+    // Desktop triggers: bare "?" outside editable elements (GitHub-style),
+    // plus Cmd/Ctrl+Shift+/ where the browser lets the page have it. Firefox
+    // on macOS binds Cmd+? to Help menu search at the app-menu level, so that
+    // combo never reaches the page there; bare "?" covers the gap.
+    const inEditable = (t: EventTarget | null): boolean => {
+      const el = t as HTMLElement | null;
+      if (!el || !el.tagName) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    };
     addEventListener('keydown', (e) => {
       try {
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === '/' || e.key === '?')) {
+        const combo =
+          (e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === '/' || e.key === '?');
+        const bare =
+          e.key === '?' &&
+          !e.metaKey &&
+          !e.ctrlKey &&
+          !e.altKey &&
+          !e.isComposing &&
+          !inEditable(e.target);
+        if ((combo || bare) && !isSheetOpen()) {
           e.preventDefault();
           openSheet(cfg);
         }
