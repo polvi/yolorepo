@@ -33,6 +33,10 @@ that visibly lands begets more feedback.
   notes (capability-by-UUID, no accounts for visitors).
 - **Idempotent by construction.** Client-generated UUIDs +
   `INSERT OR IGNORE` make widget retries safe.
+- **Works on a plane.** Feedback submitted offline is parked in a
+  localStorage outbox ("Saved — you're offline") and drained automatically
+  on the next page load or the moment connectivity returns; idempotent ids
+  make the resend race-free.
 - **Rate limiting.** Per-project per-kind daily caps counted in one UPSERT
   (feedback 200, errors 5 000, vitals/pageviews 20 000 each), plus payload
   caps and an optional exact-origin allowlist. No IPs stored, no cookies set.

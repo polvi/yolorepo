@@ -6,6 +6,7 @@
 // thing that breaks the page.
 
 import { crumbs } from './breadcrumbs';
+import { outbox, pushOutbox, replaceOutbox } from './store';
 
 export type WidgetConfig = {
   key: string;
@@ -37,6 +38,11 @@ export function initCapture(config: WidgetConfig): void {
   addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') onHide();
   });
+
+  // Drain feedback queued on a previous offline visit: at load and the
+  // moment connectivity returns.
+  window.addEventListener('online', () => void drainOutbox());
+  setTimeout(() => void drainOutbox(), 2000);
 }
 
 export function setMetadata(m: Record<string, unknown>): void {
@@ -99,8 +105,17 @@ export function flush(useBeacon: boolean): void {
   }
 }
 
-/** Feedback submits skip the queue: the user is watching. One idempotent retry (same UUID). */
-export async function submitNow(ev: Record<string, unknown>): Promise<boolean> {
+export type SubmitOutcome = 'sent' | 'queued' | 'rejected';
+
+/**
+ * Feedback submits skip the queue: the user is watching. One idempotent
+ * retry (same UUID); when there is no connectivity (a plane, a tunnel) the
+ * event is parked in the localStorage outbox and drained later.
+ */
+export async function submitNow(ev: Record<string, unknown>): Promise<SubmitOutcome> {
+  if (navigator.onLine === false) {
+    return pushOutbox(cfg.key, ev) ? 'queued' : 'rejected';
+  }
   const body = envelope([ev]);
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -109,13 +124,43 @@ export async function submitNow(ev: Record<string, unknown>): Promise<boolean> {
         body,
         headers: { 'content-type': 'text/plain' },
       });
-      if (res.ok) return true;
-      if (res.status >= 400 && res.status < 500) return false; // rejected, retry won't help
+      if (res.ok) {
+        void drainOutbox(); // good moment to move anything parked earlier
+        return 'sent';
+      }
+      if (res.status >= 400 && res.status < 500) return 'rejected'; // retry won't help
     } catch {
       // network hiccup: retry once
     }
   }
-  return false;
+  return pushOutbox(cfg.key, ev) ? 'queued' : 'rejected';
+}
+
+let draining = false;
+
+/** Send everything in the outbox; keep whatever still fails. */
+export async function drainOutbox(): Promise<void> {
+  if (draining) return;
+  draining = true;
+  try {
+    let pending = outbox(cfg.key);
+    while (pending.length > 0) {
+      const batch = pending.slice(0, 25);
+      const res = await fetch(`${cfg.apiOrigin}/api/ingest`, {
+        method: 'POST',
+        body: envelope(batch),
+        headers: { 'content-type': 'text/plain' },
+      });
+      // 4xx = permanently rejected, drop the batch; other failures keep it.
+      if (!res.ok && !(res.status >= 400 && res.status < 500)) return;
+      pending = pending.slice(batch.length);
+      replaceOutbox(cfg.key, pending);
+    }
+  } catch {
+    // still offline: the outbox stays put for the next attempt
+  } finally {
+    draining = false;
+  }
 }
 
 export function captureError(message: unknown, stack?: string | null, source?: string | null): void {

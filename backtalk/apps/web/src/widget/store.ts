@@ -22,3 +22,42 @@ export function rememberSubmission(projectKey: string, sub: StoredSub): void {
     // private mode / quota: the loop just won't close on this browser
   }
 }
+
+// ------------------------------------------------------------- outbox
+// Feedback written on a plane: events that could not be sent are parked
+// here and drained when connectivity returns. Client UUIDs make resends
+// idempotent, so draining can race a retry harmlessly.
+
+const outboxKey = (projectKey: string) => `bt:${projectKey}:outbox`;
+
+export function outbox(projectKey: string): Record<string, unknown>[] {
+  try {
+    const raw = localStorage.getItem(outboxKey(projectKey));
+    return raw ? (JSON.parse(raw) as Record<string, unknown>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function pushOutbox(projectKey: string, ev: Record<string, unknown>): boolean {
+  try {
+    const all = [...outbox(projectKey), ev].slice(-50);
+    localStorage.setItem(outboxKey(projectKey), JSON.stringify(all));
+    return true;
+  } catch {
+    return false; // private mode / quota: nothing we can do offline
+  }
+}
+
+export function replaceOutbox(projectKey: string, events: Record<string, unknown>[]): void {
+  try {
+    if (events.length === 0) localStorage.removeItem(outboxKey(projectKey));
+    else localStorage.setItem(outboxKey(projectKey), JSON.stringify(events));
+  } catch {
+    // swallow
+  }
+}
+
+export function outboxIds(projectKey: string): Set<string> {
+  return new Set(outbox(projectKey).map((e) => String(e.id)));
+}

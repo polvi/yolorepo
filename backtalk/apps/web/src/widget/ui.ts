@@ -5,7 +5,7 @@
 
 import { crumbs } from './breadcrumbs';
 import { currentMetadata, submitNow, type WidgetConfig } from './capture';
-import { rememberSubmission, storedSubmissions, type StoredSub } from './store';
+import { outboxIds, rememberSubmission, storedSubmissions, type StoredSub } from './store';
 
 let host: HTMLElement | null = null;
 let shadow: ShadowRoot | null = null;
@@ -141,7 +141,7 @@ function renderForm(): void {
     send.disabled = true;
     send.textContent = 'Sending…';
     const id = crypto.randomUUID();
-    const ok = await submitNow({
+    const outcome = await submitNow({
       type: 'feedback',
       id,
       kind,
@@ -153,22 +153,26 @@ function renderForm(): void {
       ...(currentMetadata() ? { metadata: currentMetadata() } : {}),
       breadcrumbs: crumbs(),
     });
-    if (ok) {
-      rememberSubmission(cfg.key, { id, t: Date.now(), kind, msg: message.slice(0, 120) });
-      renderSent();
-    } else {
+    if (outcome === 'rejected') {
       send.disabled = false;
       send.textContent = 'Send';
       shadow!.querySelector('.err')?.classList.remove('hidden');
+      return;
     }
+    rememberSubmission(cfg.key, { id, t: Date.now(), kind, msg: message.slice(0, 120) });
+    renderSent(outcome === 'queued');
   });
 }
 
-function renderSent(): void {
+function renderSent(queued: boolean): void {
+  const headline = queued
+    ? `<div class="big"><span class="ok">&#10003;</span> Saved &mdash; you&#39;re offline</div>
+       <div class="ctx" style="text-align:center">It will send itself the moment you&#39;re back online.</div>`
+    : `<div class="big"><span class="ok">&#10003;</span> Sent &mdash; thank you</div>
+       <div class="ctx" style="text-align:center">Check back here later: you&#39;ll see when it ships.</div>`;
   shell(`
     <div class="head"><strong>Feedback</strong><button class="x" aria-label="Close">&times;</button></div>
-    <div class="big"><span class="ok">&#10003;</span> Sent &mdash; thank you</div>
-    <div class="ctx" style="text-align:center">Check back here later: you&#39;ll see when it ships.</div>
+    ${headline}
     <button class="link subs">Your submissions</button>
   `);
   shadow?.querySelector('.subs')?.addEventListener('click', () => void renderList());
@@ -202,9 +206,10 @@ async function renderList(): Promise<void> {
     // offline: show local list without statuses
   }
 
+  const queued = outboxIds(cfg.key);
   const row = (s: StoredSub) => {
     const st = statuses.get(s.id);
-    const chip = st ? (CHIP[st.status] ?? st.status) : 'sent';
+    const chip = st ? (CHIP[st.status] ?? st.status) : queued.has(s.id) ? 'queued offline' : 'sent';
     return `
       <div class="sub">
         <div class="msg">${esc(s.msg)}</div>
