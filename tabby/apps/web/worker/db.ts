@@ -319,6 +319,63 @@ export async function insertExpense(
   await db.batch(stmts);
 }
 
+// Full in-place replace of an expense and its shares in one atomic batch.
+// Anyone in the group may edit any expense; balances are derived, so the
+// batch boundary is the whole consistency story. If the expense was deleted
+// concurrently the UPDATE matches nothing and the stray shares are inert
+// (every reader joins through deleted_at IS NULL).
+export async function updateExpense(
+  db: D1Database,
+  args: {
+    id: string;
+    groupId: string;
+    description: string;
+    paidBy: string;
+    currency: string;
+    amountMinor: number;
+    tabMicroPerUnit: number;
+    amountTabMicro: number;
+    shares: Map<string, number>;
+  }
+): Promise<boolean> {
+  const exists = await db
+    .prepare('SELECT 1 AS x FROM expenses WHERE id = ? AND group_id = ? AND deleted_at IS NULL')
+    .bind(args.id, args.groupId)
+    .first();
+  if (!exists) return false;
+
+  const stmts = [
+    db
+      .prepare(
+        `UPDATE expenses SET description = ?, paid_by = ?, currency = ?, amount_minor = ?,
+           tab_micro_per_unit = ?, amount_tab_micro = ?
+         WHERE id = ? AND group_id = ? AND deleted_at IS NULL`
+      )
+      .bind(
+        args.description,
+        args.paidBy,
+        args.currency,
+        args.amountMinor,
+        args.tabMicroPerUnit,
+        args.amountTabMicro,
+        args.id,
+        args.groupId
+      ),
+    db.prepare('DELETE FROM expense_shares WHERE expense_id = ?').bind(args.id),
+  ];
+  for (const [userId, share] of args.shares) {
+    stmts.push(
+      db
+        .prepare(
+          'INSERT INTO expense_shares (expense_id, user_id, share_tab_micro) VALUES (?, ?, ?)'
+        )
+        .bind(args.id, userId, share)
+    );
+  }
+  await db.batch(stmts);
+  return true;
+}
+
 export async function softDeleteExpense(
   db: D1Database,
   groupId: string,

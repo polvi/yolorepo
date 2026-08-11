@@ -97,6 +97,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(expense),
     }),
+  updateExpense: (
+    groupId: string,
+    expenseId: string,
+    expense: {
+      description: string;
+      currency: string;
+      amount_minor: number;
+      paid_by: string;
+      participant_ids: string[];
+    }
+  ) =>
+    request<{ ok: true }>(`/groups/${groupId}/expenses/${expenseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(expense),
+    }),
   deleteExpense: (groupId: string, expenseId: string) =>
     request<{ ok: true }>(`/groups/${groupId}/expenses/${expenseId}`, { method: 'DELETE' }),
   addPayment: (

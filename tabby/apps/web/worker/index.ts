@@ -205,6 +205,46 @@ api.post('/groups/:id/expenses', async (c) => {
   return c.json({ ok: true }, 201);
 });
 
+api.put('/groups/:id/expenses/:eid', async (c) => {
+  const groupId = c.req.param('id');
+  const userId = c.get('userId');
+  if (!(await db.isMember(c.env.DB, groupId, userId))) return c.json({ error: 'not a member' }, 403);
+  const parsed = expenseSchema
+    .omit({ id: true })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'invalid' }, 400);
+  const body = parsed.data;
+
+  const involved = new Set([...body.participant_ids, body.paid_by]);
+  for (const id of involved) {
+    if (!(await db.isMember(c.env.DB, groupId, id))) {
+      return c.json({ error: 'payer and participants must be group members' }, 400);
+    }
+  }
+
+  const currency = body.currency as Currency;
+  let perUnit: number;
+  try {
+    perUnit = tabMicroPerUnit(currency, currency === 'CAD' ? await usdPerCad(c.env.DB) : undefined);
+  } catch {
+    return c.json({ error: 'exchange rate unavailable, try again shortly' }, 503);
+  }
+  const amountTabMicro = normalizeToTabMicro(body.amount_minor, perUnit);
+
+  const updated = await db.updateExpense(c.env.DB, {
+    id: c.req.param('eid'),
+    groupId,
+    description: body.description,
+    paidBy: body.paid_by,
+    currency,
+    amountMinor: body.amount_minor,
+    tabMicroPerUnit: perUnit,
+    amountTabMicro,
+    shares: equalSplit(amountTabMicro, body.participant_ids),
+  });
+  return updated ? c.json({ ok: true }) : c.json({ error: 'not found' }, 404);
+});
+
 api.delete('/groups/:id/expenses/:eid', async (c) => {
   const groupId = c.req.param('id');
   if (!(await db.isMember(c.env.DB, groupId, c.get('userId')))) {

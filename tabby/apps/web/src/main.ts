@@ -105,8 +105,10 @@ async function route(): Promise<void> {
   }
 
   const groupAdd = hash.match(/^\/g\/([\w-]+)\/add$/);
+  const groupEdit = hash.match(/^\/g\/([\w-]+)\/edit\/([\w-]+)$/);
   const group = hash.match(/^\/g\/([\w-]+)$/);
-  if (groupAdd) await renderAddExpense(groupAdd[1]!);
+  if (groupAdd) await renderExpenseForm(groupAdd[1]!);
+  else if (groupEdit) await renderExpenseForm(groupEdit[1]!, groupEdit[2]!);
   else if (group) await renderGroup(group[1]!);
   else if (hash === '/profile') renderProfile();
   else await renderGroups();
@@ -126,8 +128,8 @@ async function renderHome(): Promise<void> {
         <div class="wordmark">tabby<span class="paw">.</span></div>
         <p class="tagline">${tagline}</p>
         <div class="cta">
-          <button class="btn" id="cta-signin">Sign in</button>
-          <button class="btn secondary" id="cta-register">Create account</button>
+          <button class="btn" id="cta-register">Create account</button>
+          <button class="btn secondary" id="cta-signin">Sign in</button>
         </div>
         <p id="auth-error" class="muted hidden" style="color:var(--neg); margin-top:12px;"></p>
       </div>
@@ -335,11 +337,12 @@ async function renderGroup(groupId: string): Promise<void> {
     .map(
       (x) => `
       <div class="feed-item">
-        <div class="grow">
+        <a class="grow" href="#/g/${groupId}/edit/${x.id}"
+          style="text-decoration:none; color:inherit; min-height:44px; display:block;">
           <strong>${esc(x.description)}</strong>
           <div class="muted">${esc(memberName(detail.members, x.paid_by))} paid ·
-            split ${x.participants.length} ways · ${fmtWhen(x.created_at)}</div>
-        </div>
+            split ${x.participants.length} ways · ${fmtWhen(x.created_at)} · tap to edit</div>
+        </a>
         <span class="amount">${(x.amount_minor / 100).toFixed(2)} ${esc(x.currency)}</span>
         <button class="del" data-del="${x.id}" aria-label="Delete expense">✕</button>
       </div>`
@@ -456,34 +459,49 @@ async function renderGroup(groupId: string): Promise<void> {
   }
 }
 
-async function renderAddExpense(groupId: string): Promise<void> {
+// One form for both adding and editing. Editing is open to every member
+// (the whole point is fixing who a split is with, no matter who entered it).
+async function renderExpenseForm(groupId: string, expenseId?: string): Promise<void> {
   const detail = await api.group(groupId);
-  document.title = `tabby — add expense`;
+  const existing = expenseId ? detail.expenses.find((x) => x.id === expenseId) : undefined;
+  if (expenseId && !existing) {
+    location.hash = `#/g/${groupId}`;
+    return;
+  }
+  document.title = `tabby — ${existing ? 'edit' : 'add'} expense`;
   const myId = me!.user_id;
-  let currency = 'USD';
+  let currency = existing?.currency ?? 'USD';
+  const defaultPayer = existing?.paid_by ?? myId;
+  const isSplitWith = (id: string) => (existing ? existing.participants.includes(id) : true);
 
   app.innerHTML = `
     <div class="topbar">
       <a class="back" href="#/g/${groupId}" aria-label="Back">‹</a>
-      <h1 style="margin:0;">Add expense</h1>
+      <h1 style="margin:0;">${existing ? 'Edit expense' : 'Add expense'}</h1>
     </div>
     <div id="error-box" class="error hidden"></div>
     <form id="expense-form">
       <label class="field">
         <span>What was it?</span>
-        <input type="text" id="x-desc" placeholder="Tacos, gas, cabin…" maxlength="200" required />
+        <input type="text" id="x-desc" placeholder="Tacos, gas, cabin…" maxlength="200" required
+          value="${esc(existing?.description ?? '')}" />
       </label>
       <label class="field">
         <span>Amount</span>
         <input type="text" id="x-amount" placeholder="0.00" inputmode="decimal"
-          autocomplete="off" required />
+          autocomplete="off" required
+          value="${existing ? (existing.amount_minor / 100).toFixed(2) : ''}" />
       </label>
       <div class="field">
         <span style="display:block; margin-bottom:6px;" class="muted">Currency</span>
         <div class="segmented" id="x-currency">
-          <button type="button" data-cur="USD" class="active">USD</button>
-          <button type="button" data-cur="CAD">CAD</button>
-          <button type="button" data-cur="TAB">TAB</button>
+          ${['USD', 'CAD', 'TAB']
+            .map(
+              (cur) =>
+                `<button type="button" data-cur="${cur}"
+                  class="${cur === currency ? 'active' : ''}">${cur}</button>`
+            )
+            .join('')}
         </div>
         <p class="muted" id="cur-hint" style="margin:6px 0 0;"></p>
       </div>
@@ -493,7 +511,7 @@ async function renderAddExpense(groupId: string): Promise<void> {
           ${detail.members
             .map(
               (m) =>
-                `<option value="${m.id}" ${m.id === myId ? 'selected' : ''}>${esc(memberName(detail.members, m.id))}</option>`
+                `<option value="${m.id}" ${m.id === defaultPayer ? 'selected' : ''}>${esc(memberName(detail.members, m.id))}</option>`
             )
             .join('')}
         </select>
@@ -503,7 +521,7 @@ async function renderAddExpense(groupId: string): Promise<void> {
         <div class="chips" id="x-participants">
           ${detail.members
             .map(
-              (m) => `<label><input type="checkbox" value="${m.id}" checked />
+              (m) => `<label><input type="checkbox" value="${m.id}" ${isSplitWith(m.id) ? 'checked' : ''} />
                 ${esc(memberName(detail.members, m.id))}</label>`
             )
             .join('')}
@@ -517,7 +535,7 @@ async function renderAddExpense(groupId: string): Promise<void> {
           No account needed. They can claim their expenses when they join.
         </p>
       </div>
-      <button class="btn" type="submit">Add expense</button>
+      <button class="btn" type="submit">${existing ? 'Save changes' : 'Add expense'}</button>
     </form>`;
 
   // Ghost members join the chips and the paid-by select in place, keeping
@@ -573,16 +591,21 @@ async function renderAddExpense(groupId: string): Promise<void> {
       showError(new ApiError(400, 'Pick at least one person to split with.'));
       return;
     }
+    const payload = {
+      description,
+      currency,
+      amount_minor: amountMinor,
+      paid_by: (document.getElementById('x-paidby') as unknown as HTMLSelectElement).value,
+      participant_ids: participantIds,
+    };
     try {
-      await api.addExpense(groupId, {
-        id: crypto.randomUUID(),
-        description,
-        currency,
-        amount_minor: amountMinor,
-        paid_by: (document.getElementById('x-paidby') as unknown as HTMLSelectElement).value,
-        participant_ids: participantIds,
-      });
+      if (existing) {
+        await api.updateExpense(groupId, existing.id, payload);
+      } else {
+        await api.addExpense(groupId, { id: crypto.randomUUID(), ...payload });
+      }
       location.hash = `#/g/${groupId}`;
+      if (location.hash === `#/g/${groupId}`) await route();
     } catch (err) {
       showError(err);
     }
