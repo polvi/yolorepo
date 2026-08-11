@@ -64,6 +64,17 @@ const REGISTRY: Record<string, { app: string; vars: Partial<Record<(typeof VAR_K
       accent: "#2dd4bf",
     },
   },
+  backtalk: {
+    app: "backtalk",
+    vars: {
+      bg: "#14161c",
+      panel: "#1c1f27",
+      border: "#2b303b",
+      text: "#e9ebef",
+      muted: "#9aa1ac",
+      accent: "#f2622e",
+    },
+  },
 };
 
 export function resolveTheme(url: URL): Theme {

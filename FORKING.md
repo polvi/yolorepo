@@ -22,8 +22,8 @@ mechanism, so it can't silently regress.
 
 Subdomains are fixed by convention off your base domain: `auth.<base>`,
 `openmonkey.<base>`, `api.openmonkey.<base>`, `happybook.<base>`,
-`app.happybook.<base>`, `tlc.<base>`, `mtp.<base>`, `molemap.<base>`, and
-`authgravity.<base>` for the auth backend.
+`app.happybook.<base>`, `tlc.<base>`, `mtp.<base>`, `molemap.<base>`,
+`backtalk.<base>`, and `authgravity.<base>` for the auth backend.
 
 ## Setup
 

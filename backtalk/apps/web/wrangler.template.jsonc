@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "backtalk-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/mcp", "/llms.txt"]
+  },
+  "routes": [
+    {
+      "pattern": "backtalk.__BASE_DOMAIN__",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "AUTH_ENDPOINT": "__AUTH_ENDPOINT__",
+    "BASE_DOMAIN": "__BASE_DOMAIN__"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "backtalk",
+      "database_id": "__D1:backtalk__",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

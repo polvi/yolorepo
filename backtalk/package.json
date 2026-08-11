@@ -1,0 +1,19 @@
+{
+  "name": "backtalk",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build",
+    "test": "bun run --cwd apps/web test",
+    "deploy": "bun run --cwd apps/web deploy",
+    "migrate": "bun run --cwd apps/web migrate"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14"
+  }
+}

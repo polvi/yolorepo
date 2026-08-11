@@ -1,0 +1,25 @@
+{
+  "name": "@backtalk/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build && vite build --config vite.widget.config.mts && wrangler dev",
+    "build": "vite build && vite build --config vite.widget.config.mts",
+    "test": "vitest run",
+    "deploy": "vite build && vite build --config vite.widget.config.mts && wrangler deploy",
+    "migrate": "wrangler d1 migrations apply backtalk --remote"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "^13.2.0",
+    "hono": "^4.6.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260701.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  }
+}
