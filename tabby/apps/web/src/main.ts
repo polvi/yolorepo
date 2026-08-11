@@ -366,8 +366,8 @@ async function renderGroup(groupId: string): Promise<void> {
       return `<div class="card transfer">${line}
         <p class="muted" style="margin:10px 0 12px;">${piconeroToXmr(piconero)} XMR exact,
           at today's rate, to ${esc(toName)}</p>
-        <a class="btn" href="${esc(uri)}">Pay in Cake Wallet</a>
-        <div class="qr" aria-label="Scan with Cake Wallet">${qrSvg(uri)}</div>
+        <a class="btn" href="${esc(uri)}">Pay</a>
+        <div class="qr" aria-label="Scan with your Monero wallet">${qrSvg(uri)}</div>
         <button class="btn ghost" style="margin-top:10px;" data-pay="${i}"
           data-uuid="${crypto.randomUUID()}">I paid this</button>
       </div>`;
