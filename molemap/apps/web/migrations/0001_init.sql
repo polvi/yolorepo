@@ -32,6 +32,7 @@ CREATE TABLE artifacts (
   visit_id   TEXT NOT NULL REFERENCES visits(id),
   sha256     TEXT NOT NULL,
   kind       TEXT NOT NULL CHECK (kind IN ('splat', 'pointcloud', 'crop', 'preview', 'manifest', 'detections')),
+  detection_id TEXT,                       -- crop's source detection (links observations to crops)
   size       INTEGER NOT NULL CHECK (size > 0),
   r2_key     TEXT NOT NULL,                -- always <user_id>/<sha256>: cross-user reads impossible by construction
   label      TEXT NOT NULL DEFAULT '',     -- original file name, e.g. body.sog

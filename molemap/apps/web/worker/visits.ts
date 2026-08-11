@@ -29,6 +29,7 @@ const beginSchema = z.object({
   kind: z.enum(KINDS),
   size: z.number().int().positive(),
   label: z.string().max(200).optional(),
+  detectionId: z.string().max(100).optional(),
 });
 
 const finalizeSchema = z.object({ manifest: z.unknown().optional() });
@@ -37,8 +38,8 @@ const detectionSchema = z.object({
   id: z.string().min(1),
   position: z.tuple([z.number(), z.number(), z.number()]),
   confidence: z.number().optional(),
-  embedding: z.array(z.number()).optional(),
-  cropSha: z.string().regex(SHA256_RE).optional(),
+  embedding: z.array(z.number()).nullish(),
+  cropSha: z.string().regex(SHA256_RE).nullish(),
 });
 const detectionsFileSchema = z.union([
   z.array(detectionSchema),
@@ -102,7 +103,7 @@ visits.post('/:id/artifacts', async (c) => {
   if (!visit) return c.json({ error: 'not found' }, 404);
   const parsed = beginSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'invalid' }, 400);
-  const { sha256, kind, size, label } = parsed.data;
+  const { sha256, kind, size, label, detectionId } = parsed.data;
   if (size > maxBytes(kind)) return c.json({ error: 'too large for kind' }, 413);
 
   const key = `${userId}/${sha256}`;
@@ -114,6 +115,7 @@ visits.post('/:id/artifacts', async (c) => {
     size,
     r2Key: key,
     label: label ?? '',
+    detectionId: detectionId ?? null,
   });
   return c.json({ needed: head === null });
 });
@@ -203,16 +205,35 @@ async function runMoleMatching(
   env: AppContext['Bindings'],
   userId: string,
   visit: db.VisitRow
-): Promise<{ attached: number; proposed: number }> {
+): Promise<{ attached: number; proposed: number; dismissed: number }> {
   const rows = await db.artifactsForVisit(env.DB, visit.id);
   const det = rows.find((r) => r.kind === 'detections');
-  if (!det) return { attached: 0, proposed: 0 };
+  if (!det) return { attached: 0, proposed: 0, dismissed: 0 };
 
   const object = await env.BLOBS.get(det.r2_key);
-  if (!object) return { attached: 0, proposed: 0 };
+  if (!object) return { attached: 0, proposed: 0, dismissed: 0 };
   const parsed = detectionsFileSchema.safeParse(await object.json().catch(() => null));
-  if (!parsed.success) return { attached: 0, proposed: 0 };
-  const detections: Detection[] = Array.isArray(parsed.data) ? parsed.data : parsed.data.detections;
+  if (!parsed.success) {
+    console.warn('detections.json failed validation, skipping matching', parsed.error.issues[0]);
+    return { attached: 0, proposed: 0, dismissed: 0 };
+  }
+  const raw = Array.isArray(parsed.data) ? parsed.data : parsed.data.detections;
+
+  // Crops upload as separate artifacts carrying their source detection id;
+  // resolve each detection's primary crop sha from those rows.
+  const cropByDetection = new Map<string, string>();
+  for (const a of rows) {
+    if (a.kind === 'crop' && a.detection_id && !cropByDetection.has(a.detection_id)) {
+      cropByDetection.set(a.detection_id, a.sha256);
+    }
+  }
+  const detections: Detection[] = raw.map((d) => ({
+    id: d.id,
+    position: d.position,
+    confidence: d.confidence,
+    embedding: d.embedding ?? undefined,
+    cropSha: d.cropSha ?? cropByDetection.get(d.id),
+  }));
 
   const moles = await db.listMoles(env.DB, userId);
   const candidates = moles
@@ -259,5 +280,9 @@ async function runMoleMatching(
       embedding: strongest.embedding ? JSON.stringify(strongest.embedding) : null,
     });
   }
-  return { attached: outcome.attach.length, proposed: outcome.create.length };
+  return {
+    attached: outcome.attach.length,
+    proposed: outcome.create.length,
+    dismissed: outcome.dismissed.length,
+  };
 }

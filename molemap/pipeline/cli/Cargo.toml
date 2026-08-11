@@ -1,0 +1,41 @@
+[package]
+name = "molemap-cli"
+version.workspace = true
+edition.workspace = true
+description = "molemap local pipeline: photos -> COLMAP -> gaussian splat -> mole detections -> uploadable bundle"
+
+[[bin]]
+name = "molemap"
+path = "src/main.rs"
+
+[dependencies]
+molemap-geom = { path = "../geom" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+ureq = { version = "2", features = ["json"] }
+tiny_http = "0.12"
+image = "0.25"
+imageproc = "0.25"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+dirs = "5"
+
+# Optional embedding stack (feature "embed"): DINOv2 via candle with Metal.
+candle-core = { version = "0.9", features = ["metal"], optional = true }
+candle-nn = { version = "0.9", optional = true }
+candle-transformers = { version = "0.9", optional = true }
+hf-hub = { version = "0.4", optional = true }
+tokenizers = { version = "0.21", optional = true }
+
+[features]
+default = ["embed"]
+embed = [
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:candle-transformers",
+    "dep:hf-hub",
+    "dep:tokenizers",
+]

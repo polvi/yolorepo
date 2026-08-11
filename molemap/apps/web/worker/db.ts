@@ -22,6 +22,7 @@ export interface ArtifactRow {
   size: number;
   r2_key: string;
   label: string;
+  detection_id: string | null;
   created_at: number;
 }
 
@@ -131,16 +132,26 @@ export async function upsertArtifact(
     size: number;
     r2Key: string;
     label: string;
+    detectionId: string | null;
   }
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO artifacts (visit_id, sha256, kind, size, r2_key, label, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO artifacts (visit_id, sha256, kind, size, r2_key, label, detection_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (visit_id, sha256) DO UPDATE SET kind = excluded.kind,
-         size = excluded.size, label = excluded.label`
+         size = excluded.size, label = excluded.label, detection_id = excluded.detection_id`
     )
-    .bind(args.visitId, args.sha256, args.kind, args.size, args.r2Key, args.label, Date.now())
+    .bind(
+      args.visitId,
+      args.sha256,
+      args.kind,
+      args.size,
+      args.r2Key,
+      args.label,
+      args.detectionId,
+      Date.now()
+    )
     .run();
 }
 

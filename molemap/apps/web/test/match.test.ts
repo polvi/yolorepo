@@ -32,7 +32,7 @@ describe('matchDetections', () => {
     expect(out.create[0]!.canonical).toEqual([0.5, 0.5, 0]);
   });
 
-  it('never matches dismissed moles', () => {
+  it('dismissed moles absorb their detections instead of re-proposing', () => {
     const out = matchDetections(
       [det('d1', [0.1, 0.5, 0])],
       [mole('m1', [0.1, 0.5, 0], 'dismissed')],
@@ -40,7 +40,8 @@ describe('matchDetections', () => {
       0.02
     );
     expect(out.attach).toHaveLength(0);
-    expect(out.create).toHaveLength(1);
+    expect(out.create).toHaveLength(0);
+    expect(out.dismissed).toEqual([{ moleId: 'm1', detection: det('d1', [0.1, 0.5, 0]) }]);
   });
 
   it('applies the alignment transform before matching', () => {

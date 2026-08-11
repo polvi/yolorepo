@@ -1,0 +1,20 @@
+[package]
+name = "molemap-geom"
+version.workspace = true
+edition.workspace = true
+description = "Pure geometry core for the molemap pipeline: COLMAP TXT parsing, similarity transforms, gravity normalization, raycasting, clustering, Umeyama alignment, detection matching."
+
+[lib]
+name = "molemap_geom"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+# wasm bindings are feature-gated so the default build has zero wasm deps.
+wasm-bindgen = { version = "0.2", optional = true }
+serde_json = { version = "1", optional = true }
+
+[features]
+wasm = ["dep:wasm-bindgen", "dep:serde_json"]
+
+[dev-dependencies]
+serde_json = "1"

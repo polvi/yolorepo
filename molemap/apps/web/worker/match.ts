@@ -20,6 +20,9 @@ export interface MoleCandidate {
 export interface MatchOutcome {
   attach: { moleId: string; detection: Detection; canonical: Vec3 }[];
   create: { canonical: Vec3; detections: Detection[] }[];
+  // Absorbed by a dismissed mole: recorded so callers drop them instead of
+  // re-proposing the same spot every visit.
+  dismissed: { moleId: string; detection: Detection }[];
 }
 
 // Canonical units, body height = 1: 0.02 is ~3.5cm on an adult.
@@ -41,10 +44,13 @@ function dist(a: Vec3, b: Vec3): number {
 
 /**
  * For each detection (deduped by id, so replayed batches are idempotent):
- * transform to canonical space, attach to the nearest non-dismissed existing
- * mole within `radius`, otherwise group into a to-be-created proposed mole.
- * Detections that land near an earlier creation in the same batch join its
- * group rather than spawning a duplicate.
+ * transform to canonical space and match the nearest existing mole within
+ * `radius`. Dismissed moles participate and absorb their detections (into
+ * `dismissed`, which callers drop) — otherwise a dismissed spot would come
+ * back as a new proposed mole every visit. Unmatched detections group into
+ * to-be-created proposed moles; ones near an earlier creation in the same
+ * batch join its group rather than spawning a duplicate. Mirrors the Rust
+ * implementation in pipeline/geom/src/matching.rs.
  */
 export function matchDetections(
   detections: Detection[],
@@ -52,9 +58,9 @@ export function matchDetections(
   alignment: number[],
   radius: number = MATCH_RADIUS
 ): MatchOutcome {
-  const candidates = moles.filter((m) => m.status !== 'dismissed');
   const attach: MatchOutcome['attach'] = [];
   const create: MatchOutcome['create'] = [];
+  const dismissed: MatchOutcome['dismissed'] = [];
   const seen = new Set<string>();
 
   for (const detection of detections) {
@@ -64,7 +70,7 @@ export function matchDetections(
 
     let best: MoleCandidate | null = null;
     let bestDist = Infinity;
-    for (const mole of candidates) {
+    for (const mole of moles) {
       const d = dist(mole.canonical, canonical);
       if (d < bestDist) {
         best = mole;
@@ -72,7 +78,8 @@ export function matchDetections(
       }
     }
     if (best && bestDist <= radius) {
-      attach.push({ moleId: best.id, detection, canonical });
+      if (best.status === 'dismissed') dismissed.push({ moleId: best.id, detection });
+      else attach.push({ moleId: best.id, detection, canonical });
       continue;
     }
 
@@ -81,7 +88,7 @@ export function matchDetections(
     else create.push({ canonical, detections: [detection] });
   }
 
-  return { attach, create };
+  return { attach, create, dismissed };
 }
 
 /** 1 - cosine similarity; null when the vectors are unusable. */
