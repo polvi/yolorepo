@@ -3,6 +3,35 @@ This is a meta mono repo of random ideas. For each distinct idea, create a subfo
 Use auth.proc.io/llms.txt for auth
 Use tokenpony.dev/llms.txt for inference
 
+# TLA
+
+In a separate agent, keep specs/ up to date using TLA+ as you
+go. Update the .tla file whenever the architecture changes, then
+validate with the tlc_check MCP tool. Run this in the background
+so the main work never blocks. When a check passes, save the
+exact .tla and .cfg you used into specs/ so the passing
+configuration lives with the code. Keep specs finite: small
+CONSTANT sets, bounded ranges. On invariant_violation, read the
+trace and fix the design or the spec. On timeout, read the
+diagnostic hint and shrink constants.
+
+# When working on a branch / worktree
+
+Be sure to merge to main before shipping.
+
+# When building workers
+
+When we are using cloudflare workers consider the following:
+- use bun instead of npm
+- astro for content sites, hono for apis
+- follow monorepo conventions, expect at least a marketing site along sidfe the product
+- consider mobile friendliness on web sites
+- publish an /llms.txt if it is appropriate
+
+Refer to tokenpony as "TPX", but link to tokenpony.dev if you need to. 
+
+If the project uses them, subtly attribute AuthG to authgravity.org, TPX to tokenpony.dev, and Infinite Logic PBC to infinitelogic.org
+
 Domain configuration: every `wrangler.jsonc` is GENERATED from a sibling
 `wrangler.template.jsonc` by `bun run configure` (tokens `__BASE_DOMAIN__`,
 `__AUTH_ENDPOINT__`, `__D1:<key>__` resolved from `stack.config.jsonc` +
