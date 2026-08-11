@@ -14,6 +14,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const profileSchema = z.object({
   display_name: z.string().trim().min(1).max(40).optional(),
   xmr_address: z.string().regex(XMR_ADDRESS_RE, 'not a Monero address').optional(),
+  pref_currency: z.enum(['TAB', 'USD', 'CAD']).optional(),
 });
 
 const groupSchema = z.object({ name: z.string().trim().min(1).max(80) });
@@ -65,11 +66,17 @@ app.get('/join/:token', async (c) => {
 const api = new Hono<AppContext>();
 api.use('*', requireUser);
 
+const meJson = (userId: string, user: Awaited<ReturnType<typeof db.getUser>>) => ({
+  user_id: userId,
+  display_name: user?.display_name,
+  xmr_address: user?.xmr_address,
+  pref_currency: user?.pref_currency ?? 'TAB',
+});
+
 api.get('/me', async (c) => {
   const userId = c.get('userId');
   await db.upsertUser(c.env.DB, userId);
-  const user = await db.getUser(c.env.DB, userId);
-  return c.json({ user_id: userId, display_name: user?.display_name, xmr_address: user?.xmr_address });
+  return c.json(meJson(userId, await db.getUser(c.env.DB, userId)));
 });
 
 api.put('/me', async (c) => {
@@ -78,8 +85,7 @@ api.put('/me', async (c) => {
   const userId = c.get('userId');
   await db.upsertUser(c.env.DB, userId);
   await db.updateUser(c.env.DB, userId, parsed.data);
-  const user = await db.getUser(c.env.DB, userId);
-  return c.json({ user_id: userId, display_name: user?.display_name, xmr_address: user?.xmr_address });
+  return c.json(meJson(userId, await db.getUser(c.env.DB, userId)));
 });
 
 api.get('/groups', async (c) => {

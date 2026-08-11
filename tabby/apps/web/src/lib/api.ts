@@ -2,6 +2,7 @@ export interface Me {
   user_id: string;
   display_name: string | null;
   xmr_address: string | null;
+  pref_currency: 'TAB' | 'USD' | 'CAD';
 }
 
 export interface GroupSummary {
@@ -73,7 +74,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   me: () => request<Me>('/me'),
-  updateMe: (fields: { display_name?: string; xmr_address?: string }) =>
+  updateMe: (fields: { display_name?: string; xmr_address?: string; pref_currency?: string }) =>
     request<Me>('/me', { method: 'PUT', body: JSON.stringify(fields) }),
   groups: () => request<{ groups: GroupSummary[] }>('/groups'),
   createGroup: (name: string) =>

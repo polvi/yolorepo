@@ -7,6 +7,7 @@ export interface UserRow {
   display_name: string | null;
   xmr_address: string | null;
   is_ghost: number;
+  pref_currency?: string;
 }
 
 export interface GroupSummary {
@@ -50,7 +51,7 @@ export async function upsertUser(db: D1Database, id: string): Promise<void> {
 
 export async function getUser(db: D1Database, id: string): Promise<UserRow | null> {
   return db
-    .prepare('SELECT id, display_name, xmr_address, is_ghost FROM users WHERE id = ?')
+    .prepare('SELECT id, display_name, xmr_address, is_ghost, pref_currency FROM users WHERE id = ?')
     .bind(id)
     .first<UserRow>();
 }
@@ -130,14 +131,15 @@ export async function claimGhost(
 export async function updateUser(
   db: D1Database,
   id: string,
-  fields: { display_name?: string; xmr_address?: string }
+  fields: { display_name?: string; xmr_address?: string; pref_currency?: string }
 ): Promise<void> {
   await db
     .prepare(
       'UPDATE users SET display_name = COALESCE(?, display_name), ' +
-        'xmr_address = COALESCE(?, xmr_address) WHERE id = ?'
+        'xmr_address = COALESCE(?, xmr_address), ' +
+        'pref_currency = COALESCE(?, pref_currency) WHERE id = ?'
     )
-    .bind(fields.display_name ?? null, fields.xmr_address ?? null, id)
+    .bind(fields.display_name ?? null, fields.xmr_address ?? null, fields.pref_currency ?? null, id)
     .run();
 }
 

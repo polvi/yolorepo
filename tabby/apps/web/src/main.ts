@@ -58,25 +58,49 @@ function fmtXmr(tabMicro: number, rateTabMicroPerXmr: number): string {
   return `${s} XMR`;
 }
 
-// "2.00 TAB · $20.00 · CA$27.40", the muted companion to every XMR amount.
-// The CAD leg appears once a rate response has been seen this page-load.
+// The muted companion to every XMR amount is ONE conversion currency,
+// tappable to cycle TAB → USD → CAD. The choice persists on the user row.
+// TAB shows as whole TABs, its point as a coarse neutral unit.
 let usdPerCadRate: number | null = null;
 
 function rememberCadRate(rate: { usd_per_cad?: number } | null): void {
   if (rate?.usd_per_cad) usdPerCadRate = rate.usd_per_cad;
 }
 
-function fmtTabUsd(tabMicro: number): string {
-  let out = `${fmtTab(Math.abs(tabMicro))} TAB · ${fmtUsd(tabMicro)}`;
-  if (usdPerCadRate) {
-    const cad = (Math.abs(tabMicro) / 10_000 / usdPerCadRate).toLocaleString(undefined, {
+const PREF_CYCLE = ['TAB', 'USD', 'CAD'] as const;
+
+function fmtConversion(tabMicro: number): string {
+  const abs = Math.abs(tabMicro);
+  const pref = me?.pref_currency ?? 'TAB';
+  if (pref === 'USD') return fmtUsd(tabMicro);
+  if (pref === 'CAD' && usdPerCadRate) {
+    return (abs / 10_000 / usdPerCadRate).toLocaleString(undefined, {
       style: 'currency',
       currency: 'CAD',
     });
-    out += ` · ${cad}`;
   }
-  return out;
+  if (pref === 'CAD') return fmtUsd(tabMicro); // CAD rate unavailable
+  const whole = Math.round(abs / 100_000);
+  return whole === 0 && abs > 0 ? '<1 TAB' : `${whole} TAB`;
 }
+
+// data-conv marks a chip; one delegated listener (set up at boot) cycles the
+// preference, re-renders optimistically, and persists in the background.
+function convChip(tabMicro: number): string {
+  return `<button class="conv" type="button" data-conv
+    title="Switch conversion currency">${fmtConversion(tabMicro)}</button>`;
+}
+
+app.addEventListener('click', (e) => {
+  const chip = (e.target as HTMLElement).closest('[data-conv]');
+  if (!chip || !me) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const next = PREF_CYCLE[(PREF_CYCLE.indexOf(me.pref_currency) + 1) % PREF_CYCLE.length]!;
+  me.pref_currency = next;
+  void api.updateMe({ pref_currency: next }).catch(() => {});
+  void route().catch(showError);
+});
 
 function memberName(members: Member[], id: string): string {
   const m = members.find((x) => x.id === id);
@@ -306,8 +330,8 @@ async function renderGroup(groupId: string): Promise<void> {
     myNet === 0
       ? `<h2 class="muted" style="margin:0;">You're settled up 🐈</h2>`
       : myNet > 0
-        ? `<h2 class="pos" style="margin:0;">You're owed ${inXmr(myNet)} <span class="muted">(${fmtTabUsd(myNet)})</span></h2>`
-        : `<h2 class="neg" style="margin:0;">You owe ${inXmr(myNet)} <span class="muted">(${fmtTabUsd(myNet)})</span></h2>`;
+        ? `<h2 class="pos" style="margin:0;">You're owed ${inXmr(myNet)} <span class="muted">(</span>${convChip(myNet)}<span class="muted">)</span></h2>`
+        : `<h2 class="neg" style="margin:0;">You owe ${inXmr(myNet)} <span class="muted">(</span>${convChip(myNet)}<span class="muted">)</span></h2>`;
 
   const transferCards = detail.transfers
     .map((t, i) => {
@@ -317,7 +341,7 @@ async function renderGroup(groupId: string): Promise<void> {
           <div class="grow"><strong>${esc(fromName)}</strong> → <strong>${esc(toName)}</strong></div>
           <div style="text-align:right;">
             <div class="amount">${inXmr(t.amount_tab_micro)}</div>
-            <div class="muted">${fmtTabUsd(t.amount_tab_micro)}</div>
+            <div>${convChip(t.amount_tab_micro)}</div>
           </div>
         </div>`;
       if (t.from !== myId) return `<div class="card transfer">${line}</div>`;
@@ -373,7 +397,7 @@ async function renderGroup(groupId: string): Promise<void> {
         <div class="grow">
           <strong>${esc(memberName(detail.members, p.from_user))} paid
             ${esc(memberName(detail.members, p.to_user))}</strong>
-          <div class="muted">${fmtTabUsd(p.amount_tab_micro)} · ${fmtWhen(p.created_at)}</div>
+          <div class="muted">${convChip(p.amount_tab_micro)} · ${fmtWhen(p.created_at)}</div>
         </div>
         <span class="amount">${piconeroToXmr(BigInt(p.xmr_amount_piconero))} XMR</span>
       </div>`
