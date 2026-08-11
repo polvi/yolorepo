@@ -1,4 +1,5 @@
 node_modules/
+.claude
 stack.local.jsonc
 stack.generated.json
 wrangler.jsonc
