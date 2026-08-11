@@ -382,39 +382,43 @@ async function renderGroup(groupId: string): Promise<void> {
     .join('');
 
   // Cash settles out-of-band: "they handed me $300" gets applied straight to
-  // their balance. Either direction, any amount, ghosts included.
-  const others = detail.members.filter((m) => m.id !== myId);
+  // their balance. Any member can record any payer → recipient pair, so the
+  // trip treasurer can log everyone's bills and ghosts fit on either side.
+  const firstOther = detail.members.find((m) => m.id !== myId);
   let cashCurrency = 'USD';
-  const cashCard = others.length
+  const memberOptions = (selectedId: string) =>
+    detail.members
+      .map(
+        (m) => `<option value="${m.id}" ${m.id === selectedId ? 'selected' : ''}>
+          ${esc(memberName(detail.members, m.id))}</option>`
+      )
+      .join('');
+  const cashCard = firstOther
     ? `<details class="card">
         <summary>💵 Record a cash payment</summary>
         <form id="cash-form" style="margin-top:12px;">
-          <div class="row">
-            <select id="cash-who" class="grow">
-              ${others
-                .map(
-                  (m) => `<option value="${m.id}">${esc(memberName(detail.members, m.id))}</option>`
-                )
-                .join('')}
-            </select>
-            <select id="cash-dir">
-              <option value="in">paid me cash</option>
-              <option value="out">got cash from me</option>
-            </select>
-          </div>
-          <div class="row" style="margin-top:10px;">
-            <input type="text" id="cash-amount" class="grow" placeholder="0.00"
+          <label class="field">
+            <span>Who paid cash?</span>
+            <select id="cash-from">${memberOptions(firstOther.id)}</select>
+          </label>
+          <label class="field">
+            <span>Who received it?</span>
+            <select id="cash-to">${memberOptions(myId)}</select>
+          </label>
+          <label class="field">
+            <span>Amount</span>
+            <input type="text" id="cash-amount" placeholder="0.00"
               inputmode="decimal" autocomplete="off" required />
-            <div class="segmented" id="cash-currency">
-              ${['USD', 'CAD', 'TAB']
-                .map(
-                  (cur) => `<button type="button" data-cur="${cur}"
-                    class="${cur === cashCurrency ? 'active' : ''}">${cur}</button>`
-                )
-                .join('')}
-            </div>
+          </label>
+          <div class="segmented" id="cash-currency" style="margin-bottom:12px;">
+            ${['USD', 'CAD', 'TAB']
+              .map(
+                (cur) => `<button type="button" data-cur="${cur}"
+                  class="${cur === cashCurrency ? 'active' : ''}">${cur}</button>`
+              )
+              .join('')}
           </div>
-          <button class="btn" type="submit" style="margin-top:12px;">Record payment</button>
+          <button class="btn" type="submit">Record payment</button>
         </form>
       </details>`
     : '';
@@ -558,8 +562,12 @@ async function renderGroup(groupId: string): Promise<void> {
 
   document.getElementById('cash-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const who = (document.getElementById('cash-who') as unknown as HTMLSelectElement).value;
-    const dir = (document.getElementById('cash-dir') as unknown as HTMLSelectElement).value;
+    const from = (document.getElementById('cash-from') as unknown as HTMLSelectElement).value;
+    const to = (document.getElementById('cash-to') as unknown as HTMLSelectElement).value;
+    if (from === to) {
+      showError(new ApiError(400, 'Pick two different people.'));
+      return;
+    }
     const amountMinor = parseAmountMinor(
       (document.getElementById('cash-amount') as HTMLInputElement).value
     );
@@ -571,7 +579,8 @@ async function renderGroup(groupId: string): Promise<void> {
       await api.addPayment(groupId, {
         method: 'cash',
         id: crypto.randomUUID(),
-        ...(dir === 'in' ? { from_user: who, to_user: myId } : { to_user: who }),
+        from_user: from,
+        to_user: to,
         currency: cashCurrency,
         amount_minor: amountMinor,
       });

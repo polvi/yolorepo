@@ -297,11 +297,11 @@ api.post('/groups/:id/payments', async (c) => {
   const body = parsed.data;
 
   // XMR payments are always recorded by the payer; cash may be recorded by
-  // either side, so the recipient can log cash handed over by a ghost.
+  // ANY group member for any pair (the treasurer collects everyone's bills,
+  // ghosts can be named on either side).
   const fromUser = body.method === 'cash' ? (body.from_user ?? userId) : userId;
-  if (fromUser === body.to_user) return c.json({ error: 'cannot pay yourself' }, 400);
-  if (fromUser !== userId && body.to_user !== userId) {
-    return c.json({ error: 'you must be part of the payment' }, 400);
+  if (fromUser === body.to_user) {
+    return c.json({ error: 'payer and recipient must be different people' }, 400);
   }
   for (const id of [fromUser, body.to_user]) {
     if (id !== userId && !(await db.isMember(c.env.DB, groupId, id))) {
