@@ -13,8 +13,9 @@ with a note the original submitter sees in the widget ("shipped").
 
 <script src="${origin}/w.js" data-key="pk_..." data-release="v1" defer></script>
 
-- Hidden feedback UI: Cmd/Ctrl+Shift+/ on desktop, two-finger long-press on
-  touch, or window.backtalk.open(). Kinds: bug, idea, feedback.
+- Hidden feedback UI: press ? outside a text field (or Cmd/Ctrl+Shift+/) on
+  desktop, two-finger long-press on touch, or window.backtalk.open(). Kinds:
+  bug, idea, feedback.
 - Error capture: window.onerror + unhandledrejection, grouped server-side by
   fingerprint, with a breadcrumb trail (clicks, navigations, console errors).
 - Web Vitals (LCP/INP/CLS) and pageviews as daily rollups; no cookies, no IPs.

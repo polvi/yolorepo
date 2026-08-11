@@ -3,8 +3,9 @@
 Sentry meets a suggestion box, wired into the site owner's coding agent.
 Live at [backtalk.proc.io](https://backtalk.proc.io).
 
-Sites embed one script tag. Visitors summon a hidden sheet (Cmd/Ctrl+Shift+/,
-or a two-finger long-press on touch) to submit bugs, ideas, and feedback;
+Sites embed one script tag. Visitors summon a hidden sheet (press ? outside a
+text field, Cmd/Ctrl+Shift+/, or a two-finger long-press on touch) to submit
+bugs, ideas, and feedback;
 uncaught JavaScript errors report themselves. A coding agent (Claude Code or
 any MCP client) reads both, offers to implement fixes, and marks items done
 with a note the original submitter sees in the widget: "shipped ✓". Feedback

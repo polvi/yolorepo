@@ -61,9 +61,8 @@ function renderLanding(): void {
         <button class="btn secondary" id="cta-signin">Sign in with a passkey</button>
       </div>
       <div id="error-box" class="error hidden"></div>
-      <p class="kbd-hint">On a site running backtalk, press <kbd>&#8984;</kbd>
-        <kbd>&#8679;</kbd> <kbd>/</kbd> — or hold two fingers down — and the
-        feedback sheet appears.</p>
+      <p class="kbd-hint">On a site running backtalk, press <kbd>?</kbd> — or
+        hold two fingers down — and the feedback sheet appears.</p>
       <div class="pitch">
         <div class="card">
           <h2>Hidden until summoned</h2>
