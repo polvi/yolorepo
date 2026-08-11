@@ -37,6 +37,9 @@ export interface GroupData {
     from_user: string;
     to_user: string;
     amount_tab_micro: number;
+    method: string;
+    currency: string | null;
+    amount_minor: number | null;
     xmr_amount_piconero: number;
     created_at: number;
   }[];
@@ -248,7 +251,8 @@ export async function loadGroup(db: D1Database, groupId: string): Promise<GroupD
       .bind(groupId),
     db
       .prepare(
-        `SELECT id, from_user, to_user, amount_tab_micro, xmr_amount_piconero, created_at
+        `SELECT id, from_user, to_user, amount_tab_micro, method, currency, amount_minor,
+           xmr_amount_piconero, created_at
          FROM payments WHERE group_id = ? ORDER BY created_at DESC`
       )
       .bind(groupId),
@@ -400,6 +404,9 @@ export async function insertPayment(
     fromUser: string;
     toUser: string;
     amountTabMicro: number;
+    method: string;
+    currency: string | null;
+    amountMinor: number | null;
     xmrAmountPiconero: number;
     xmrRateTabMicro: number;
   }
@@ -408,8 +415,8 @@ export async function insertPayment(
     .prepare(
       `INSERT OR IGNORE INTO payments
        (id, group_id, from_user, to_user, amount_tab_micro,
-        xmr_amount_piconero, xmr_rate_tab_micro, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        method, currency, amount_minor, xmr_amount_piconero, xmr_rate_tab_micro, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       args.id,
@@ -417,6 +424,9 @@ export async function insertPayment(
       args.fromUser,
       args.toUser,
       args.amountTabMicro,
+      args.method,
+      args.currency,
+      args.amountMinor,
       args.xmrAmountPiconero,
       args.xmrRateTabMicro,
       Date.now()

@@ -12,6 +12,9 @@ via Cake Wallet (or any wallet that handles monero: URIs).
   transfers), recomputed live.
 - Each suggested transfer renders a monero: deep link and QR at the current
   XMR rate; the payer marks it paid (no on-chain verification).
+- Cash settlements are first-class: any amount in USD/CAD/TAB ("they handed
+  me $300") applies straight to the payer's balance, recordable by either
+  party, so even ghost members can settle in cash.
 
 ## Auth
 

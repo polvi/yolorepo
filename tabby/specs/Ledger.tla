@@ -10,6 +10,11 @@
 (* records it iff the id is unset (SQL INSERT OR IGNORE); Resubmit is a    *)
 (* no-op.  AddExpense may interleave with Propose/Submit, so a payment can *)
 (* be recorded against a stale suggestion -- conservation must still hold. *)
+(* Payment method (XMR vs cash) and recorder (payer or recipient) are      *)
+(* metadata: both reach the ledger as the same idempotent Transfer row.    *)
+(* Cash adds ProposeCash: an ARBITRARY transfer ("they handed me $300")    *)
+(* bound to a fresh id, unconstrained by the greedy suggestions, so nets   *)
+(* may overshoot and flip sign -- conservation must survive that too.     *)
 (***************************************************************************)
 EXTENDS Integers, Sequences, FiniteSets
 
@@ -132,6 +137,16 @@ ProposePayment ==
                  attempts' = [attempts EXCEPT ![id] = ts[i]]
     /\ UNCHANGED <<expenses, payments>>
 
+\* Cash settles out-of-band at any amount, recorded by either party: the
+\* bound transfer is arbitrary, not one of the greedy suggestions.
+ProposeCash ==
+  \E id \in PaymentIds :
+    /\ attempts[id] = NULL
+    /\ \E from \in Users, to \in Users, amt \in 1..MaxAmt :
+         /\ from # to
+         /\ attempts' = [attempts EXCEPT ![id] = [from |-> from, to |-> to, amt |-> amt]]
+    /\ UNCHANGED <<expenses, payments>>
+
 \* INSERT OR IGNORE: the row is written iff the id is unset.
 SubmitPayment ==
   \E id \in PaymentIds :
@@ -149,7 +164,7 @@ ResubmitPayment ==
     /\ payments' = payments
     /\ UNCHANGED <<expenses, attempts>>
 
-Next == AddExpense \/ ProposePayment \/ SubmitPayment \/ ResubmitPayment
+Next == AddExpense \/ ProposePayment \/ ProposeCash \/ SubmitPayment \/ ResubmitPayment
 
 Spec == Init /\ [][Next]_vars
 

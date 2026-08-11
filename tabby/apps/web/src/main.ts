@@ -346,15 +346,21 @@ async function renderGroup(groupId: string): Promise<void> {
         </div>`;
       if (t.from !== myId) return `<div class="card transfer">${line}</div>`;
 
+      // Settling in cash needs no address and no rate, so the button rides
+      // along on every outgoing transfer card.
+      const cashBtn = `<button class="btn ghost" style="margin-top:10px;" data-cash="${i}"
+          data-uuid-cash="${crypto.randomUUID()}">💵 I paid this in cash</button>`;
       const payee = detail.members.find((m) => m.id === t.to);
       if (!payee?.xmr_address) {
         return `<div class="card transfer">${line}
           <p class="muted" style="margin:10px 0 0;">${esc(toName)} hasn't added a Monero address yet.</p>
+          ${cashBtn}
         </div>`;
       }
       if (!rate) {
         return `<div class="card transfer">${line}
           <p class="muted" style="margin:10px 0 0;">XMR rate unavailable right now — try again shortly.</p>
+          ${cashBtn}
         </div>`;
       }
       const piconero = tabMicroToPiconero(t.amount_tab_micro, rate.xmr_rate_tab_micro);
@@ -370,9 +376,48 @@ async function renderGroup(groupId: string): Promise<void> {
         <div class="qr" aria-label="Scan with Cake Wallet">${qrSvg(uri)}</div>
         <button class="btn ghost" style="margin-top:10px;" data-pay="${i}"
           data-uuid="${crypto.randomUUID()}">I paid this</button>
+        ${cashBtn}
       </div>`;
     })
     .join('');
+
+  // Cash settles out-of-band: "they handed me $300" gets applied straight to
+  // their balance. Either direction, any amount, ghosts included.
+  const others = detail.members.filter((m) => m.id !== myId);
+  let cashCurrency = 'USD';
+  const cashCard = others.length
+    ? `<details class="card">
+        <summary>💵 Record a cash payment</summary>
+        <form id="cash-form" style="margin-top:12px;">
+          <div class="row">
+            <select id="cash-who" class="grow">
+              ${others
+                .map(
+                  (m) => `<option value="${m.id}">${esc(memberName(detail.members, m.id))}</option>`
+                )
+                .join('')}
+            </select>
+            <select id="cash-dir">
+              <option value="in">paid me cash</option>
+              <option value="out">got cash from me</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <input type="text" id="cash-amount" class="grow" placeholder="0.00"
+              inputmode="decimal" autocomplete="off" required />
+            <div class="segmented" id="cash-currency">
+              ${['USD', 'CAD', 'TAB']
+                .map(
+                  (cur) => `<button type="button" data-cur="${cur}"
+                    class="${cur === cashCurrency ? 'active' : ''}">${cur}</button>`
+                )
+                .join('')}
+            </div>
+          </div>
+          <button class="btn" type="submit" style="margin-top:12px;">Record payment</button>
+        </form>
+      </details>`
+    : '';
 
   const expenseFeed = detail.expenses
     .map(
@@ -391,17 +436,23 @@ async function renderGroup(groupId: string): Promise<void> {
     .join('');
 
   const paymentFeed = detail.payments
-    .map(
-      (p) => `
+    .map((p) => {
+      const amountCol =
+        p.method === 'cash'
+          ? p.amount_minor != null
+            ? `💵 ${(p.amount_minor / 100).toFixed(2)} ${esc(p.currency ?? '')}`
+            : '💵 cash'
+          : `${piconeroToXmr(BigInt(p.xmr_amount_piconero))} XMR`;
+      return `
       <div class="feed-item">
         <div class="grow">
           <strong>${esc(memberName(detail.members, p.from_user))} paid
             ${esc(memberName(detail.members, p.to_user))}</strong>
           <div class="muted">${convChip(p.amount_tab_micro)} · ${fmtWhen(p.created_at)}</div>
         </div>
-        <span class="amount">${piconeroToXmr(BigInt(p.xmr_amount_piconero))} XMR</span>
-      </div>`
-    )
+        <span class="amount">${amountCol}</span>
+      </div>`;
+    })
     .join('');
 
   const ghosts = detail.members.filter((m) => m.is_ghost);
@@ -433,7 +484,7 @@ async function renderGroup(groupId: string): Promise<void> {
     ${nameNudge()}
     ${addressNudge()}
     ${claimCard}
-    ${detail.transfers.length ? `<h2>Settle up</h2>${transferCards}` : ''}
+    ${detail.transfers.length || cashCard ? `<h2>Settle up</h2>${transferCards}${cashCard}` : ''}
     <h2>Expenses</h2>
     <div class="card">${expenseFeed || '<p class="muted" style="margin:0;">Nothing yet — add the first expense.</p>'}</div>
     ${paymentFeed ? `<h2>Payments</h2><div class="card">${paymentFeed}</div>` : ''}
@@ -470,6 +521,65 @@ async function renderGroup(groupId: string): Promise<void> {
       }
     });
   }
+
+  for (const btn of app.querySelectorAll<HTMLButtonElement>('[data-cash]')) {
+    btn.addEventListener('click', async () => {
+      const t = detail.transfers[Number(btn.dataset.cash)]!;
+      if (
+        !confirm(
+          `Record that you paid ${memberName(detail.members, t.to)} ${fmtConversion(t.amount_tab_micro)} in cash?`
+        )
+      )
+        return;
+      btn.disabled = true;
+      try {
+        await api.addPayment(groupId, {
+          method: 'cash',
+          id: btn.dataset.uuidCash!,
+          to_user: t.to,
+          amount_tab_micro: t.amount_tab_micro,
+        });
+        await renderGroup(groupId);
+      } catch (err) {
+        btn.disabled = false;
+        showError(err);
+      }
+    });
+  }
+
+  document.getElementById('cash-currency')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('button[data-cur]');
+    if (!btn) return;
+    cashCurrency = btn.getAttribute('data-cur')!;
+    for (const b of document.querySelectorAll('#cash-currency button')) {
+      b.classList.toggle('active', b === btn);
+    }
+  });
+
+  document.getElementById('cash-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const who = (document.getElementById('cash-who') as unknown as HTMLSelectElement).value;
+    const dir = (document.getElementById('cash-dir') as unknown as HTMLSelectElement).value;
+    const amountMinor = parseAmountMinor(
+      (document.getElementById('cash-amount') as HTMLInputElement).value
+    );
+    if (amountMinor === null) {
+      showError(new ApiError(400, 'Enter an amount like 300 or 12.50.'));
+      return;
+    }
+    try {
+      await api.addPayment(groupId, {
+        method: 'cash',
+        id: crypto.randomUUID(),
+        ...(dir === 'in' ? { from_user: who, to_user: myId } : { to_user: who }),
+        currency: cashCurrency,
+        amount_minor: amountMinor,
+      });
+      await renderGroup(groupId);
+    } catch (err) {
+      showError(err);
+    }
+  });
 
   for (const btn of app.querySelectorAll<HTMLButtonElement>('[data-claim]')) {
     btn.addEventListener('click', async () => {

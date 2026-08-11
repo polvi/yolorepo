@@ -40,10 +40,34 @@ export interface GroupDetail {
     from_user: string;
     to_user: string;
     amount_tab_micro: number;
+    method: 'xmr' | 'cash';
+    currency: string | null;
+    amount_minor: number | null;
     xmr_amount_piconero: number;
     created_at: number;
   }[];
 }
+
+// Cash payments name the payer (so the recipient can record "they handed me
+// $300") and carry either an exact µTAB amount or a fiat amount to convert.
+export type PaymentInput =
+  | {
+      method?: 'xmr';
+      id: string;
+      to_user: string;
+      amount_tab_micro: number;
+      xmr_amount_piconero: number;
+      xmr_rate_tab_micro: number;
+    }
+  | {
+      method: 'cash';
+      id: string;
+      from_user?: string;
+      to_user: string;
+      amount_tab_micro?: number;
+      currency?: string;
+      amount_minor?: number;
+    };
 
 export class ApiError extends Error {
   constructor(
@@ -115,16 +139,7 @@ export const api = {
     }),
   deleteExpense: (groupId: string, expenseId: string) =>
     request<{ ok: true }>(`/groups/${groupId}/expenses/${expenseId}`, { method: 'DELETE' }),
-  addPayment: (
-    groupId: string,
-    payment: {
-      id: string;
-      to_user: string;
-      amount_tab_micro: number;
-      xmr_amount_piconero: number;
-      xmr_rate_tab_micro: number;
-    }
-  ) =>
+  addPayment: (groupId: string, payment: PaymentInput) =>
     request<{ ok: true }>(`/groups/${groupId}/payments`, {
       method: 'POST',
       body: JSON.stringify(payment),
