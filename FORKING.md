@@ -22,7 +22,7 @@ mechanism, so it can't silently regress.
 
 Subdomains are fixed by convention off your base domain: `auth.<base>`,
 `openmonkey.<base>`, `api.openmonkey.<base>`, `happybook.<base>`,
-`app.happybook.<base>`, `tlc.<base>`, `mtp.<base>`, and
+`app.happybook.<base>`, `tlc.<base>`, `mtp.<base>`, `molemap.<base>`, and
 `authgravity.<base>` for the auth backend.
 
 ## Setup
@@ -56,6 +56,7 @@ zone active on it, and `wrangler login` completed (any project's
    cd ../happybook  && bun install && bun run deploy
    cd ../mtp-ts     && bun install && bun run deploy
    cd ../tlc-rs/worker && bun install && bunx wrangler deploy   # needs the wasm engine; see tlc-rs/README
+   cd ../../molemap    && bun install && bun run deploy
    ```
 
    Custom domains are attached automatically by wrangler because the zone is

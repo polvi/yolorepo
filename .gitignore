@@ -12,6 +12,10 @@ build/
 .DS_Store
 **/.claude/settings.local.json
 
+# molemap: Rust build + local data workspace (raw body photos — never commit)
+/molemap/pipeline/target/
+/molemap/workspace/
+
 # Rust / TLC artifacts (tlc-rs)
 /tlc-rs/target/
 /tlc-rs/states/

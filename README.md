@@ -18,6 +18,7 @@ project keeps its passing spec and config in a `specs/` folder.
 | [`forkable/`](forkable/) | Git-native self-editing websites: sites are repos of plain files served from their main branch; visitors edit by chatting with an LLM and silently fork. | [forkable.proc.io](https://forkable.proc.io) |
 | [`downstream/`](downstream/) | Post-AI open source collaboration: an MCP server your coding harness signs into with GitHub to interrogate repos and publish findings, questions, ideas, and bugs on public per-repo pages. Send context, not patches. | [downstream.proc.io](https://downstream.proc.io) |
 | [`tabby/`](tabby/) | Splitwise for Monero: split trip expenses in USD/CAD/TAB, get a minimal set of transfers, and pay each other in XMR via Cake Wallet deep links + QR. | [tabby.proc.io](https://tabby.proc.io) |
+| [`molemap/`](molemap/) | Google Earth for your body: photograph yourself, reconstruct a zoomable 3D scan locally (COLMAP + Gaussian splats), and track moles over time with a visit slider. Raw photos never leave your machine. | [molemap.proc.io](https://molemap.proc.io) |
 
 ## Stack
 

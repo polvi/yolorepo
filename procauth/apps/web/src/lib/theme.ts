@@ -53,6 +53,17 @@ const REGISTRY: Record<string, { app: string; vars: Partial<Record<(typeof VAR_K
       accent: "#f26822",
     },
   },
+  molemap: {
+    app: "molemap",
+    vars: {
+      bg: "#0b1216",
+      panel: "#121c22",
+      border: "#24343d",
+      text: "#e8f0f2",
+      muted: "#8fa3ab",
+      accent: "#2dd4bf",
+    },
+  },
 };
 
 export function resolveTheme(url: URL): Theme {
