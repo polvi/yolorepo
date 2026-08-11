@@ -20,8 +20,10 @@ XMR via [Cake Wallet](https://cakewallet.com) (or any wallet that opens
 - The payer taps **"I paid this"** to record the payment — no on-chain
   verification. Payment and expense writes are idempotent (client-generated
   UUID + `INSERT OR IGNORE`), so double-taps and retries never double-count.
-- Your Monero address is set once (with copy-from-Cake-Wallet instructions)
-  and carries across trips; update it any time in the profile.
+- Your Monero address is optional until someone needs to pay you: signup
+  never blocks on it, a nudge card links to the profile (with
+  copy-from-Cake-Wallet instructions), and payers just see "hasn't added a
+  Monero address yet" until it's set. Saved once, it carries across trips.
 - **Ghost members**: add someone to a split by name before they've ever
   signed in. When they eventually join (via the invite link), they tap
   "This is me" and their whole ledger identity merges into their account

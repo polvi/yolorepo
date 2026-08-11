@@ -103,12 +103,6 @@ async function route(): Promise<void> {
     await renderHome();
     return;
   }
-  // The Monero address is required before anything else; the saved one
-  // carries across trips automatically because it lives on the user row.
-  if (!me.xmr_address && hash !== '/profile') {
-    renderSetup();
-    return;
-  }
 
   const groupAdd = hash.match(/^\/g\/([\w-]+)\/add$/);
   const group = hash.match(/^\/g\/([\w-]+)$/);
@@ -171,40 +165,19 @@ async function renderHome(): Promise<void> {
   startHomeScene(canvas);
 }
 
-function renderSetup(): void {
-  document.title = 'tabby — set up';
-  app.innerHTML = `
-    <h1>Where should friends send your Monero?</h1>
-    <p class="muted">
-      Paste your Monero address once — tabby remembers it for every trip.
-    </p>
-    <div id="error-box" class="error hidden"></div>
-    <div class="card">
-      <strong>Copy it from Cake Wallet</strong>
-      <ol class="muted" style="margin:8px 0 0; padding-left:20px; line-height:1.7;">
-        <li>Open <strong>Cake Wallet</strong> and pick your Monero wallet</li>
-        <li>Tap <strong>Receive</strong></li>
-        <li>Tap the address to copy it</li>
-      </ol>
-    </div>
-    <form id="setup-form">
-      <label class="field">
-        <span>Your Monero address</span>
-        <input type="text" id="setup-address" placeholder="4…" autocomplete="off"
-          autocapitalize="off" autocorrect="off" spellcheck="false" required />
-      </label>
-      <button class="btn" type="submit">Save and continue</button>
-    </form>`;
-  document.getElementById('setup-form')!.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const address = (document.getElementById('setup-address') as HTMLInputElement).value.trim();
-    try {
-      me = await api.updateMe({ xmr_address: address });
-      await route();
-    } catch (err) {
-      showError(err);
-    }
-  });
+// Not having an address never blocks using tabby; it only means nobody can
+// pay you yet, so surface a nudge wherever balances live.
+function addressNudge(): string {
+  if (me?.xmr_address) return '';
+  return `
+    <a class="card row" style="text-decoration:none; color:inherit; border-color:var(--accent);"
+      href="#/profile">
+      <div class="grow">
+        <strong>Friends can't pay you yet</strong>
+        <div class="muted">Add your Monero address so payments can reach you.</div>
+      </div>
+      <span style="color:var(--accent); font-size:1.2rem;">›</span>
+    </a>`;
 }
 
 async function renderGroups(): Promise<void> {
@@ -238,6 +211,7 @@ async function renderGroups(): Promise<void> {
       <a class="back" href="#/profile" aria-label="Profile">☰</a>
     </div>
     <div id="error-box" class="error hidden"></div>
+    ${addressNudge()}
     ${list || '<p class="muted">No trips yet. Start one and share the invite link.</p>'}
     <form id="new-group" class="row" style="margin-top:16px;">
       <input type="text" id="group-name" class="grow" placeholder="New trip name"
@@ -379,6 +353,7 @@ async function renderGroup(groupId: string): Promise<void> {
     </div>
     <div id="error-box" class="error hidden"></div>
     <div class="card">${headline}</div>
+    ${addressNudge()}
     ${claimCard}
     ${detail.transfers.length ? `<h2>Settle up</h2>${transferCards}` : ''}
     <h2>Expenses</h2>
@@ -587,6 +562,18 @@ function renderProfile(): void {
       <h1 style="margin:0;">Profile</h1>
     </div>
     <div id="error-box" class="error hidden"></div>
+    ${
+      me!.xmr_address
+        ? ''
+        : `<div class="card">
+            <strong>Copy your address from Cake Wallet</strong>
+            <ol class="muted" style="margin:8px 0 0; padding-left:20px; line-height:1.7;">
+              <li>Open <strong>Cake Wallet</strong> and pick your Monero wallet</li>
+              <li>Tap <strong>Receive</strong></li>
+              <li>Tap the address to copy it</li>
+            </ol>
+          </div>`
+    }
     <form id="profile-form">
       <label class="field">
         <span>Display name (what friends see)</span>
