@@ -128,7 +128,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payment),
     }),
-  xmrRate: () => request<{ xmr_rate_tab_micro: number }>('/rate/xmr'),
+  xmrRate: () => request<{ xmr_rate_tab_micro: number; usd_per_cad?: number }>('/rate/xmr'),
   join: (token: string) => request<{ group_id: string }>(`/join/${token}`, { method: 'POST' }),
   addGhost: (groupId: string, name: string) =>
     request<{ user_id: string }>(`/groups/${groupId}/members`, {

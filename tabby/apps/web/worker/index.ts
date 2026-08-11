@@ -288,8 +288,11 @@ api.post('/join/:token', async (c) => {
 
 api.get('/rate/xmr', async (c) => {
   try {
-    const rate = await xmrRateTabMicro(c.env.DB);
-    return c.json({ xmr_rate_tab_micro: rate });
+    const [rate, cad] = await Promise.all([
+      xmrRateTabMicro(c.env.DB),
+      usdPerCad(c.env.DB).catch(() => null),
+    ]);
+    return c.json({ xmr_rate_tab_micro: rate, ...(cad ? { usd_per_cad: cad } : {}) });
   } catch {
     return c.json({ error: 'rate unavailable' }, 503);
   }

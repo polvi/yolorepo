@@ -58,9 +58,24 @@ function fmtXmr(tabMicro: number, rateTabMicroPerXmr: number): string {
   return `${s} XMR`;
 }
 
-// "2.00 TAB · $20.00", the muted companion to every XMR amount.
+// "2.00 TAB · $20.00 · CA$27.40", the muted companion to every XMR amount.
+// The CAD leg appears once a rate response has been seen this page-load.
+let usdPerCadRate: number | null = null;
+
+function rememberCadRate(rate: { usd_per_cad?: number } | null): void {
+  if (rate?.usd_per_cad) usdPerCadRate = rate.usd_per_cad;
+}
+
 function fmtTabUsd(tabMicro: number): string {
-  return `${fmtTab(Math.abs(tabMicro))} TAB · ${fmtUsd(tabMicro)}`;
+  let out = `${fmtTab(Math.abs(tabMicro))} TAB · ${fmtUsd(tabMicro)}`;
+  if (usdPerCadRate) {
+    const cad = (Math.abs(tabMicro) / 10_000 / usdPerCadRate).toLocaleString(undefined, {
+      style: 'currency',
+      currency: 'CAD',
+    });
+    out += ` · ${cad}`;
+  }
+  return out;
 }
 
 function memberName(members: Member[], id: string): string {
@@ -216,6 +231,7 @@ function wireNameNudge(): void {
 async function renderGroups(): Promise<void> {
   document.title = 'tabby — your groups';
   const [{ groups }, rate] = await Promise.all([api.groups(), api.xmrRate().catch(() => null)]);
+  rememberCadRate(rate);
   const inXmr = (net: number) =>
     rate ? fmtXmr(net, rate.xmr_rate_tab_micro) : `${fmtTab(Math.abs(net))} TAB`;
   const list = groups
@@ -280,6 +296,7 @@ async function renderGroup(groupId: string): Promise<void> {
   }
   document.title = `tabby — ${detail.group.name}`;
   const rate = await api.xmrRate().catch(() => null);
+  rememberCadRate(rate);
   const myId = me!.user_id;
   const myNet = detail.nets.find((n) => n.user_id === myId)?.net_tab_micro ?? 0;
 
@@ -341,7 +358,7 @@ async function renderGroup(groupId: string): Promise<void> {
           style="text-decoration:none; color:inherit; min-height:44px; display:block;">
           <strong>${esc(x.description)}</strong>
           <div class="muted">${esc(memberName(detail.members, x.paid_by))} paid ·
-            split ${x.participants.length} ways · ${fmtWhen(x.created_at)} · tap to edit</div>
+            split ${x.participants.length} ways · ${fmtWhen(x.created_at)}</div>
         </a>
         <span class="amount">${(x.amount_minor / 100).toFixed(2)} ${esc(x.currency)}</span>
         <button class="del" data-del="${x.id}" aria-label="Delete expense">✕</button>
