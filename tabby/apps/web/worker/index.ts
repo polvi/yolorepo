@@ -31,13 +31,38 @@ const expenseSchema = z.object({
 const ghostSchema = z.object({ name: z.string().trim().min(1).max(40) });
 const claimSchema = z.object({ ghost_id: z.string().min(1) });
 
-const paymentSchema = z.object({
-  id: z.string().regex(UUID_RE),
-  to_user: z.string().min(1),
-  amount_tab_micro: z.number().int().positive(),
-  xmr_amount_piconero: z.number().int().positive(),
-  xmr_rate_tab_micro: z.number().int().positive(),
-});
+// XMR payments carry the exact on-chain amount and the rate they were quoted
+// at; cash payments carry neither. Cash may name a from_user so the recipient
+// can record "they handed me $300" (the only way a ghost member can settle),
+// and states its amount either as exact µTAB (settling a suggested transfer)
+// or as fiat currency + amount_minor, converted server-side like an expense.
+const paymentSchema = z.union([
+  z.object({
+    method: z.literal('xmr'),
+    id: z.string().regex(UUID_RE),
+    to_user: z.string().min(1),
+    amount_tab_micro: z.number().int().positive(),
+    xmr_amount_piconero: z.number().int().positive(),
+    xmr_rate_tab_micro: z.number().int().positive(),
+  }),
+  z
+    .object({
+      method: z.literal('cash'),
+      id: z.string().regex(UUID_RE),
+      from_user: z.string().min(1).optional(),
+      to_user: z.string().min(1),
+      amount_tab_micro: z.number().int().positive().optional(),
+      currency: z.enum(['USD', 'CAD', 'TAB']).optional(),
+      amount_minor: z.number().int().positive().max(100_000_000).optional(),
+    })
+    .refine(
+      (p) =>
+        p.amount_tab_micro !== undefined
+          ? p.currency === undefined && p.amount_minor === undefined
+          : p.currency !== undefined && p.amount_minor !== undefined,
+      { message: 'give amount_tab_micro or currency + amount_minor' }
+    ),
+]);
 
 const app = new Hono<AppContext>();
 
@@ -264,21 +289,55 @@ api.post('/groups/:id/payments', async (c) => {
   const groupId = c.req.param('id');
   const userId = c.get('userId');
   if (!(await db.isMember(c.env.DB, groupId, userId))) return c.json({ error: 'not a member' }, 403);
-  const parsed = paymentSchema.safeParse(await c.req.json().catch(() => null));
+  const raw = await c.req.json().catch(() => null);
+  const parsed = paymentSchema.safeParse(
+    raw && typeof raw === 'object' ? { method: 'xmr', ...raw } : raw
+  );
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'invalid' }, 400);
   const body = parsed.data;
-  if (body.to_user === userId) return c.json({ error: 'cannot pay yourself' }, 400);
-  if (!(await db.isMember(c.env.DB, groupId, body.to_user))) {
-    return c.json({ error: 'recipient is not a group member' }, 400);
+
+  // XMR payments are always recorded by the payer; cash may be recorded by
+  // ANY group member for any pair (the treasurer collects everyone's bills,
+  // ghosts can be named on either side).
+  const fromUser = body.method === 'cash' ? (body.from_user ?? userId) : userId;
+  if (fromUser === body.to_user) {
+    return c.json({ error: 'payer and recipient must be different people' }, 400);
   }
+  for (const id of [fromUser, body.to_user]) {
+    if (id !== userId && !(await db.isMember(c.env.DB, groupId, id))) {
+      return c.json({ error: 'payer and recipient must be group members' }, 400);
+    }
+  }
+
+  let amountTabMicro: number;
+  let fiat: { currency: Currency; amountMinor: number } | null = null;
+  if (body.method === 'cash' && body.currency !== undefined && body.amount_minor !== undefined) {
+    let perUnit: number;
+    try {
+      perUnit = tabMicroPerUnit(
+        body.currency,
+        body.currency === 'CAD' ? await usdPerCad(c.env.DB) : undefined
+      );
+    } catch {
+      return c.json({ error: 'exchange rate unavailable, try again shortly' }, 503);
+    }
+    amountTabMicro = normalizeToTabMicro(body.amount_minor, perUnit);
+    fiat = { currency: body.currency, amountMinor: body.amount_minor };
+  } else {
+    amountTabMicro = body.amount_tab_micro!;
+  }
+
   await db.insertPayment(c.env.DB, {
     id: body.id,
     groupId,
-    fromUser: userId,
+    fromUser,
     toUser: body.to_user,
-    amountTabMicro: body.amount_tab_micro,
-    xmrAmountPiconero: body.xmr_amount_piconero,
-    xmrRateTabMicro: body.xmr_rate_tab_micro,
+    amountTabMicro,
+    method: body.method,
+    currency: fiat?.currency ?? null,
+    amountMinor: fiat?.amountMinor ?? null,
+    xmrAmountPiconero: body.method === 'xmr' ? body.xmr_amount_piconero : 0,
+    xmrRateTabMicro: body.method === 'xmr' ? body.xmr_rate_tab_micro : 0,
   });
   return c.json({ ok: true }, 201);
 });
