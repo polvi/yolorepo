@@ -180,6 +180,37 @@ function addressNudge(): string {
     </a>`;
 }
 
+// Until a display name is set, friends see an anonymous placeholder, so ask
+// for one inline; saving re-renders in place.
+function nameNudge(): string {
+  if (me?.display_name) return '';
+  return `
+    <form class="card" id="name-nudge">
+      <strong style="display:block; margin-bottom:8px;">What should friends call you?</strong>
+      <div class="row">
+        <input type="text" id="name-nudge-input" class="grow" placeholder="e.g. Alex"
+          maxlength="40" autocomplete="name" required />
+        <button class="btn small" type="submit">Save</button>
+      </div>
+    </form>`;
+}
+
+function wireNameNudge(): void {
+  const form = document.getElementById('name-nudge');
+  if (!form) return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = (document.getElementById('name-nudge-input') as HTMLInputElement).value.trim();
+    if (!name) return;
+    try {
+      me = await api.updateMe({ display_name: name });
+      await route();
+    } catch (err) {
+      showError(err);
+    }
+  });
+}
+
 async function renderGroups(): Promise<void> {
   document.title = 'tabby — your groups';
   const [{ groups }, rate] = await Promise.all([api.groups(), api.xmrRate().catch(() => null)]);
@@ -211,6 +242,7 @@ async function renderGroups(): Promise<void> {
       <a class="back" href="#/profile" aria-label="Profile">☰</a>
     </div>
     <div id="error-box" class="error hidden"></div>
+    ${nameNudge()}
     ${addressNudge()}
     ${list || '<p class="muted">No trips yet. Start one and share the invite link.</p>'}
     <form id="new-group" class="row" style="margin-top:16px;">
@@ -219,6 +251,7 @@ async function renderGroups(): Promise<void> {
       <button class="btn small" type="submit">Create</button>
     </form>`;
 
+  wireNameNudge();
   document.getElementById('new-group')!.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = (document.getElementById('group-name') as HTMLInputElement).value.trim();
@@ -353,6 +386,7 @@ async function renderGroup(groupId: string): Promise<void> {
     </div>
     <div id="error-box" class="error hidden"></div>
     <div class="card">${headline}</div>
+    ${nameNudge()}
     ${addressNudge()}
     ${claimCard}
     ${detail.transfers.length ? `<h2>Settle up</h2>${transferCards}` : ''}
@@ -361,6 +395,7 @@ async function renderGroup(groupId: string): Promise<void> {
     ${paymentFeed ? `<h2>Payments</h2><div class="card">${paymentFeed}</div>` : ''}
     <a class="btn fab" href="#/g/${groupId}/add">＋ Add expense</a>`;
 
+  wireNameNudge();
   document.getElementById('invite-btn')!.addEventListener('click', async () => {
     const url = `${location.origin}/join/${detail.group.invite_token}`;
     if (navigator.share) {
