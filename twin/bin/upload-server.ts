@@ -7,6 +7,7 @@
 // tmp+rename atomic — re-running the client resumes and never re-sends
 // matching bytes.
 
+import { timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 
 const ROOT = '/work/job/images';
@@ -18,6 +19,12 @@ if (!existsSync(TOKEN_PATH)) {
   await Bun.write(TOKEN_PATH, crypto.getRandomValues(new Uint8Array(32)).toHex());
 }
 const token = (await Bun.file(TOKEN_PATH).text()).trim();
+
+// Constant-time bearer check (hash both sides so lengths always match).
+const sha = (s: string): Uint8Array => new Bun.CryptoHasher('sha256').update(s).digest();
+const expectedAuth = sha(`Bearer ${token}`);
+const authorized = (header: string | null): boolean =>
+  header !== null && timingSafeEqual(sha(header), expectedAuth);
 
 type Entry = { size: number; mtimeMs: number; hash: string };
 let manifest: Record<string, Entry> = {};
@@ -64,7 +71,7 @@ Bun.serve({
   maxRequestBodySize: 1024 * 1024 * 1024,
   async fetch(req) {
     const url = new URL(req.url);
-    if (req.headers.get('authorization') !== `Bearer ${token}`) {
+    if (!authorized(req.headers.get('authorization'))) {
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
 
