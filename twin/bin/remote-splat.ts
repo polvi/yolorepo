@@ -97,21 +97,19 @@ await timedStep('bootstrap', () =>
   podSh('command -v opensplat >/dev/null 2>&1 || bash /work/scripts/bootstrap.sh')
 );
 
-// 3. photos. The tar | kubectl pipe runs inside one bash pipeline: piping a
-// subprocess ReadableStream into another spawn's stdin through Bun breaks
-// (EINVAL) on multi-GB transfers, while the shell's native fd plumbing does
-// not care about size.
+// 3. photos, over the HTTPS uploader (parallel, content-addressed, resumes
+// for free — see bin/upload.ts). Stale non-photo state from earlier runs is
+// cleared, but images stay: the manifest diff skips whatever already
+// matches.
 console.log('\n[twin] uploading photos…');
 const q = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 await timedStep('upload', async () => {
-  await podSh('rm -rf /work/job && mkdir -p /work/job/images');
-  const kexec = [...kcn, 'exec', '-i', 'twin-runner', '--', 'tar', '-xf', '-', '-C', '/work/job/images']
-    .map(q)
-    .join(' ');
-  const p = Bun.spawn(['bash', '-c', `set -o pipefail; tar -cf - -C ${q(images)} . | ${kexec}`], {
-    stdout: 'inherit',
-    stderr: 'inherit',
-  });
+  await podSh('mkdir -p /work/job/images && rm -rf /work/job/colmap /work/job/opensplat /work/job/dist');
+  const p = Bun.spawn(
+    ['bun', `${dirname(Bun.main)}/upload.ts`, '--images', images,
+      ...(values.context ? ['--context', values.context] : []), '--namespace', ns],
+    { stdout: 'inherit', stderr: 'inherit' }
+  );
   if ((await p.exited) !== 0) {
     console.error('[twin] photo upload failed');
     process.exit(1);

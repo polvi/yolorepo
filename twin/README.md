@@ -81,6 +81,14 @@ kubectl -n twin create configmap twin-runner-dockerfile --from-file=Dockerfile=t
 kubectl apply -f twin/k8s/kaniko-build.yaml   # pushes :cpu-v1 and :latest
 ```
 
+Photos travel over the dedicated uploader (`bin/upload.ts` -> in-pod
+`bin/upload-server.ts`), not kubectl: parallel HTTPS PUTs through the caddy
+ingress at `twin-upload.<baseDomain>` (DNS: A record to the caddy
+LoadBalancer, like odm), bearer-token auth, wyhash content addressing with a
+server-side manifest — interrupted or repeated uploads resume and only send
+what changed. The apiserver exec stream (tar over kubectl) topped out around
+2 MB/s; kubectl now carries control traffic only.
+
 Both runners emit the same `timings.json` shape, and `remote-splat` prints a
 per-stage laptop-vs-server table at the end (upload/download counted on the
 server side; that transfer is part of the real cost of offloading). Run

@@ -1,0 +1,40 @@
+# Direct-ish data plane for photo uploads: caddy ingress (real TLS at
+# twin-upload.proc.io, same pattern as odm.proc.io) -> ClusterIP service ->
+# the runner pod's upload server. This bypasses the apiserver's exec stream
+# (which is what made tar-over-kubectl slow); kubectl stays control-plane.
+# DNS: twin-upload.<baseDomain> A 199.68.201.83 (the caddy LoadBalancer).
+apiVersion: v1
+kind: Service
+metadata:
+  name: twin-upload
+  namespace: twin
+spec:
+  selector:
+    app: twin-runner
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: twin-upload
+  namespace: twin
+spec:
+  ingressClassName: caddy
+  tls:
+    - hosts:
+        - twin-upload.proc.io
+      secretName: twin-upload.proc.io
+  rules:
+    - host: twin-upload.proc.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: twin-upload
+                port:
+                  number: 8080
