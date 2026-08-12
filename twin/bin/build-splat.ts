@@ -23,6 +23,13 @@ const { values } = parseArgs({
     work: { type: 'string', default: './twin-work' },
     iters: { type: 'string', default: '30000' },
     matcher: { type: 'string', default: 'exhaustive' },
+    // OpenSplat loads every image into RAM at full res before training:
+    // 1067 20MP photos ≈ 64GB+ decoded, an instant OOM on most machines.
+    // Downscale 2 (≈2700px) is standard splat-training resolution.
+    downscale: { type: 'string', default: '2' },
+    // Skip the COLMAP stages when a mapped model already exists (e.g. a
+    // previous run died during training).
+    resume: { type: 'boolean', default: false },
   },
 });
 
@@ -63,7 +70,10 @@ const db = `${colmapDir}/db.db`;
 const sparse = `${colmapDir}/sparse`;
 mkdirSync(sparse, { recursive: true });
 
-run('extract', [
+const resuming = values.resume && existsSync(`${sparse}/0`);
+if (resuming) console.log('[twin] resuming: sparse model exists, skipping COLMAP stages');
+
+if (!resuming) run('extract', [
   'colmap', 'feature_extractor',
   '--database_path', db,
   '--image_path', images,
@@ -71,17 +81,19 @@ run('extract', [
   '--ImageReader.camera_model', 'SIMPLE_RADIAL',
 ]);
 
-run(
-  'match',
-  values.matcher === 'sequential'
-    ? ['colmap', 'sequential_matcher', '--database_path', db, '--SequentialMatching.overlap', '15']
-    : ['colmap', 'exhaustive_matcher', '--database_path', db]
-);
+if (!resuming)
+  run(
+    'match',
+    values.matcher === 'sequential'
+      ? ['colmap', 'sequential_matcher', '--database_path', db, '--SequentialMatching.overlap', '15']
+      : ['colmap', 'exhaustive_matcher', '--database_path', db]
+  );
 
 // glomap is a drop-in global mapper, ~10x faster than colmap's incremental
 // one on big scenes; fall back silently when it isn't installed.
 const mapper = Bun.which('glomap') ? 'glomap' : 'colmap';
-run('map', [mapper, 'mapper', '--database_path', db, '--image_path', images, '--output_path', sparse]);
+if (!resuming)
+  run('map', [mapper, 'mapper', '--database_path', db, '--image_path', images, '--output_path', sparse]);
 if (!existsSync(`${sparse}/0`)) {
   console.error('[twin] mapper produced no model — check image overlap/quality');
   process.exit(1);
@@ -99,7 +111,7 @@ for (const [link, target] of [
 }
 
 const ply = `${work}/opensplat/splat.ply`;
-run('train', ['opensplat', project, '-n', values.iters!, '-o', ply]);
+run('train', ['opensplat', project, '-n', values.iters!, '-d', values.downscale!, '-o', ply]);
 
 mkdirSync(`${work}/dist`, { recursive: true });
 const sog = `${work}/dist/scene.sog`;
@@ -113,6 +125,8 @@ const timings = {
   iters: Number(values.iters),
   matcher: values.matcher,
   mapper,
+  downscale: Number(values.downscale),
+  resumed: resuming,
   stages,
   total_s: Object.values(stages).reduce((a, b) => a + b, 0),
 };

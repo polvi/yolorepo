@@ -22,6 +22,7 @@ const { values } = parseArgs({
     work: { type: 'string', default: './twin-work' },
     iters: { type: 'string', default: '30000' },
     matcher: { type: 'string', default: 'exhaustive' },
+    downscale: { type: 'string', default: '2' },
     serial: { type: 'boolean', default: false },
   },
 });
@@ -34,7 +35,7 @@ const images = resolve(values.images);
 const work = resolve(values.work!);
 const binDir = dirname(Bun.main);
 mkdirSync(work, { recursive: true });
-const flags = ['--images', images, '--work', work, '--iters', values.iters!, '--matcher', values.matcher!];
+const flags = ['--images', images, '--work', work, '--iters', values.iters!, '--matcher', values.matcher!, '--downscale', values.downscale!];
 
 const q = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 

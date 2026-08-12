@@ -21,6 +21,8 @@ const { values } = parseArgs({
     work: { type: 'string', default: './twin-work' },
     iters: { type: 'string', default: '30000' },
     matcher: { type: 'string', default: 'exhaustive' },
+    downscale: { type: 'string', default: '2' },
+    resume: { type: 'boolean', default: false },
     namespace: { type: 'string', default: 'twin' },
     context: { type: 'string' },
   },
@@ -128,7 +130,9 @@ await timedStep('upload', async () => {
 // pipeline.sh.
 await timedStep('pipeline', async () => {
   await podSh(
-    `env ITERS=${Number(values.iters)} MATCHER=${values.matcher} bash /work/scripts/run-pipeline.sh`
+    `env ITERS=${Number(values.iters)} MATCHER=${values.matcher} ` +
+      `DOWNSCALE=${Number(values.downscale)} RESUME=${values.resume ? 1 : 0} ` +
+      `bash /work/scripts/run-pipeline.sh`
   );
   // Every probe distinguishes three outcomes: a definitive answer, a
   // definitive absence, and "kubectl itself failed" (flaky WAN/apiserver) —
