@@ -1,0 +1,50 @@
+# In-cluster image build, monero-style: Dockerfile arrives via the
+# twin-runner-dockerfile ConfigMap, kaniko pushes to the gitea registry.
+#
+#   kubectl -n twin create configmap twin-runner-dockerfile --from-file=Dockerfile=twin/k8s/Dockerfile
+#   kubectl apply -f twin/k8s/kaniko-build.yaml
+#
+# Needs the kaniko-push secret copied into the twin namespace (see README).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: twin-runner-build
+  namespace: twin
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 5400
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args:
+            - --dockerfile=/workspace/Dockerfile
+            - --context=dir:///workspace
+            - --destination=code.proc.io/polvi/twin-runner:cpu-v1
+            - --destination=code.proc.io/polvi/twin-runner:latest
+            - --compressed-caching=false
+            - --snapshot-mode=redo
+          resources:
+            requests:
+              cpu: '32'
+              memory: 24Gi
+            limits:
+              cpu: '80'
+              memory: 48Gi
+          volumeMounts:
+            - name: dockerfile
+              mountPath: /workspace
+            - name: push-cred
+              mountPath: /kaniko/.docker
+      volumes:
+        - name: dockerfile
+          configMap:
+            name: twin-runner-dockerfile
+        - name: push-cred
+          secret:
+            secretName: kaniko-push
+            items:
+              - key: config.json
+                path: config.json

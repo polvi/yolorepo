@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "twin-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/llms.txt"]
+  },
+  "routes": [
+    {
+      "pattern": "twin.__BASE_DOMAIN__",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "BASE_DOMAIN": "__BASE_DOMAIN__"
+  },
+  "r2_buckets": [
+    {
+      "binding": "SCENES",
+      "bucket_name": "twin-scenes"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

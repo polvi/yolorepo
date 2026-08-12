@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: twin-work
+  namespace: twin
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: zfs
+  resources:
+    requests:
+      storage: 200Gi

@@ -1,0 +1,31 @@
+# Long-lived runner pod on the kaniko-built twin-runner image (toolchain
+# baked in — see Dockerfile), so runs measure the pipeline, not bootstrap.
+# Driven end to end by twin/bin/remote-splat.ts, which falls back to
+# bootstrap.sh when the image lacks the tools (e.g. swapped to stock debian).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: twin-runner
+  namespace: twin
+spec:
+  restartPolicy: Always
+  imagePullSecrets:
+    - name: regcred
+  containers:
+    - name: runner
+      image: code.proc.io/polvi/twin-runner:latest
+      command: ['sleep', 'infinity']
+      workingDir: /work
+      resources:
+        requests:
+          cpu: '16'
+          memory: 64Gi
+        # No limits: COLMAP and OpenSplat should be free to use every core
+        # the node can spare — that is the point of the benchmark.
+      volumeMounts:
+        - name: work
+          mountPath: /work
+  volumes:
+    - name: work
+      persistentVolumeClaim:
+        claimName: twin-work
