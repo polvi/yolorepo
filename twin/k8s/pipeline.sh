@@ -10,6 +10,10 @@ ITERS="${ITERS:-30000}"
 MATCHER="${MATCHER:-exhaustive}"
 JOB=/work/job
 IMAGES=$JOB/images
+# Debian's COLMAP links Qt; without a display it aborts in
+# QGuiApplication init unless told to render offscreen.
+export QT_QPA_PLATFORM=offscreen
+
 # Tools come baked into the twin-runner image; the /work/tools entries are
 # the bootstrap.sh fallback for running on a stock debian image.
 TOOLS=/work/tools
