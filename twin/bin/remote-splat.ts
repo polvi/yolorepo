@@ -130,44 +130,67 @@ await timedStep('pipeline', async () => {
   await podSh(
     `env ITERS=${Number(values.iters)} MATCHER=${values.matcher} bash /work/scripts/run-pipeline.sh`
   );
-  const podQuiet = (cmd: string): string => {
+  // Every probe distinguishes three outcomes: a definitive answer, a
+  // definitive absence, and "kubectl itself failed" (flaky WAN/apiserver) —
+  // only many consecutive failures of the transport count against the run.
+  const podQuiet = (cmd: string): { ok: boolean; out: string } => {
     const p = Bun.spawnSync([...kcn, 'exec', 'twin-runner', '--', 'bash', '-c', cmd], {
       stdout: 'pipe',
       stderr: 'pipe',
     });
-    return p.exitCode === 0 ? p.stdout.toString() : '';
+    return { ok: p.exitCode === 0, out: p.exitCode === 0 ? p.stdout.toString() : '' };
   };
+  const probe = (): 'running' | 'succeeded' | `failed:${string}` | 'gone' | 'unreachable' => {
+    const status = podQuiet('cat /work/job/status 2>/dev/null || echo __NONE__');
+    if (!status.ok) return 'unreachable';
+    const s = status.out.trim();
+    if (s === '0') return 'succeeded';
+    if (s !== '__NONE__') return `failed:${s}`;
+    // No status file: still running, or an attached legacy run that never
+    // writes one — for those, timings.json appearing means success.
+    const run = podQuiet("pgrep -f '/work/scripts/[p]ipeline.sh' >/dev/null && echo yes || echo no");
+    if (!run.ok) return 'unreachable';
+    if (run.out.trim() === 'yes') return 'running';
+    const done = podQuiet('test -f /work/job/dist/timings.json && echo yes || echo no');
+    if (!done.ok) return 'unreachable';
+    return done.out.trim() === 'yes' ? 'succeeded' : 'gone';
+  };
+
   let offset = 0;
+  let unreachable = 0;
+  let goneOnce = false;
   for (;;) {
     const chunk = podQuiet(`tail -c +${offset + 1} /work/job/pipeline.log 2>/dev/null | head -c 500000`);
-    if (chunk) {
-      offset += Buffer.byteLength(chunk);
-      process.stdout.write(chunk);
+    if (chunk.ok && chunk.out) {
+      offset += Buffer.byteLength(chunk.out);
+      process.stdout.write(chunk.out);
     }
-    const status = podQuiet('cat /work/job/status 2>/dev/null').trim();
-    if (status === '0') return;
-    if (status !== '') {
-      console.error(`[twin] pipeline failed (exit ${status}) — kubectl -n ${ns} exec twin-runner -- tail -50 /work/job/pipeline.log`);
+    const state = probe();
+    if (state === 'succeeded') return;
+    if (state.startsWith('failed:')) {
+      console.error(`[twin] pipeline failed (exit ${state.slice(7)}) — kubectl -n ${ns} exec twin-runner -- tail -50 /work/job/pipeline.log`);
       process.exit(1);
     }
-    // No status file: either still running, or an attached legacy run that
-    // never writes one — for those, timings.json appearing means success.
-    const running = podQuiet(
-      "pgrep -f '/work/scripts/[p]ipeline.sh' >/dev/null && echo yes"
-    ).trim();
-    if (running !== 'yes') {
-      await Bun.sleep(15_000); // grace: status is written just after exit
-      const late = podQuiet('cat /work/job/status 2>/dev/null').trim();
-      if (late === '0') return;
-      if (late !== '') {
-        console.error(`[twin] pipeline failed (exit ${late})`);
+    if (state === 'unreachable') {
+      // 60 consecutive misses ≈ 10+ minutes without contact.
+      if (++unreachable >= 60) {
+        console.error('[twin] lost contact with the pod for 10+ minutes — the pipeline may still be running; re-run to re-attach');
         process.exit(1);
       }
-      const done = podQuiet('test -f /work/job/dist/timings.json && echo yes').trim();
-      if (done === 'yes') return;
-      console.error('[twin] pipeline is not running and produced no result — check /work/job/pipeline.log');
-      process.exit(1);
+    } else {
+      unreachable = 0;
     }
+    if (state === 'gone') {
+      // Grace once: status is written moments after the process exits.
+      if (goneOnce) {
+        console.error('[twin] pipeline is not running and produced no result — check /work/job/pipeline.log');
+        process.exit(1);
+      }
+      goneOnce = true;
+      await Bun.sleep(15_000);
+      continue;
+    }
+    if (state === 'running') goneOnce = false;
     await Bun.sleep(10_000);
   }
 });
