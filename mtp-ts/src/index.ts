@@ -1,7 +1,7 @@
 export * from './mtp';
 export * from './fs';
 
-import { MtpDevice, type UsbDeviceLike } from './mtp';
+import { MtpDevice, type MtpOpenOptions, type UsbDeviceLike } from './mtp';
 
 interface UsbLike {
   getDevices(): Promise<UsbDeviceLike[]>;
@@ -34,9 +34,9 @@ export async function requestMtpDevice(): Promise<UsbDeviceLike> {
 }
 
 /** Open the device and an MTP session; ready for transactions. */
-export async function connectMtp(device: UsbDeviceLike): Promise<MtpDevice> {
+export async function connectMtp(device: UsbDeviceLike, opts?: MtpOpenOptions): Promise<MtpDevice> {
   const mtp = new MtpDevice(device);
-  await mtp.open();
+  await mtp.open(opts);
   await mtp.openSession();
   return mtp;
 }

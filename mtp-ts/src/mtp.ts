@@ -20,6 +20,38 @@ export const OPS = {
 
 export const CONTAINER = { COMMAND: 1, DATA: 2, RESPONSE: 3, EVENT: 4 } as const;
 
+// USB base-class code for still-image capture (PTP), the class real MTP/PTP
+// interfaces advertise. See usb.org base-class list.
+const USB_CLASS_STILL_IMAGE = 0x06;
+
+// Base classes that expose bulk in/out pairs but never speak MTP. A composite
+// gadget (Android phone, or an Autel drone: RNDIS + vendor + ADB) offers
+// several of these, so the old "first bulk pair wins" fallback would claim a
+// network or debug pipe and hang. Skip them.
+const NON_MTP_CLASSES = new Set<number>([
+  0x01, // audio
+  0x02, // CDC control (RNDIS/ACM comm)
+  0x03, // HID
+  0x08, // mass storage
+  0x09, // hub
+  0x0a, // CDC data (RNDIS/ACM data pipe)
+  0x0b, // smart card
+  0x0e, // video
+  0xdc, // diagnostic
+  0xe0, // wireless controller (RNDIS lives here on many gadgets)
+]);
+
+// A vendor-specific (0xFF) interface is ambiguous: some devices ship MTP there,
+// but Android also puts ADB (FF/42/01), fastboot (FF/42/03), and AOA accessory
+// (FF/FF/00) behind it. Recognize the debug/accessory signatures so we never
+// probe them.
+function isAndroidDebugInterface(cls: number, sub: number, proto: number): boolean {
+  if (cls !== 0xff) return false;
+  if (sub === 0x42) return true;        // adb (proto 1) / fastboot (proto 3)
+  if (sub === 0xff && proto === 0x00) return true; // AOA accessory
+  return false;
+}
+
 export const RC_NAMES: Record<number, string> = {
   0x2001: 'OK',
   0x2002: 'GeneralError',
@@ -166,7 +198,14 @@ export interface TransactionResult {
 // Structural subset of WebUSB used here, so consumers don't need the
 // non-standard USB lib types; a real USBDevice satisfies it.
 export interface UsbEndpointLike { endpointNumber: number; direction: string; type: string; }
-export interface UsbAlternateLike { alternateSetting: number; interfaceClass: number; endpoints: UsbEndpointLike[]; }
+export interface UsbAlternateLike {
+  alternateSetting: number;
+  interfaceClass: number;
+  interfaceSubclass?: number;
+  interfaceProtocol?: number;
+  interfaceName?: string;
+  endpoints: UsbEndpointLike[];
+}
 export interface UsbInterfaceLike { interfaceNumber: number; alternates: UsbAlternateLike[]; }
 export interface UsbConfigurationLike { interfaces: UsbInterfaceLike[]; }
 export interface UsbTransferInResultLike { status?: string; data?: DataView; }
@@ -204,6 +243,23 @@ function objectInfoDataset(
   return w.build();
 }
 
+export interface MtpOpenOptions {
+  /**
+   * Milliseconds to wait for any single bulk-in read before giving up. A wrong
+   * interface (a network or vendor pipe on a composite device) accepts the
+   * command write but never answers, so without a bound the read hangs forever.
+   * Default 5000.
+   */
+  readTimeoutMs?: number;
+  /**
+   * When more than one interface could be MTP, send a GetDeviceInfo probe and
+   * keep the first that actually answers like PTP, instead of committing blind
+   * to the first bulk pair. Default true. The probe uses a short timeout
+   * (min(readTimeoutMs, 1500)) so scanning a few dead interfaces stays quick.
+   */
+  verify?: boolean;
+}
+
 export class MtpDevice {
   readonly device: UsbDeviceLike;
   log: (msg: string) => void = (msg) => console.log('[mtp-ts] ' + msg);
@@ -211,43 +267,105 @@ export class MtpDevice {
   private ifaceNum = 0;
   private epIn = 0;
   private epOut = 0;
+  private readTimeoutMs = 5000;
 
   constructor(usbDevice: UsbDeviceLike) {
     this.device = usbDevice;
   }
 
-  async open(): Promise<void> {
+  async open(opts: MtpOpenOptions = {}): Promise<void> {
     const d = this.device;
+    this.readTimeoutMs = opts.readTimeoutMs ?? 5000;
+    const verify = opts.verify ?? true;
     await d.open();
     if (d.configuration === null) await d.selectConfiguration(1);
     if (d.configuration === null) throw new Error('device has no active configuration');
 
-    // Find the PTP/MTP interface: class 6 (still image), or failing that any
-    // alternate exposing a bulk-in/bulk-out pair.
-    let match: { iface: UsbInterfaceLike; alt: UsbAlternateLike;
-                 bulkIn: UsbEndpointLike; bulkOut: UsbEndpointLike; isPtp: boolean } | null = null;
+    // Rank interfaces that expose a bulk in/out pair. score 2 = a real PTP/MTP
+    // interface (class 6, or a name that says so); score 1 = a plausible vendor
+    // interface we would only try as a last resort. Interfaces whose class is
+    // known non-MTP (RNDIS, CDC, HID, mass storage, hub, ...) or that carry the
+    // Android debug/accessory signature are dropped entirely.
+    const candidates: {
+      iface: UsbInterfaceLike; alt: UsbAlternateLike;
+      bulkIn: UsbEndpointLike; bulkOut: UsbEndpointLike; score: number;
+    }[] = [];
+    const skipped: string[] = [];
     for (const iface of d.configuration.interfaces) {
       for (const alt of iface.alternates) {
         const bulkIn = alt.endpoints.find((e) => e.type === 'bulk' && e.direction === 'in');
         const bulkOut = alt.endpoints.find((e) => e.type === 'bulk' && e.direction === 'out');
         if (!bulkIn || !bulkOut) continue;
-        const isPtp = alt.interfaceClass === 6;
-        if (isPtp || !match) {
-          match = { iface, alt, bulkIn, bulkOut, isPtp };
-          if (isPtp) break;
+        const cls = alt.interfaceClass;
+        const sub = alt.interfaceSubclass ?? 0;
+        const proto = alt.interfaceProtocol ?? 0;
+        const label = `if${iface.interfaceNumber} (class ${cls}/${sub}/${proto}${alt.interfaceName ? ` "${alt.interfaceName}"` : ''})`;
+        if (NON_MTP_CLASSES.has(cls) || isAndroidDebugInterface(cls, sub, proto)) {
+          skipped.push(label);
+          continue;
         }
+        const nameSaysMtp = /mtp|ptp/i.test(alt.interfaceName ?? '');
+        const score = (cls === USB_CLASS_STILL_IMAGE || nameSaysMtp) ? 2 : 1;
+        candidates.push({ iface, alt, bulkIn, bulkOut, score });
       }
-      if (match && match.isPtp) break;
     }
-    if (!match) throw new Error('no interface with bulk in/out endpoints found');
+    candidates.sort((a, b) => b.score - a.score);
+    if (skipped.length) this.log('skipped non-MTP interfaces: ' + skipped.join(', '));
+    if (candidates.length === 0) {
+      throw new Error('no MTP-capable interface found (only non-MTP interfaces present; this device likely does not expose MTP over USB)');
+    }
 
-    this.ifaceNum = match.iface.interfaceNumber;
-    this.epIn = match.bulkIn.endpointNumber;
-    this.epOut = match.bulkOut.endpointNumber;
-    this.log(`interface ${this.ifaceNum} (class ${match.alt.interfaceClass}) ep-in ${this.epIn} ep-out ${this.epOut}`);
-    await d.claimInterface(this.ifaceNum);
-    if (match.alt.alternateSetting !== 0) {
-      await d.selectAlternateInterface(this.ifaceNum, match.alt.alternateSetting);
+    // With a single candidate, or verification off, commit to the best-scored
+    // one. Otherwise probe each in order and keep the first that answers a
+    // GetDeviceInfo like PTP, so a non-MTP vendor pipe can't silently win.
+    const shouldProbe = verify && candidates.length > 1;
+    const tried: string[] = [];
+    for (const c of candidates) {
+      const label = `if${c.iface.interfaceNumber} (class ${c.alt.interfaceClass}/${c.alt.interfaceSubclass ?? 0}/${c.alt.interfaceProtocol ?? 0})`;
+      await this.bindInterface(c.iface, c.alt, c.bulkIn, c.bulkOut);
+      if (!shouldProbe) {
+        this.log(`interface ${this.ifaceNum} ep-in ${this.epIn} ep-out ${this.epOut}`);
+        return;
+      }
+      const probeTimeout = Math.min(this.readTimeoutMs, 1500);
+      if (await this.probeIsMtp(probeTimeout)) {
+        this.log(`selected ${label} ep-in ${this.epIn} ep-out ${this.epOut}`);
+        return;
+      }
+      this.log(`${label} did not answer MTP GetDeviceInfo, trying next`);
+      tried.push(label);
+      try { await d.releaseInterface(this.ifaceNum); } catch { /* keep scanning */ }
+    }
+    throw new Error('no interface responded to MTP GetDeviceInfo; tried ' + tried.join(', ') +
+      ' — this device likely does not expose MTP over USB');
+  }
+
+  private async bindInterface(
+    iface: UsbInterfaceLike, alt: UsbAlternateLike,
+    bulkIn: UsbEndpointLike, bulkOut: UsbEndpointLike,
+  ): Promise<void> {
+    this.ifaceNum = iface.interfaceNumber;
+    this.epIn = bulkIn.endpointNumber;
+    this.epOut = bulkOut.endpointNumber;
+    await this.device.claimInterface(this.ifaceNum);
+    if (alt.alternateSetting !== 0) {
+      await this.device.selectAlternateInterface(this.ifaceNum, alt.alternateSetting);
+    }
+  }
+
+  // Send GetDeviceInfo and check for a well-formed PTP response, under a tight
+  // timeout. Any error (timeout, stall, garbage) means "not MTP here".
+  private async probeIsMtp(timeoutMs: number): Promise<boolean> {
+    const saved = this.readTimeoutMs;
+    this.readTimeoutMs = timeoutMs;
+    this.tid = 0;
+    try {
+      const r = await this.transaction(OPS.GetDeviceInfo, []);
+      return r.code === 0x2001 && r.data !== null && r.data.byteLength >= 12;
+    } catch {
+      return false;
+    } finally {
+      this.readTimeoutMs = saved;
     }
   }
 
@@ -268,12 +386,31 @@ export class MtpDevice {
     return buf;
   }
 
+  // Race a bulk-in read against a timer. WebUSB can't cancel a pending
+  // transfer, but the timeout lets us stop awaiting a pipe that will never
+  // answer (a wrong interface, or a device that stopped responding) and surface
+  // a clear error instead of hanging the page. close() releases the endpoint.
+  private async readWithTimeout(len: number): Promise<UsbTransferInResultLike> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`bulk-in read timed out after ${this.readTimeoutMs}ms on endpoint ${this.epIn}`)),
+        this.readTimeoutMs,
+      );
+    });
+    try {
+      return await Promise.race([this.device.transferIn(this.epIn, len), timeout]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
   private async transferIn(len: number): Promise<Uint8Array> {
-    let r = await this.device.transferIn(this.epIn, len);
+    let r = await this.readWithTimeout(len);
     if (r.status === 'stall') {
       this.log('bulk-in stall, clearing halt');
       await this.device.clearHalt('in', this.epIn);
-      r = await this.device.transferIn(this.epIn, len);
+      r = await this.readWithTimeout(len);
     }
     if (r.status !== 'ok' || !r.data) throw new Error('transferIn failed: ' + r.status);
     return new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
