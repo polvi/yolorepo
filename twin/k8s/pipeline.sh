@@ -31,15 +31,19 @@ stage() {
   T[$name]=$((SECONDS - t0))
 }
 
+# use_gpu 0: GPU SIFT needs an OpenGL context, which a headless pod lacks —
+# and CPU SIFT across every core is the point of this runner anyway.
 stage extract colmap feature_extractor \
   --database_path "$JOB/colmap/db.db" --image_path "$IMAGES" \
-  --ImageReader.single_camera 1 --ImageReader.camera_model SIMPLE_RADIAL
+  --ImageReader.single_camera 1 --ImageReader.camera_model SIMPLE_RADIAL \
+  --SiftExtraction.use_gpu 0
 
 if [ "$MATCHER" = sequential ]; then
   stage match colmap sequential_matcher --database_path "$JOB/colmap/db.db" \
-    --SequentialMatching.overlap 15
+    --SequentialMatching.overlap 15 --SiftMatching.use_gpu 0
 else
-  stage match colmap exhaustive_matcher --database_path "$JOB/colmap/db.db"
+  stage match colmap exhaustive_matcher --database_path "$JOB/colmap/db.db" \
+    --SiftMatching.use_gpu 0
 fi
 
 stage map colmap mapper --database_path "$JOB/colmap/db.db" \
