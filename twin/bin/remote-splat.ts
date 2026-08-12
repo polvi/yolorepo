@@ -91,7 +91,7 @@ run([...kcn, 'wait', '--for=condition=Ready', 'pod/twin-runner', '--timeout=300s
 // 2. scripts; toolchain is baked into the twin-runner image, so bootstrap
 // only runs (and only costs anything) on a stock-debian pod.
 console.log('\n[twin] syncing scripts…');
-const scriptsTar = Bun.spawnSync(['tar', '-cf', '-', '-C', k8sDir, 'bootstrap.sh', 'pipeline.sh']);
+const scriptsTar = Bun.spawnSync(['tar', '-cf', '-', '-C', k8sDir, 'bootstrap.sh', 'pipeline.sh', 'run-pipeline.sh']);
 await podSh('mkdir -p /work/scripts && tar -xf - -C /work/scripts', { stdin: scriptsTar.stdout });
 await timedStep('bootstrap', () =>
   podSh('command -v opensplat >/dev/null 2>&1 || bash /work/scripts/bootstrap.sh')
@@ -116,10 +116,55 @@ await timedStep('upload', async () => {
   }
 });
 
-// 4. the pipeline itself (stage timing happens remotely, in pipeline.sh)
-await timedStep('pipeline', () =>
-  podSh(`env ITERS=${Number(values.iters)} MATCHER=${values.matcher} bash /work/scripts/pipeline.sh`)
-);
+// 4. the pipeline itself, detached in the pod (run-pipeline.sh) and watched
+// with short-lived execs — a single long exec dies with its websocket while
+// the pipeline runs on regardless. Stage timing happens remotely, in
+// pipeline.sh.
+await timedStep('pipeline', async () => {
+  await podSh(
+    `env ITERS=${Number(values.iters)} MATCHER=${values.matcher} bash /work/scripts/run-pipeline.sh`
+  );
+  const podQuiet = (cmd: string): string => {
+    const p = Bun.spawnSync([...kcn, 'exec', 'twin-runner', '--', 'bash', '-c', cmd], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    return p.exitCode === 0 ? p.stdout.toString() : '';
+  };
+  let offset = 0;
+  for (;;) {
+    const chunk = podQuiet(`tail -c +${offset + 1} /work/job/pipeline.log 2>/dev/null | head -c 500000`);
+    if (chunk) {
+      offset += Buffer.byteLength(chunk);
+      process.stdout.write(chunk);
+    }
+    const status = podQuiet('cat /work/job/status 2>/dev/null').trim();
+    if (status === '0') return;
+    if (status !== '') {
+      console.error(`[twin] pipeline failed (exit ${status}) — kubectl -n ${ns} exec twin-runner -- tail -50 /work/job/pipeline.log`);
+      process.exit(1);
+    }
+    // No status file: either still running, or an attached legacy run that
+    // never writes one — for those, timings.json appearing means success.
+    const running = podQuiet(
+      "pgrep -f '/work/scripts/[p]ipeline.sh' >/dev/null && echo yes"
+    ).trim();
+    if (running !== 'yes') {
+      await Bun.sleep(15_000); // grace: status is written just after exit
+      const late = podQuiet('cat /work/job/status 2>/dev/null').trim();
+      if (late === '0') return;
+      if (late !== '') {
+        console.error(`[twin] pipeline failed (exit ${late})`);
+        process.exit(1);
+      }
+      const done = podQuiet('test -f /work/job/dist/timings.json && echo yes').trim();
+      if (done === 'yes') return;
+      console.error('[twin] pipeline is not running and produced no result — check /work/job/pipeline.log');
+      process.exit(1);
+    }
+    await Bun.sleep(10_000);
+  }
+});
 
 // 5. results
 console.log('\n[twin] downloading results…');
