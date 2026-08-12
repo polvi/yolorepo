@@ -104,7 +104,13 @@ await timedStep('bootstrap', () =>
 console.log('\n[twin] uploading photos…');
 const q = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 await timedStep('upload', async () => {
-  await podSh('mkdir -p /work/job/images && rm -rf /work/job/colmap /work/job/opensplat /work/job/dist');
+  // Clear stale outputs ONLY when no pipeline is running — when attaching to
+  // a live one, these are its working directories, not stale state.
+  await podSh(
+    'mkdir -p /work/job/images; ' +
+      "if ! pgrep -f '/work/scripts/[p]ipeline.sh' >/dev/null; then " +
+      'rm -rf /work/job/colmap /work/job/opensplat /work/job/dist; fi'
+  );
   const p = Bun.spawn(
     ['bun', `${dirname(Bun.main)}/upload.ts`, '--images', images,
       ...(values.context ? ['--context', values.context] : []), '--namespace', ns],
