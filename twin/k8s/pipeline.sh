@@ -12,6 +12,8 @@ set -euo pipefail
 ITERS="${ITERS:-30000}"
 MATCHER="${MATCHER:-exhaustive}"
 DOWNSCALE="${DOWNSCALE:-2}"
+SH_DEGREE="${SH_DEGREE:-3}"
+DENSIFY_THRESH="${DENSIFY_THRESH:-0.0002}"
 RESUME="${RESUME:-0}"
 JOB=/work/job
 IMAGES=$JOB/images
@@ -62,7 +64,9 @@ fi
 mkdir -p "$JOB/opensplat/project/sparse"
 ln -sfn "$IMAGES" "$JOB/opensplat/project/images"
 ln -sfn "$JOB/colmap/sparse/0" "$JOB/opensplat/project/sparse/0"
-stage train opensplat "$JOB/opensplat/project" -n "$ITERS" -d "$DOWNSCALE" -o "$JOB/opensplat/splat.ply"
+stage train opensplat "$JOB/opensplat/project" -n "$ITERS" -d "$DOWNSCALE" \
+  --sh-degree "$SH_DEGREE" --densify-grad-thresh "$DENSIFY_THRESH" \
+  -o "$JOB/opensplat/splat.ply"
 
 if command -v splat-transform >/dev/null; then
   stage sog splat-transform "$JOB/opensplat/splat.ply" "$JOB/dist/scene.sog"

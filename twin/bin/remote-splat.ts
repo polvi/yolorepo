@@ -22,6 +22,8 @@ const { values } = parseArgs({
     iters: { type: 'string', default: '30000' },
     matcher: { type: 'string', default: 'exhaustive' },
     downscale: { type: 'string', default: '2' },
+    'sh-degree': { type: 'string', default: '3' },
+    'densify-thresh': { type: 'string', default: '0.0002' },
     resume: { type: 'boolean', default: false },
     namespace: { type: 'string', default: 'twin' },
     context: { type: 'string' },
@@ -131,7 +133,8 @@ await timedStep('upload', async () => {
 await timedStep('pipeline', async () => {
   await podSh(
     `env ITERS=${Number(values.iters)} MATCHER=${values.matcher} ` +
-      `DOWNSCALE=${Number(values.downscale)} RESUME=${values.resume ? 1 : 0} ` +
+      `DOWNSCALE=${Number(values.downscale)} SH_DEGREE=${Number(values['sh-degree'])} ` +
+      `DENSIFY_THRESH=${Number(values['densify-thresh'])} RESUME=${values.resume ? 1 : 0} ` +
       `bash /work/scripts/run-pipeline.sh`
   );
   // Every probe distinguishes three outcomes: a definitive answer, a

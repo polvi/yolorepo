@@ -27,6 +27,11 @@ const { values } = parseArgs({
     // 1067 20MP photos ≈ 64GB+ decoded, an instant OOM on most machines.
     // Downscale 2 (≈2700px) is standard splat-training resolution.
     downscale: { type: 'string', default: '2' },
+    // Match opensplat defaults; lower both on RAM-limited machines —
+    // gaussian count (and so memory) grows with densification until
+    // training's midpoint, far past where the run starts.
+    'sh-degree': { type: 'string', default: '3' },
+    'densify-thresh': { type: 'string', default: '0.0002' },
     // Skip the COLMAP stages when a mapped model already exists (e.g. a
     // previous run died during training).
     resume: { type: 'boolean', default: false },
@@ -111,7 +116,8 @@ for (const [link, target] of [
 }
 
 const ply = `${work}/opensplat/splat.ply`;
-run('train', ['opensplat', project, '-n', values.iters!, '-d', values.downscale!, '-o', ply]);
+run('train', ['opensplat', project, '-n', values.iters!, '-d', values.downscale!,
+  '--sh-degree', values['sh-degree']!, '--densify-grad-thresh', values['densify-thresh']!, '-o', ply]);
 
 mkdirSync(`${work}/dist`, { recursive: true });
 const sog = `${work}/dist/scene.sog`;
@@ -126,6 +132,8 @@ const timings = {
   matcher: values.matcher,
   mapper,
   downscale: Number(values.downscale),
+  shDegree: Number(values['sh-degree']),
+  densifyThresh: Number(values['densify-thresh']),
   resumed: resuming,
   stages,
   total_s: Object.values(stages).reduce((a, b) => a + b, 0),

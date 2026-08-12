@@ -23,6 +23,8 @@ const { values } = parseArgs({
     iters: { type: 'string', default: '30000' },
     matcher: { type: 'string', default: 'exhaustive' },
     downscale: { type: 'string', default: '2' },
+    'sh-degree': { type: 'string', default: '3' },
+    'densify-thresh': { type: 'string', default: '0.0002' },
     serial: { type: 'boolean', default: false },
   },
 });
@@ -35,7 +37,8 @@ const images = resolve(values.images);
 const work = resolve(values.work!);
 const binDir = dirname(Bun.main);
 mkdirSync(work, { recursive: true });
-const flags = ['--images', images, '--work', work, '--iters', values.iters!, '--matcher', values.matcher!, '--downscale', values.downscale!];
+const flags = ['--images', images, '--work', work, '--iters', values.iters!, '--matcher', values.matcher!,
+  '--downscale', values.downscale!, '--sh-degree', values['sh-degree']!, '--densify-thresh', values['densify-thresh']!];
 
 const q = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 
