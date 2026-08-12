@@ -97,14 +97,23 @@ await timedStep('bootstrap', () =>
   podSh('command -v opensplat >/dev/null 2>&1 || bash /work/scripts/bootstrap.sh')
 );
 
-// 3. photos
+// 3. photos. The tar | kubectl pipe runs inside one bash pipeline: piping a
+// subprocess ReadableStream into another spawn's stdin through Bun breaks
+// (EINVAL) on multi-GB transfers, while the shell's native fd plumbing does
+// not care about size.
 console.log('\n[twin] uploading photos…');
+const q = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 await timedStep('upload', async () => {
   await podSh('rm -rf /work/job && mkdir -p /work/job/images');
-  const tar = Bun.spawn(['tar', '-cf', '-', '-C', images, '.'], { stdout: 'pipe' });
-  await podSh('tar -xf - -C /work/job/images', { stdin: tar.stdout });
-  if ((await tar.exited) !== 0) {
-    console.error('[twin] tar of the image directory failed');
+  const kexec = [...kcn, 'exec', '-i', 'twin-runner', '--', 'tar', '-xf', '-', '-C', '/work/job/images']
+    .map(q)
+    .join(' ');
+  const p = Bun.spawn(['bash', '-c', `set -o pipefail; tar -cf - -C ${q(images)} . | ${kexec}`], {
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+  if ((await p.exited) !== 0) {
+    console.error('[twin] photo upload failed');
     process.exit(1);
   }
 });
@@ -119,10 +128,10 @@ console.log('\n[twin] downloading results…');
 mkdirSync(`${work}/dist`, { recursive: true });
 const sog = `${work}/dist/scene.remote.sog`;
 await timedStep('download', async () => {
-  const p = Bun.spawn([...kcn, 'exec', 'twin-runner', '--', 'cat', '/work/job/dist/scene.sog'], {
-    stdout: 'pipe',
-  });
-  await Bun.write(sog, new Response(p.stdout));
+  const kexec = [...kcn, 'exec', 'twin-runner', '--', 'cat', '/work/job/dist/scene.sog']
+    .map(q)
+    .join(' ');
+  const p = Bun.spawn(['bash', '-c', `${kexec} > ${q(sog)}`], { stdout: 'inherit', stderr: 'inherit' });
   if ((await p.exited) !== 0) {
     console.error('[twin] download failed');
     process.exit(1);
