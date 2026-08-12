@@ -13,6 +13,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { printComparison, type Timings } from './timings';
 
 const { values } = parseArgs({
   options: {
@@ -129,7 +130,7 @@ await timedStep('download', async () => {
 });
 const remote = JSON.parse(
   capture([...kcn, 'exec', 'twin-runner', '--', 'cat', '/work/job/dist/timings.json'])
-) as { stages: Record<string, number>; total_s: number; ncpu: number; host: string };
+) as Timings;
 remote.stages['upload'] = timed.upload!;
 remote.stages['download'] = timed.download!;
 await Bun.write(`${work}/dist/timings.remote.json`, JSON.stringify(remote, null, 2));
@@ -138,24 +139,9 @@ await Bun.write(`${work}/dist/timings.remote.json`, JSON.stringify(remote, null,
 console.log(`\n[twin] splat ready: ${sog}`);
 const localPath = `${work}/dist/timings.json`;
 const local = existsSync(localPath)
-  ? (JSON.parse(await Bun.file(localPath).text()) as typeof remote)
+  ? (JSON.parse(await Bun.file(localPath).text()) as Timings)
   : null;
-const rows = ['extract', 'match', 'map', 'train', 'sog', 'upload', 'download'];
-console.log(
-  `\n${'stage'.padEnd(10)}${`laptop (s)`.padStart(12)}${`server (s)`.padStart(12)}   server: ${remote.host}, ${remote.ncpu} cpus`
-);
-for (const s of rows) {
-  const l = local?.stages[s];
-  const r = remote.stages[s];
-  if (l === undefined && r === undefined) continue;
-  console.log(
-    `${s.padEnd(10)}${(l === undefined ? '—' : l.toFixed(0)).padStart(12)}${(r === undefined ? '—' : r.toFixed(0)).padStart(12)}`
-  );
-}
-const rTotal = remote.total_s + timed.upload! + timed.download!;
-console.log(
-  `${'total'.padEnd(10)}${(local ? local.total_s.toFixed(0) : '—').padStart(12)}${rTotal.toFixed(0).padStart(12)}   (server total includes transfer)`
-);
+printComparison(local, remote);
 if (!local) {
   console.log(`\n[twin] no local timings at ${localPath} — run bin/build-splat.ts on the same photos to compare.`);
 }

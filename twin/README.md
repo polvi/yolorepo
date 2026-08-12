@@ -43,8 +43,17 @@ scene reachable only by its URL.
 
 ## Remote pipeline (k8s) + benchmark
 
-The same pipeline can run on the proc-dev cluster node (96 CPU / 1TB RAM)
-instead of the laptop:
+One command runs both sides — the local Metal pipeline and the full server
+round-trip (upload, CPU run on the proc-dev node's 96 cores, download) — and
+prints a per-stage laptop-vs-server table:
+
+```sh
+bun twin/bin/bench.ts --images ~/flights/house-2026-08
+```
+
+Parallel by default (the remote side barely touches the laptop); pass
+`--serial` to take laptop numbers on an idle machine. Each side logs to
+`<work>/local.log` and `<work>/remote.log`. The server side alone is:
 
 ```sh
 bun twin/bin/remote-splat.ts --images ~/flights/house-2026-08

@@ -31,8 +31,10 @@ COPY --from=builder /src/OpenSplat/build/opensplat /usr/local/bin/opensplat
 ENV LD_LIBRARY_PATH=/opt/libtorch/lib
 
 # bun + a preinstalled splat-transform binary, so the sog stage never pays
-# first-run package downloads inside a timed run.
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash \
+# first-run package downloads inside a timed run. BUN_INSTALL must persist:
+# `bun add -g` reads it at run time to decide the global bin dir.
+ENV BUN_INSTALL=/usr/local
+RUN curl -fsSL https://bun.sh/install | bash \
     && bun add -g @playcanvas/splat-transform \
     && command -v splat-transform
 
