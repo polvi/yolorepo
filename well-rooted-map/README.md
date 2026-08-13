@@ -9,10 +9,12 @@ tiles straight out of the COG with HTTP range requests via
 bytes from R2 (plus serves the static viewer).
 
 Initial deployment lives at well-rooted-map.proc.io. The eventual home is
-map.wellrootedproduce.co: once that zone is on Cloudflare, add a second
-route for it in `apps/web/wrangler.template.jsonc`. Nothing in the app
-hardcodes the host (the viewer builds COG URLs from `location.origin`), so
-the domain move is route-only.
+map.wellrootedproduce.co, whose DNS stays with its current provider:
+`map.wellrootedproduce.co CNAME well-rooted-map.proc.io`, terminated on
+Cloudflare as a SaaS custom hostname on the proc.io zone (custom hostname +
+zone fallback origin, set up via the API), with a `map.wellrootedproduce.co/*`
+route sending it to this worker. Nothing in the app hardcodes the host (the
+viewer builds COG URLs from `location.origin`), so no code changes.
 
 ## Layout
 

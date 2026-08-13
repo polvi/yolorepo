@@ -10,12 +10,17 @@
     "run_worker_first": ["/cog/*", "/llms.txt"]
   },
   "routes": [
-    // Initial deployment. The map's eventual home is map.wellrootedproduce.co;
-    // when that zone is on Cloudflare, add it here as a second custom_domain
-    // route. The app derives every URL from location.origin, so no code moves.
     {
       "pattern": "well-rooted-map.__BASE_DOMAIN__",
       "custom_domain": true
+    },
+    // map.wellrootedproduce.co stays on external DNS (CNAME to
+    // well-rooted-map.proc.io) and reaches us as a Cloudflare for SaaS custom
+    // hostname on the proc.io zone; this route makes the worker answer it.
+    // The app derives every URL from location.origin, so no code changes.
+    {
+      "pattern": "map.wellrootedproduce.co/*",
+      "zone_name": "proc.io"
     }
   ],
   "vars": {
