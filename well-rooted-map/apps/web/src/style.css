@@ -1,0 +1,36 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+#map {
+  position: fixed;
+  inset: 0;
+}
+
+#badge {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #234d20;
+  font: 13px/1.25 system-ui, -apple-system, sans-serif;
+  text-decoration: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+#badge strong {
+  font-size: 14px;
+}
+
+#badge span {
+  color: #4a4a4a;
+  font-size: 12px;
+}
