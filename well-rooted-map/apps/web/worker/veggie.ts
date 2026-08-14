@@ -185,8 +185,15 @@ veggie.get('/leaderboard.json', async (c) => {
   const count = await db.prepare('SELECT COUNT(*) AS n FROM veggies').first<{ n: number }>();
   const named = <T extends { player: string; name: string | null }>(rows: T[]) =>
     rows.map(({ name, ...r }) => ({ ...r, player: displayName(r.player, name) }));
+  // players rows also carry the raw identity key (`id`) so the leaderboard's
+  // inline rename UI can POST /name against it.
+  const withId = (players ?? []).map(({ name, ...r }) => ({
+    ...r,
+    id: r.player,
+    player: displayName(r.player, name),
+  }));
   return c.json(
-    { players: named(players ?? []), recent: named(recent ?? []), veggies: count?.n ?? 0 },
+    { players: withId, recent: named(recent ?? []), veggies: count?.n ?? 0 },
     200,
     { 'Cache-Control': 'no-store' }
   );

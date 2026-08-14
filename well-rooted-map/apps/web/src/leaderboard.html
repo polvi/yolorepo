@@ -16,6 +16,17 @@
       .sub { color: #a8c5b0; margin: 0 0 20px; }
       table { width: 100%; border-collapse: collapse; max-width: 480px; }
       td, th { padding: 10px 8px; text-align: left; }
+      td.name { cursor: pointer; }
+      td.name .pencil { opacity: 0.35; font-size: 12px; }
+      td.name input {
+        font: inherit;
+        width: 110px;
+        padding: 2px 6px;
+        border: 1px solid #a8c5b0;
+        border-radius: 6px;
+        background: #fff;
+        color: #1b3022;
+      }
       th { color: #a8c5b0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
       tr:nth-child(odd) td { background: rgba(255, 255, 255, 0.05); }
       .pts { font-size: 22px; font-weight: 700; text-align: right; }
@@ -51,14 +62,17 @@
       const medals = ['🥇', '🥈', '🥉'];
       const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
       const verbs = { discover: 'found', confirm: 'confirmed', refine: 'identified' };
+      // Tap a name to rename that player (maps their device key server-side).
+      let editing = false;
       async function refresh() {
+        if (editing) return;
         try {
           const d = await fetch('/api/veggie/leaderboard.json').then((r) => r.json());
           document.getElementById('count').textContent = d.veggies;
           document.getElementById('rows').innerHTML = d.players
             .map(
               (p, i) =>
-                `<tr><td class="medal">${medals[i] ?? ''}</td><td>${esc(p.player)}</td><td>${p.finds}</td><td>${Number(p.confirms) + Number(p.refines)}</td><td class="pts">${p.points}</td></tr>`
+                `<tr><td class="medal">${medals[i] ?? ''}</td><td class="name" data-id="${esc(p.id)}" data-name="${esc(p.player)}">${esc(p.player)} <span class="pencil">✏️</span></td><td>${p.finds}</td><td>${Number(p.confirms) + Number(p.refines)}</td><td class="pts">${p.points}</td></tr>`
             )
             .join('');
           document.getElementById('feed').innerHTML = d.recent
@@ -69,6 +83,35 @@
             .join('');
         } catch {}
       }
+      document.getElementById('rows').addEventListener('click', (e) => {
+        const td = e.target.closest('td.name');
+        if (!td || editing) return;
+        editing = true;
+        const id = td.dataset.id;
+        td.innerHTML = `<input value="${esc(td.dataset.name)}" maxlength="24" />`;
+        const input = td.querySelector('input');
+        input.focus();
+        input.select();
+        const done = async (save) => {
+          if (!editing) return;
+          editing = false;
+          const name = input.value.trim();
+          if (save && name && name !== td.dataset.name) {
+            await fetch('/api/veggie/name', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ device: id, name }),
+            });
+          }
+          refresh();
+        };
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') done(true);
+          if (ev.key === 'Escape') done(false);
+        });
+        input.addEventListener('blur', () => done(true));
+      });
+
       refresh();
       setInterval(refresh, 10000);
     </script>
