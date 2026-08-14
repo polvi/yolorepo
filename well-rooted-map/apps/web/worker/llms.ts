@@ -11,9 +11,11 @@ deployment; the map's eventual home is map.wellrootedproduce.co.
 
 - https://${host}/ - the map (pan/zoom, current-location control)
 
-## API (read-only, no auth)
+## API (no auth)
 
 - GET https://${host}/cog/<name>.tif - COG bytes; supports HTTP Range
+- Veggie-tagging game under /api/veggie/* (menu, claim, leaderboard.json,
+  points.geojson) - see the repo's VEGGIE-GAME.md; scores at /leaderboard
 
 Publishing is CLI-only (wrangler r2 object put); there is no write API on
 this host.

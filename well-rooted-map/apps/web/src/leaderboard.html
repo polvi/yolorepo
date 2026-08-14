@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Veggie Hunt — Leaderboard</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #1b3022;
+        color: #fff;
+        font: 16px/1.4 system-ui, -apple-system, sans-serif;
+      }
+      h1 { margin: 0 0 4px; font-size: 26px; }
+      .sub { color: #a8c5b0; margin: 0 0 20px; }
+      table { width: 100%; border-collapse: collapse; max-width: 480px; }
+      td, th { padding: 10px 8px; text-align: left; }
+      th { color: #a8c5b0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
+      tr:nth-child(odd) td { background: rgba(255, 255, 255, 0.05); }
+      .pts { font-size: 22px; font-weight: 700; text-align: right; }
+      .medal { font-size: 22px; }
+      h2 { font-size: 16px; color: #a8c5b0; margin: 28px 0 8px; }
+      .feed { list-style: none; margin: 0; padding: 0; max-width: 480px; }
+      .feed li { padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 14px; }
+      .feed .pts-sm { color: #ffd166; font-weight: 600; }
+      a { color: #a8c5b0; }
+    </style>
+  </head>
+  <body>
+    <h1>🥕 Veggie Hunt</h1>
+    <p class="sub"><span id="count">0</span> veggies found · <a href="/">farm map</a></p>
+    <table>
+      <thead><tr><th></th><th>Player</th><th>Finds</th><th>Confirms</th><th style="text-align:right">Points</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <h2>Latest</h2>
+    <ul class="feed" id="feed"></ul>
+    <script type="module">
+      const medals = ['🥇', '🥈', '🥉'];
+      const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+      const verbs = { discover: 'found', confirm: 'confirmed', refine: 'identified' };
+      async function refresh() {
+        try {
+          const d = await fetch('/api/veggie/leaderboard.json').then((r) => r.json());
+          document.getElementById('count').textContent = d.veggies;
+          document.getElementById('rows').innerHTML = d.players
+            .map(
+              (p, i) =>
+                `<tr><td class="medal">${medals[i] ?? ''}</td><td>${esc(p.player)}</td><td>${p.finds}</td><td>${Number(p.confirms) + Number(p.refines)}</td><td class="pts">${p.points}</td></tr>`
+            )
+            .join('');
+          document.getElementById('feed').innerHTML = d.recent
+            .map(
+              (r) =>
+                `<li>${esc(r.player)} ${verbs[r.action] ?? r.action} ${esc(r.label)} <span class="pts-sm">+${r.points}</span></li>`
+            )
+            .join('');
+        } catch {}
+      }
+      refresh();
+      setInterval(refresh, 10000);
+    </script>
+  </body>
+</html>

@@ -65,8 +65,51 @@ map.on('load', () => {
     void import('./edit').then((m) => m.setupEditor(map));
   } else {
     addRegionLayers(map);
+    addVeggiePins(map);
   }
 });
+
+// Live pins from the veggie-tagging game (see VEGGIE-GAME.md). Invisible
+// until someone plays; polls so the map fills in while the kids run around.
+function addVeggiePins(m: maplibregl.Map): void {
+  const url = `${location.origin}/api/veggie/points.geojson`;
+  m.addSource('veggies', { type: 'geojson', data: url });
+  m.addLayer({
+    id: 'veggie-dots',
+    type: 'circle',
+    source: 'veggies',
+    paint: {
+      'circle-radius': ['+', 5, ['min', ['get', 'confirmations'], 4]],
+      'circle-color': '#ffd166',
+      'circle-stroke-color': '#1b3022',
+      'circle-stroke-width': 2,
+    },
+  });
+  m.addLayer({
+    id: 'veggie-names',
+    type: 'symbol',
+    source: 'veggies',
+    minzoom: 16.5,
+    layout: {
+      'text-field': ['get', 'name'],
+      'text-font': ['Noto Sans Regular'],
+      'text-size': 12,
+      'text-offset': [0, 1.1],
+      'text-anchor': 'top',
+      'text-optional': true,
+    },
+    paint: {
+      'text-color': '#ffd166',
+      'text-halo-color': 'rgba(0, 0, 0, 0.7)',
+      'text-halo-width': 1.4,
+    },
+  });
+  setInterval(() => {
+    void fetch(url)
+      .then((r) => r.json())
+      .then((d) => (m.getSource('veggies') as maplibregl.GeoJSONSource).setData(d as GeoJSON.GeoJSON));
+  }, 20000);
+}
 
 map.on('error', (e) => console.error('[map]', e.error?.message ?? e));
 

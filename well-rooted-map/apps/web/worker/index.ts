@@ -2,8 +2,11 @@ import { Hono } from 'hono';
 import type { AppContext } from './env';
 import { llmsTxt } from './llms';
 import { parseRange } from './range';
+import { veggie } from './veggie';
 
 const app = new Hono<AppContext>();
+
+app.route('/api/veggie', veggie);
 
 const KEY = /^[a-z0-9][a-z0-9.-]{0,127}\.tif$/;
 
