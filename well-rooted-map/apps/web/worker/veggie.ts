@@ -163,6 +163,33 @@ veggie.post('/name', async (c) => {
   return c.text(`✏️ You are now ${name}`, 200);
 });
 
+// Passphrase-gated full reset for game day. Constant-time comparison via
+// SHA-256 + timingSafeEqual so the pass can't be brute-forced byte by byte.
+veggie.post('/wipe', async (c) => {
+  const configured = c.env.WIPE_PASS;
+  if (!configured) return c.text('🤖 Wipe pass not configured', 200);
+  const body = (await c.req.json().catch(() => null)) as { pass?: unknown } | null;
+  const given = String(body?.pass ?? '');
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(given)),
+    crypto.subtle.digest('SHA-256', enc.encode(configured)),
+  ]);
+  // timingSafeEqual is a Workers extension; the DOM lib's SubtleCrypto type
+  // shadows it in this tsconfig.
+  const subtle = crypto.subtle as unknown as {
+    timingSafeEqual(x: ArrayBuffer, y: ArrayBuffer): boolean;
+  };
+  if (!subtle.timingSafeEqual(a, b)) return c.text('🔒 Wrong pass', 200);
+  const [claims, veggies, players] = await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM claims'),
+    c.env.DB.prepare('DELETE FROM veggies'),
+    c.env.DB.prepare('DELETE FROM players'),
+  ]);
+  const n = (r: D1Result) => r.meta.changes ?? 0;
+  return c.text(`🧹 Wiped: ${n(claims!)} claims, ${n(veggies!)} veggies, ${n(players!)} names`, 200);
+});
+
 veggie.get('/leaderboard.json', async (c) => {
   const db = c.env.DB;
   const { results: players } = await db

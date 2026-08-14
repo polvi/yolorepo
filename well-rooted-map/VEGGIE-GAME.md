@@ -29,8 +29,11 @@ future project.
   breather between tags (no button mashing).
 
 Scores are always derived from the claims ledger, never stored. Wipe for a
-new game day: `bunx wrangler d1 execute well-rooted-map --remote --command
-"DELETE FROM claims; DELETE FROM veggies;"`
+new game day via **Reset game…** at the bottom of /leaderboard (asks for
+the passphrase, set with `bunx wrangler secret put WIPE_PASS`; comparison
+is constant-time), or `POST /api/veggie/wipe {pass}`, or directly:
+`bunx wrangler d1 execute well-rooted-map --remote --command
+"DELETE FROM claims; DELETE FROM veggies; DELETE FROM players;"`
 
 ## The Shortcut (build once, share to each kid)
 

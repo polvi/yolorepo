@@ -57,6 +57,7 @@
     <div id="minimap"></div>
     <h2>Latest</h2>
     <ul class="feed" id="feed"></ul>
+    <p class="muted" id="reset-zone"><a href="#" id="reset-link">Reset game…</a></p>
     <script type="module" src="./minimap.ts"></script>
     <script type="module">
       const medals = ['🥇', '🥈', '🥉'];
@@ -110,6 +111,22 @@
           if (ev.key === 'Escape') done(false);
         });
         input.addEventListener('blur', () => done(true));
+      });
+
+      document.getElementById('reset-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        const zone = document.getElementById('reset-zone');
+        zone.innerHTML = `<input id="wipe-pass" type="password" placeholder="Wipe pass" style="font:inherit;padding:4px 8px;border-radius:6px;border:1px solid #3c6b4a;background:#24402e;color:#fff" />
+          <button id="wipe-go" style="font:inherit;padding:4px 10px;border-radius:6px;border:0;background:#7a2e2e;color:#fff;cursor:pointer">Wipe everything</button>`;
+        document.getElementById('wipe-go').addEventListener('click', async () => {
+          const msg = await fetch('/api/veggie/wipe', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ pass: document.getElementById('wipe-pass').value }),
+          }).then((r) => r.text());
+          zone.textContent = msg;
+          refresh();
+        });
       });
 
       refresh();
