@@ -16,4 +16,22 @@ const map = new maplibregl.Map({
 });
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-map.on('load', () => addVeggiePins(map, 10000, 0));
+map.on('load', () => {
+  addVeggiePins(map, 10000, 0);
+  // Widen the view to include every pin, so test tags placed away from the
+  // farm (someone trying the game from home) are still visible.
+  void fetch(`${location.origin}/api/veggie/points.geojson`)
+    .then((r) => r.json() as Promise<GeoJSON.FeatureCollection>)
+    .then((fc) => {
+      if (!fc.features.length) return;
+      const bounds = new maplibregl.LngLatBounds(
+        [ORTHO_BOUNDS[0], ORTHO_BOUNDS[1]],
+        [ORTHO_BOUNDS[2], ORTHO_BOUNDS[3]]
+      );
+      for (const f of fc.features) {
+        const [lon, lat] = (f.geometry as GeoJSON.Point).coordinates;
+        if (typeof lon === 'number' && typeof lat === 'number') bounds.extend([lon, lat]);
+      }
+      map.fitBounds(bounds, { padding: 40, animate: false });
+    });
+});
