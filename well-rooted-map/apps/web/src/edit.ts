@@ -5,6 +5,10 @@ import { KINDS } from './regions';
 
 type Meta = { name: string; kind: string };
 
+// Work in progress survives refreshes via localStorage; "Reset" discards it
+// and reloads the published regions.geojson.
+const STORAGE_KEY = 'wrm-edit-regions';
+
 // Region editor, reached via /?edit. Draw polygons over the orthophoto, name
 // them, export regions.geojson, commit it to the repo. Nothing is persisted
 // server-side; the exported file is the source of truth.
@@ -50,6 +54,7 @@ export function setupEditor(map: maplibregl.Map): void {
       <button id="ed-export">Download regions.geojson</button>
       <button id="ed-copy">Copy</button>
     </div>
+    <p class="hint">Edits auto-save in this browser. <button id="ed-reset">Reset to published</button></p>
   `;
   document.body.appendChild(panel);
 
@@ -71,32 +76,44 @@ export function setupEditor(map: maplibregl.Map): void {
         .join('')}</select><button title="Delete">✕</button>`;
       li.querySelector('input')!.addEventListener('change', (e) => {
         meta.set(id, { ...m, name: (e.target as HTMLInputElement).value });
+        saveLocal();
       });
       li.querySelector('select')!.addEventListener('change', (e) => {
         meta.set(id, { ...meta.get(id)!, kind: (e.target as HTMLSelectElement).value });
         refreshList();
+        saveLocal();
       });
       li.querySelector('button')!.addEventListener('click', () => {
         draw.removeFeatures([f.id as string]);
         meta.delete(id);
         refreshList();
+        saveLocal();
       });
       list.appendChild(li);
     }
   };
 
   draw.on('finish', (id, context) => {
-    if (context.action !== 'draw') return;
-    meta.set(String(id), {
-      name: nameInput.value.trim() || 'Untitled',
-      kind: kindSelect.value,
-    });
-    nameInput.value = '';
-    refreshList();
+    if (context.action === 'draw') {
+      meta.set(String(id), {
+        name: nameInput.value.trim() || 'Untitled',
+        kind: kindSelect.value,
+      });
+      nameInput.value = '';
+      refreshList();
+    }
+    // Fires for geometry adjustments in select mode too; save either way.
+    saveLocal();
   });
 
   panel.querySelector('#ed-draw')!.addEventListener('click', () => draw.setMode('polygon'));
   panel.querySelector('#ed-select')!.addEventListener('click', () => draw.setMode('select'));
+
+  const saveLocal = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(exportGeoJSON()));
+    } catch {}
+  };
 
   const exportGeoJSON = () => ({
     type: 'FeatureCollection' as const,
@@ -124,28 +141,49 @@ export function setupEditor(map: maplibregl.Map): void {
     void navigator.clipboard.writeText(JSON.stringify(exportGeoJSON(), null, 2));
   });
 
-  // Seed the editor with the currently published regions.
-  void fetch('/regions.geojson')
-    .then((r) => r.json() as Promise<GeoJSON.FeatureCollection>)
-    .then((fc) => {
-      const features = fc.features
-        .filter((f) => f.geometry.type === 'Polygon')
-        .map((f) => {
-          const id = crypto.randomUUID();
-          meta.set(id, {
-            name: String(f.properties?.name ?? 'Untitled'),
-            kind: String(f.properties?.kind ?? 'other'),
-          });
-          return {
-            id,
-            type: 'Feature' as const,
-            properties: { mode: 'polygon' },
-            geometry: f.geometry as GeoJSON.Polygon,
-          };
+  const loadFC = (fc: GeoJSON.FeatureCollection) => {
+    const features = fc.features
+      .filter((f) => f.geometry.type === 'Polygon')
+      .map((f) => {
+        const id = crypto.randomUUID();
+        meta.set(id, {
+          name: String(f.properties?.name ?? 'Untitled'),
+          kind: String(f.properties?.kind ?? 'other'),
         });
-      if (features.length) draw.addFeatures(features);
-      refreshList();
-    });
+        return {
+          id,
+          type: 'Feature' as const,
+          properties: { mode: 'polygon' },
+          geometry: f.geometry as GeoJSON.Polygon,
+        };
+      });
+    if (features.length) draw.addFeatures(features);
+    refreshList();
+  };
+
+  const loadPublished = () =>
+    fetch('/regions.geojson')
+      .then((r) => r.json() as Promise<GeoJSON.FeatureCollection>)
+      .then(loadFC);
+
+  panel.querySelector('#ed-reset')!.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    draw.removeFeatures(draw.getSnapshot().map((f) => f.id as string));
+    meta.clear();
+    void loadPublished();
+  });
+
+  // Seed from local work-in-progress if present, else the published file.
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      loadFC(JSON.parse(saved) as GeoJSON.FeatureCollection);
+    } catch {
+      void loadPublished();
+    }
+  } else {
+    void loadPublished();
+  }
 
   // Console access for debugging.
   Object.assign(window, { draw, __exportRegions: exportGeoJSON });

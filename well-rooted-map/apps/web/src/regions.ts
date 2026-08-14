@@ -2,13 +2,14 @@ import type maplibregl from 'maplibre-gl';
 
 // Region kinds and their display colors. Data stays semantic (regions.geojson
 // stores `kind`); the palette lives here so restyling never touches the data.
+// Everything on the farm is u-pick except the farmstand, so there is no
+// separate u-pick kind.
 export const KINDS: Record<string, { label: string; color: string }> = {
-  maze: { label: 'Corn Maze', color: '#9b59b6' },
+  maze: { label: 'Maze', color: '#9b59b6' },
   corn: { label: 'Corn', color: '#e0b64f' },
   flowers: { label: 'Flowers', color: '#e26fa8' },
   veggies: { label: 'Veggies', color: '#4caf6d' },
   orchard: { label: 'Orchard', color: '#2e9e8f' },
-  upick: { label: 'U-Pick', color: '#e07a4f' },
   farmstand: { label: 'Farmstand', color: '#8d99ae' },
   water: { label: 'Water', color: '#4a90d9' },
   other: { label: 'Other', color: '#cccccc' },
