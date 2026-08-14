@@ -21,6 +21,7 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, 'src/index.html'),
         leaderboard: resolve(__dirname, 'src/leaderboard.html'),
+        tag: resolve(__dirname, 'src/tag.html'),
       },
     },
   },

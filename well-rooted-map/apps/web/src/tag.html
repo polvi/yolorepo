@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Tag a Veggie</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 16px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+        background: #1b3022;
+        color: #fff;
+        font: 17px/1.35 system-ui, -apple-system, sans-serif;
+      }
+      h1 { margin: 0 0 12px; font-size: 22px; }
+      .btn {
+        display: block;
+        width: 100%;
+        margin: 0 0 10px;
+        padding: 16px 14px;
+        border: 0;
+        border-radius: 14px;
+        background: #2e5339;
+        color: #fff;
+        font: 600 19px/1.2 system-ui, -apple-system, sans-serif;
+        text-align: left;
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(255, 255, 255, 0.15);
+      }
+      .btn:active { background: #3c6b4a; }
+      .btn.back { background: transparent; border: 1px solid #3c6b4a; color: #a8c5b0; font-size: 15px; padding: 10px 14px; }
+      #name {
+        width: 100%;
+        padding: 14px;
+        margin-bottom: 10px;
+        border-radius: 14px;
+        border: 1px solid #3c6b4a;
+        background: #24402e;
+        color: #fff;
+        font: 600 19px system-ui;
+      }
+      #result {
+        white-space: pre-line;
+        padding: 18px 14px;
+        border-radius: 14px;
+        background: #2e5339;
+        font-size: 21px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      .muted { color: #a8c5b0; font-size: 14px; }
+      a { color: #a8c5b0; }
+      .spin { text-align: center; padding: 30px 0; font-size: 40px; }
+    </style>
+  </head>
+  <body>
+    <h1>🥕 Tag a Veggie</h1>
+    <div id="app"></div>
+    <p class="muted"><a href="/leaderboard">Leaderboard</a> · <a href="/">Farm map</a></p>
+    <script type="module">
+      const app = document.getElementById('app');
+      const qs = new URLSearchParams(location.search);
+      const html = (s) => { app.innerHTML = s; };
+      const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+
+      // Testing hook: ?lat=..&lon=.. skips geolocation.
+      const getPosition = () =>
+        qs.has('lat')
+          ? Promise.resolve({ lat: Number(qs.get('lat')), lon: Number(qs.get('lon')) })
+          : new Promise((resolve, reject) =>
+              navigator.geolocation.getCurrentPosition(
+                (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+                (e) => reject(new Error('No GPS: ' + e.message)),
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+              )
+            );
+
+      function askName() {
+        const saved = localStorage.getItem('veggie-player') ?? '';
+        html(`<input id="name" placeholder="Your name" value="${esc(saved)}" />
+              <button class="btn" id="go">Start hunting 🏃</button>`);
+        document.getElementById('go').addEventListener('click', () => {
+          const name = document.getElementById('name').value.trim();
+          if (!name) return;
+          localStorage.setItem('veggie-player', name);
+          showGroups();
+        });
+      }
+
+      async function showGroups() {
+        html('<div class="spin">🌱</div>');
+        const { groups } = await fetch('/api/veggie/menu').then((r) => r.json());
+        html(
+          groups.map((g, i) => `<button class="btn" data-i="${i}">${esc(g)}</button>`).join('') +
+            `<button class="btn back" id="who">I'm ${esc(localStorage.getItem('veggie-player'))} — change</button>`
+        );
+        app.querySelectorAll('[data-i]').forEach((b) =>
+          b.addEventListener('click', () => showOptions(groups[Number(b.dataset.i)]))
+        );
+        document.getElementById('who').addEventListener('click', askName);
+      }
+
+      async function showOptions(group) {
+        html('<div class="spin">🌱</div>');
+        const { options } = await fetch('/api/veggie/menu', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ group }),
+        }).then((r) => r.json());
+        if (options.length === 1) return claim(options[0]);
+        html(
+          options.map((o, i) => `<button class="btn" data-i="${i}">${esc(o)}</button>`).join('') +
+            '<button class="btn back" id="back">← Back</button>'
+        );
+        app.querySelectorAll('[data-i]').forEach((b) =>
+          b.addEventListener('click', () => claim(options[Number(b.dataset.i)]))
+        );
+        document.getElementById('back').addEventListener('click', showGroups);
+      }
+
+      async function claim(label) {
+        html('<div class="spin">🛰</div>');
+        try {
+          const { lat, lon } = await getPosition();
+          const msg = await fetch('/api/veggie/claim', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ player: localStorage.getItem('veggie-player'), label, lat, lon }),
+          }).then((r) => r.text());
+          html(`<div id="result">${esc(msg)}</div><button class="btn" id="again">Tag another 🥕</button>`);
+        } catch (e) {
+          html(`<div id="result">🛰 ${esc(e.message)}</div><button class="btn" id="again">Try again</button>`);
+        }
+        document.getElementById('again').addEventListener('click', showGroups);
+      }
+
+      localStorage.getItem('veggie-player') ? showGroups() : askName();
+    </script>
+  </body>
+</html>

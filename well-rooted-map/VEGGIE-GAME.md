@@ -1,9 +1,21 @@
 # 🥕 Veggie Hunt — Pokémon Go for labeling vegetables
 
-Kids run around the farm tagging veggies from their Apple Watch. No app:
-the whole game is an Apple **Shortcut** (works on watchOS via iCloud sync)
-talking to the farm-map worker's API. Veggies appear live as pins on
-well-rooted-map.proc.io; scores at **/leaderboard**.
+Kids run around the farm tagging veggies. Two ways to play, both against
+the same API and scoring; veggies appear live as pins on
+well-rooted-map.proc.io and scores at **/leaderboard**:
+
+- **Any phone/tablet with GPS**: open **/tag** in the browser — enter a
+  name once, big tappable menus, done. Works on Android too. (Testing
+  hook: `/tag?lat=..&lon=..` skips geolocation.)
+- **iPhone / paired Apple Watch**: the Apple Shortcut below (synced to a
+  watch via its ⓘ ▸ Show on Apple Watch).
+
+**Family Setup caveat**: cellular Apple Watches set up WITHOUT their own
+iPhone (Apple "Family Setup") do not get the Shortcuts app at all, and
+their web viewer has no geolocation — kids with those watches should play
+via /tag on a borrowed phone. A published watchOS App Store app would
+reach them (Family Setup watches do have the on-watch App Store); that's a
+future project.
 
 ## Rules
 
