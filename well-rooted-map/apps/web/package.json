@@ -12,7 +12,9 @@
   "dependencies": {
     "@geomatico/maplibre-cog-protocol": "^0.9.1",
     "hono": "^4.6.0",
-    "maplibre-gl": "^5.0.0"
+    "maplibre-gl": "^5.0.0",
+    "terra-draw": "^1.32.3",
+    "terra-draw-maplibre-gl-adapter": "^1.4.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260701.0",

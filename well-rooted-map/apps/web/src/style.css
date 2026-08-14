@@ -34,3 +34,79 @@ body {
   color: #4a4a4a;
   font-size: 12px;
 }
+
+#edit-panel {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: 54px;
+  z-index: 10;
+  width: 290px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a1a1a;
+  font: 13px/1.35 system-ui, -apple-system, sans-serif;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+#edit-panel h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+#edit-panel .row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+#edit-panel input,
+#edit-panel select,
+#edit-panel button {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid #c9c9c9;
+  border-radius: 6px;
+  background: #fff;
+  min-width: 0;
+}
+
+#edit-panel input {
+  flex: 1;
+}
+
+#edit-panel button {
+  cursor: pointer;
+}
+
+#edit-panel button:hover {
+  background: #f0f0f0;
+}
+
+#edit-panel .hint {
+  margin: 0 0 8px;
+  color: #666;
+  font-size: 12px;
+}
+
+#edit-panel ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+#edit-panel li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+#edit-panel .swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}

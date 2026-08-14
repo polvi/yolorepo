@@ -1,6 +1,7 @@
 import maplibregl from 'maplibre-gl';
 import { cogProtocol } from '@geomatico/maplibre-cog-protocol';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { addRegionLayers } from './regions';
 
 maplibregl.addProtocol('cog', cogProtocol);
 
@@ -11,11 +12,18 @@ const ORTHO_BOUNDS: [number, number, number, number] = [
 
 const COG_URL = `cog://${location.origin}/cog/swalley-road-2026-08-13.tif`;
 
+const editMode = new URLSearchParams(location.search).has('edit');
+
 const map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
+    glyphs: `${location.origin}/font/{fontstack}/{range}.pbf`,
     sources: {
+      regions: {
+        type: 'geojson',
+        data: `${location.origin}/regions.geojson`,
+      },
       osm: {
         type: 'raster',
         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
@@ -49,6 +57,16 @@ map.addControl(
   'top-right'
 );
 map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-left');
+
+map.on('load', () => {
+  if (editMode) {
+    // Terra Draw renders its own editable copies of the regions; the static
+    // display layers would just double up underneath them.
+    void import('./edit').then((m) => m.setupEditor(map));
+  } else {
+    addRegionLayers(map);
+  }
+});
 
 map.on('error', (e) => console.error('[map]', e.error?.message ?? e));
 

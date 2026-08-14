@@ -38,6 +38,26 @@ JPEG keeps the file ~6x smaller than DEFLATE; the alpha collar of the
 orthophoto survives as an internal TIFF mask, which the COG protocol
 renders as transparency.
 
+## Regions (labels for the maze, corn, flowers, ...)
+
+`apps/web/src/public/regions.geojson` holds one Polygon Feature per area
+with semantic properties `{ id, name, kind }`; the kind → color palette
+lives in `apps/web/src/regions.ts` so restyling never touches the data.
+Zoomed out, regions render as a tinted patchwork with labeled names; both
+fade out past z~17.5 so the imagery stands alone up close.
+
+To edit: open the map with `?edit` (e.g. well-rooted-map.proc.io/?edit),
+draw polygons over the orthophoto with Terra Draw (click corners, click
+the last corner again or press Enter to finish; Select mode drags
+corners), name each region and pick its kind, then **Download
+regions.geojson** and commit it at the path above. Nothing persists
+server-side; the committed file is the source of truth.
+
+Labels need glyphs: `apps/web/src/public/font/Noto Sans Regular/` vendors
+the 0-511 PBF ranges (from demotiles.maplibre.org) so the raster style can
+render text without any external font server. ASCII names only need
+0-255; add more ranges if names ever use other scripts.
+
 ## Publishing
 
 ```sh
