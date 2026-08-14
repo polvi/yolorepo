@@ -4,9 +4,13 @@ Kids run around the farm tagging veggies. Two ways to play, both against
 the same API and scoring; veggies appear live as pins on
 well-rooted-map.proc.io and scores at **/leaderboard**:
 
-- **Any phone/tablet with GPS**: open **/tag** in the browser — enter a
-  name once, big tappable menus, done. Works on Android too. (Testing
-  hook: `/tag?lat=..&lon=..` skips geolocation.)
+- **Any phone/tablet with GPS**: open **/tag** in the browser — big
+  tappable menus, no name needed. Works on Android too. Built for weak
+  field signal: menus are bundled (zero network to browse), a GPS watch
+  keeps a fix warm, and claims queue in localStorage with idempotent
+  retry (`cid` dedupe server-side) when the signal drops — tags are never
+  lost and never double-counted. (Testing hook: `/tag?lat=..&lon=..`
+  skips geolocation.)
 - **iPhone / paired Apple Watch**: the Apple Shortcut below (synced to a
   watch via its ⓘ ▸ Show on Apple Watch).
 

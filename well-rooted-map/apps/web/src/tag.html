@@ -53,98 +53,25 @@
       }
       .muted { color: #a8c5b0; font-size: 14px; }
       a { color: #a8c5b0; }
-      .spin { text-align: center; padding: 30px 0; font-size: 40px; }
+      .toast {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #ffd166;
+        color: #1b3022;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        z-index: 20;
+      }
     </style>
   </head>
   <body>
     <h1>🥕 Tag a Veggie</h1>
     <div id="app"></div>
     <p class="muted"><a href="/leaderboard">Leaderboard</a> · <a href="/">Farm map</a></p>
-    <script type="module">
-      const app = document.getElementById('app');
-      const qs = new URLSearchParams(location.search);
-      const html = (s) => { app.innerHTML = s; };
-      const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
-
-      // Testing hook: ?lat=..&lon=.. skips geolocation.
-      const getPosition = () =>
-        qs.has('lat')
-          ? Promise.resolve({ lat: Number(qs.get('lat')), lon: Number(qs.get('lon')) })
-          : new Promise((resolve, reject) =>
-              navigator.geolocation.getCurrentPosition(
-                (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-                (e) => reject(new Error('No GPS: ' + e.message)),
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-              )
-            );
-
-      // Stable per-browser identity; a name is optional and can be set (or
-      // changed) any time — the server maps device → name on the next tag.
-      if (!localStorage.getItem('veggie-device')) {
-        localStorage.setItem('veggie-device', crypto.randomUUID());
-      }
-      const device = localStorage.getItem('veggie-device');
-
-      function askName() {
-        const saved = localStorage.getItem('veggie-player') ?? '';
-        html(`<input id="name" placeholder="Your name (optional)" value="${esc(saved)}" />
-              <button class="btn" id="go">Start hunting 🏃</button>`);
-        document.getElementById('go').addEventListener('click', () => {
-          localStorage.setItem('veggie-player', document.getElementById('name').value.trim());
-          showGroups();
-        });
-      }
-
-      async function showGroups() {
-        html('<div class="spin">🌱</div>');
-        const { groups } = await fetch('/api/veggie/menu').then((r) => r.json());
-        const who = localStorage.getItem('veggie-player') || 'anonymous';
-        html(
-          groups.map((g, i) => `<button class="btn" data-i="${i}">${esc(g)}</button>`).join('') +
-            `<button class="btn back" id="who">I'm ${esc(who)} — change</button>`
-        );
-        app.querySelectorAll('[data-i]').forEach((b) =>
-          b.addEventListener('click', () => showOptions(groups[Number(b.dataset.i)]))
-        );
-        document.getElementById('who').addEventListener('click', askName);
-      }
-
-      async function showOptions(group) {
-        html('<div class="spin">🌱</div>');
-        const { options } = await fetch('/api/veggie/menu', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ group }),
-        }).then((r) => r.json());
-        if (options.length === 1) return claim(options[0]);
-        html(
-          options.map((o, i) => `<button class="btn" data-i="${i}">${esc(o)}</button>`).join('') +
-            '<button class="btn back" id="back">← Back</button>'
-        );
-        app.querySelectorAll('[data-i]').forEach((b) =>
-          b.addEventListener('click', () => claim(options[Number(b.dataset.i)]))
-        );
-        document.getElementById('back').addEventListener('click', showGroups);
-      }
-
-      async function claim(label) {
-        html('<div class="spin">🛰</div>');
-        try {
-          const { lat, lon } = await getPosition();
-          const msg = await fetch('/api/veggie/claim', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ player: localStorage.getItem('veggie-player') || undefined, device, label, lat, lon }),
-          }).then((r) => r.text());
-          html(`<div id="result">${esc(msg)}</div><button class="btn" id="again">Tag another 🥕</button>`);
-        } catch (e) {
-          html(`<div id="result">🛰 ${esc(e.message)}</div><button class="btn" id="again">Try again</button>`);
-        }
-        document.getElementById('again').addEventListener('click', showGroups);
-      }
-
-      // Straight into the game; name is set via "I'm … — change" if wanted.
-      showGroups();
-    </script>
+    <script type="module" src="./tag.ts"></script>
   </body>
 </html>

@@ -35,8 +35,13 @@ veggie.post('/claim', async (c) => {
     label?: unknown;
     lat?: unknown;
     lon?: unknown;
+    cid?: unknown;
   } | null;
   if (!body) return text('🤖 Bad request (not JSON)');
+
+  // Idempotency: offline-queued clients retry claims with a stable client
+  // id, so a response lost to bad farm signal never double-scores.
+  const cid = /^[0-9a-f-]{36}$/i.test(String(body.cid ?? '')) ? String(body.cid) : null;
 
   // Identity: a stable device key when provided (no name prompts needed),
   // else the typed name. Sending both records the device→name mapping.
@@ -53,6 +58,20 @@ veggie.post('/claim', async (c) => {
 
   const now = Date.now();
   const db = c.env.DB;
+
+  if (cid) {
+    const dup = await db
+      .prepare('SELECT points FROM claims WHERE id = ?')
+      .bind(cid)
+      .first<{ points: number }>();
+    if (dup) {
+      const t = await db
+        .prepare('SELECT COALESCE(SUM(points), 0) AS total FROM claims WHERE player = ?')
+        .bind(player)
+        .first<{ total: number }>();
+      return text(`✅ Already counted (+${dup.points})\n⭐ ${displayName(player, name || null)}: ${t?.total ?? 0} points`);
+    }
+  }
 
   if (device && name) {
     await db
@@ -107,9 +126,9 @@ veggie.post('/claim', async (c) => {
         .bind(id, opt.category, opt.label, opt.spec, lat, lon, player, player, now, now),
       db
         .prepare(
-          'INSERT INTO claims (id, player, veggie_id, action, label, points, created) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT OR IGNORE INTO claims (id, player, veggie_id, action, label, points, created) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )
-        .bind(crypto.randomUUID(), player, id, res.action, opt.label, res.points, now),
+        .bind(cid ?? crypto.randomUUID(), player, id, res.action, opt.label, res.points, now),
     ]);
   } else if (res.action === 'refine' && nearest) {
     await db.batch([
@@ -120,9 +139,9 @@ veggie.post('/claim', async (c) => {
         .bind(opt.label, opt.spec, player, now, nearest.id),
       db
         .prepare(
-          'INSERT INTO claims (id, player, veggie_id, action, label, points, created) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT OR IGNORE INTO claims (id, player, veggie_id, action, label, points, created) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )
-        .bind(crypto.randomUUID(), player, nearest.id, res.action, opt.label, res.points, now),
+        .bind(cid ?? crypto.randomUUID(), player, nearest.id, res.action, opt.label, res.points, now),
     ]);
   } else if (res.action === 'confirm' && nearest) {
     await db.batch([
@@ -133,9 +152,9 @@ veggie.post('/claim', async (c) => {
         .bind(player, now, nearest.id),
       db
         .prepare(
-          'INSERT INTO claims (id, player, veggie_id, action, label, points, created) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT OR IGNORE INTO claims (id, player, veggie_id, action, label, points, created) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )
-        .bind(crypto.randomUUID(), player, nearest.id, res.action, opt.label, res.points, now),
+        .bind(cid ?? crypto.randomUUID(), player, nearest.id, res.action, opt.label, res.points, now),
     ]);
   }
 
