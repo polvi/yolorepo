@@ -25,6 +25,14 @@
       .feed li { padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 14px; }
       .feed .pts-sm { color: #ffd166; font-weight: 600; }
       a { color: #a8c5b0; }
+      #minimap {
+        width: 100%;
+        max-width: 480px;
+        height: 320px;
+        border-radius: 12px;
+        margin: 8px 0 4px;
+        overflow: hidden;
+      }
     </style>
   </head>
   <body>
@@ -34,8 +42,11 @@
       <thead><tr><th></th><th>Player</th><th>Finds</th><th>Confirms</th><th style="text-align:right">Points</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
+    <h2>Where the pins are</h2>
+    <div id="minimap"></div>
     <h2>Latest</h2>
     <ul class="feed" id="feed"></ul>
+    <script type="module" src="./minimap.ts"></script>
     <script type="module">
       const medals = ['🥇', '🥈', '🥉'];
       const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
