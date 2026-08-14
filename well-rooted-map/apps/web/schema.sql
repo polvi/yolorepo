@@ -27,3 +27,10 @@ CREATE TABLE IF NOT EXISTS claims (
   created INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_claims_player ON claims (player, created);
+
+-- Optional display names for player keys (device UUIDs, Shortcuts Device
+-- Names, or typed names). Keys without a row display as Player-xxxx.
+CREATE TABLE IF NOT EXISTS players (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL
+);

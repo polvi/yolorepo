@@ -77,14 +77,19 @@
               )
             );
 
+      // Stable per-browser identity; a name is optional and can be set (or
+      // changed) any time — the server maps device → name on the next tag.
+      if (!localStorage.getItem('veggie-device')) {
+        localStorage.setItem('veggie-device', crypto.randomUUID());
+      }
+      const device = localStorage.getItem('veggie-device');
+
       function askName() {
         const saved = localStorage.getItem('veggie-player') ?? '';
-        html(`<input id="name" placeholder="Your name" value="${esc(saved)}" />
+        html(`<input id="name" placeholder="Your name (optional)" value="${esc(saved)}" />
               <button class="btn" id="go">Start hunting 🏃</button>`);
         document.getElementById('go').addEventListener('click', () => {
-          const name = document.getElementById('name').value.trim();
-          if (!name) return;
-          localStorage.setItem('veggie-player', name);
+          localStorage.setItem('veggie-player', document.getElementById('name').value.trim());
           showGroups();
         });
       }
@@ -92,9 +97,10 @@
       async function showGroups() {
         html('<div class="spin">🌱</div>');
         const { groups } = await fetch('/api/veggie/menu').then((r) => r.json());
+        const who = localStorage.getItem('veggie-player') || 'anonymous';
         html(
           groups.map((g, i) => `<button class="btn" data-i="${i}">${esc(g)}</button>`).join('') +
-            `<button class="btn back" id="who">I'm ${esc(localStorage.getItem('veggie-player'))} — change</button>`
+            `<button class="btn back" id="who">I'm ${esc(who)} — change</button>`
         );
         app.querySelectorAll('[data-i]').forEach((b) =>
           b.addEventListener('click', () => showOptions(groups[Number(b.dataset.i)]))
@@ -127,7 +133,7 @@
           const msg = await fetch('/api/veggie/claim', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ player: localStorage.getItem('veggie-player'), label, lat, lon }),
+            body: JSON.stringify({ player: localStorage.getItem('veggie-player') || undefined, device, label, lat, lon }),
           }).then((r) => r.text());
           html(`<div id="result">${esc(msg)}</div><button class="btn" id="again">Tag another 🥕</button>`);
         } catch (e) {
@@ -136,7 +142,8 @@
         document.getElementById('again').addEventListener('click', showGroups);
       }
 
-      localStorage.getItem('veggie-player') ? showGroups() : askName();
+      // Straight into the game; name is set via "I'm … — change" if wanted.
+      showGroups();
     </script>
   </body>
 </html>

@@ -37,7 +37,9 @@ new game day: `bunx wrangler d1 execute well-rooted-map --remote --command
 In the iPhone **Shortcuts** app, create a shortcut named **Tag a Veggie**
 with these 10 actions (type the action name into the search bar):
 
-1. **Text** — the player's name, e.g. `Ravi` *(the only per-kid edit)*
+1. **Get Device Details** — set to **Device Name** *(no per-kid edit needed:
+   the device name — "Ravi's iPhone" — is the identity; map it to a display
+   name later via POST /api/veggie/name, or just send a `player` field too)*
 2. **Get current location**
 3. **Get contents of URL** — `https://well-rooted-map.proc.io/api/veggie/menu`
    (Method GET)
@@ -49,7 +51,7 @@ with these 10 actions (type the action name into the search bar):
 8. **Choose from list** — list: *Dictionary Value*, prompt: `Which kind?`
 9. **Get contents of URL** — `https://well-rooted-map.proc.io/api/veggie/claim`,
    Method **POST**, Request Body **JSON**, four fields:
-   - `player` = *Text* (step 1)
+   - `device` = *Device Details* (step 1)
    - `label` = *Chosen Item* (step 8)
    - `lat` = *Current Location ▸ Latitude*
    - `lon` = *Current Location ▸ Longitude*
@@ -70,8 +72,12 @@ player's watch instantly — no shortcut changes needed.
 
 - `GET /api/veggie/menu` → `{groups: [...]}`; `POST` with `{group}` →
   `{options: [...]}`
-- `POST /api/veggie/claim` `{player, label, lat, lon}` → plain-text result
-  (always 200 so Shortcuts shows the message instead of erroring)
+- `POST /api/veggie/claim` `{device?, player?, label, lat, lon}` → plain-text
+  result (always 200 so Shortcuts shows the message instead of erroring).
+  Identity key = `device` if present, else `player`; sending both stores the
+  device→name mapping. Unnamed device keys display as Player-xxxx.
+- `POST /api/veggie/name` `{device, name}` — set/change a display name
+  (retroactive: leaderboard, pins, and messages all resolve through it)
 - `GET /api/veggie/leaderboard.json`, `GET /api/veggie/points.geojson`
 - Pages: `/leaderboard` (auto-refreshing), pins render live on the map
 

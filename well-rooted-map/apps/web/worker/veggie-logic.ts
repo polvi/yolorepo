@@ -128,6 +128,18 @@ export type VeggieRow = {
   confirmations: number;
 };
 
+// Players are keyed by whatever stable id the client sends (a device UUID
+// from /tag, a Device Name from Shortcuts, or a typed name). A name mapping
+// is optional and can be added later; until then raw machine-looking keys
+// display as Player-xxxx.
+export function displayName(key: string, mapped?: string | null): string {
+  if (mapped) return mapped;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key)) {
+    return `Player-${key.slice(0, 4)}`;
+  }
+  return key;
+}
+
 export type Resolution =
   | { action: 'discover'; points: number; message: string }
   | { action: 'refine'; points: number; message: string }
@@ -137,8 +149,15 @@ export type Resolution =
 // Scoring: discover 10/13/16 by specificity; refine (adding a more specific
 // name to an existing find) 3 + 3 per specificity step; confirm 3, or 5 for
 // naming the exact variety back. The last player to touch a veggie can't
-// score it again — go find something else.
-export function resolveClaim(opt: Option, player: string, nearest: VeggieRow | null): Resolution {
+// score it again — go find something else. `player` and the row's *_player
+// fields are identity KEYS; finderDisplay is the human name for messages.
+export function resolveClaim(
+  opt: Option,
+  player: string,
+  nearest: VeggieRow | null,
+  finderDisplay?: string
+): Resolution {
+  const finder = finderDisplay ?? nearest?.first_player ?? '';
   if (nearest === null) {
     const points = 10 + 3 * (opt.spec - 1);
     const excl = opt.spec >= 3 ? '🏆' : '🎉';
@@ -156,7 +175,7 @@ export function resolveClaim(opt: Option, player: string, nearest: VeggieRow | n
     return {
       action: 'refine',
       points,
-      message: `🔬 Nice eye! ${nearest.label} is really ${opt.label} (${nearest.first_player} found it first)`,
+      message: `🔬 Nice eye! ${nearest.label} is really ${opt.label} (${finder} found it first)`,
     };
   }
   const exact = opt.label === nearest.label && opt.spec >= 2;
@@ -165,6 +184,6 @@ export function resolveClaim(opt: Option, player: string, nearest: VeggieRow | n
     points: exact ? 5 : 3,
     message: exact
       ? `✅ Confirmed ${nearest.label} — exact match!`
-      : `✅ Confirmed ${nearest.first_player}'s ${nearest.label}`,
+      : `✅ Confirmed ${finder}'s ${nearest.label}`,
   };
 }

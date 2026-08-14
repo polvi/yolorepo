@@ -5,6 +5,7 @@ import {
   COOLDOWN_MS,
   GROUPS,
   OPTION_BY_LABEL,
+  displayName,
   haversineMeters,
   resolveClaim,
   type VeggieRow,
@@ -30,23 +31,35 @@ veggie.post('/claim', async (c) => {
   const text = (msg: string) => c.text(msg, 200);
   const body = (await c.req.json().catch(() => null)) as {
     player?: unknown;
+    device?: unknown;
     label?: unknown;
     lat?: unknown;
     lon?: unknown;
   } | null;
   if (!body) return text('🤖 Bad request (not JSON)');
 
-  const player = String(body.player ?? '').trim().slice(0, 24);
+  // Identity: a stable device key when provided (no name prompts needed),
+  // else the typed name. Sending both records the device→name mapping.
+  const name = String(body.player ?? '').trim().slice(0, 24);
+  const device = String(body.device ?? '').trim().slice(0, 64);
+  const player = device || name;
   const label = String(body.label ?? '').trim();
   const lat = Number(body.lat);
   const lon = Number(body.lon);
-  if (!player) return text('🤖 Missing player name — edit the Text box at the top of the Shortcut');
+  if (!player) return text('🤖 Missing player/device — check the Shortcut fields');
   const opt = OPTION_BY_LABEL.get(label);
   if (!opt) return text(`🤖 Unknown veggie "${label}"`);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return text('🛰 No GPS fix — try again outside');
 
   const now = Date.now();
   const db = c.env.DB;
+
+  if (device && name) {
+    await db
+      .prepare('INSERT INTO players (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name')
+      .bind(device, name)
+      .run();
+  }
 
   const last = await db
     .prepare('SELECT created FROM claims WHERE player = ? ORDER BY created DESC LIMIT 1')
@@ -71,7 +84,18 @@ veggie.post('/claim', async (c) => {
     }
   }
 
-  const res = resolveClaim(opt, player, nearest);
+  const finderName = nearest
+    ? displayName(
+        nearest.first_player,
+        (
+          await db
+            .prepare('SELECT name FROM players WHERE id = ?')
+            .bind(nearest.first_player)
+            .first<{ name: string }>()
+        )?.name
+      )
+    : undefined;
+  const res = resolveClaim(opt, player, nearest, finderName);
 
   if (res.action === 'discover') {
     const id = crypto.randomUUID();
@@ -121,35 +145,57 @@ veggie.post('/claim', async (c) => {
     .first<{ total: number }>();
 
   const suffix = res.action === 'rejected' ? '' : ` +${res.points}`;
-  return text(`${res.message}${suffix}\n⭐ ${player}: ${total?.total ?? 0} points`);
+  const me = displayName(player, name || null);
+  return text(`${res.message}${suffix}\n⭐ ${me}: ${total?.total ?? 0} points`);
+});
+
+// Map (or re-map) a device key to a display name, e.g. after a game where
+// someone played unnamed.
+veggie.post('/name', async (c) => {
+  const body = (await c.req.json().catch(() => null)) as { device?: unknown; name?: unknown } | null;
+  const device = String(body?.device ?? '').trim().slice(0, 64);
+  const name = String(body?.name ?? '').trim().slice(0, 24);
+  if (!device || !name) return c.text('🤖 Need both device and name', 200);
+  await c.env.DB
+    .prepare('INSERT INTO players (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name')
+    .bind(device, name)
+    .run();
+  return c.text(`✏️ You are now ${name}`, 200);
 });
 
 veggie.get('/leaderboard.json', async (c) => {
   const db = c.env.DB;
   const { results: players } = await db
     .prepare(
-      `SELECT player, SUM(points) AS points,
-        SUM(action = 'discover') AS finds,
-        SUM(action = 'confirm') AS confirms,
-        SUM(action = 'refine') AS refines
-       FROM claims GROUP BY player ORDER BY points DESC`
+      `SELECT c.player, p.name, SUM(c.points) AS points,
+        SUM(c.action = 'discover') AS finds,
+        SUM(c.action = 'confirm') AS confirms,
+        SUM(c.action = 'refine') AS refines
+       FROM claims c LEFT JOIN players p ON p.id = c.player
+       GROUP BY c.player ORDER BY points DESC`
     )
-    .all();
+    .all<{ player: string; name: string | null }>();
   const { results: recent } = await db
     .prepare(
-      'SELECT player, action, label, points, created FROM claims ORDER BY created DESC LIMIT 12'
+      `SELECT c.player, p.name, c.action, c.label, c.points, c.created
+       FROM claims c LEFT JOIN players p ON p.id = c.player
+       ORDER BY c.created DESC LIMIT 12`
     )
-    .all();
+    .all<{ player: string; name: string | null }>();
   const count = await db.prepare('SELECT COUNT(*) AS n FROM veggies').first<{ n: number }>();
+  const named = <T extends { player: string; name: string | null }>(rows: T[]) =>
+    rows.map(({ name, ...r }) => ({ ...r, player: displayName(r.player, name) }));
   return c.json(
-    { players: players ?? [], recent: recent ?? [], veggies: count?.n ?? 0 },
+    { players: named(players ?? []), recent: named(recent ?? []), veggies: count?.n ?? 0 },
     200,
     { 'Cache-Control': 'no-store' }
   );
 });
 
 veggie.get('/points.geojson', async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT * FROM veggies').all<VeggieRow>();
+  const { results } = await c.env.DB.prepare(
+    'SELECT v.*, p.name AS finder_name FROM veggies v LEFT JOIN players p ON p.id = v.first_player'
+  ).all<VeggieRow & { finder_name: string | null }>();
   return c.json(
     {
       type: 'FeatureCollection',
@@ -158,7 +204,7 @@ veggie.get('/points.geojson', async (c) => {
         properties: {
           name: v.label,
           category: v.category,
-          finder: v.first_player,
+          finder: displayName(v.first_player, v.finder_name),
           confirmations: v.confirmations,
         },
         geometry: { type: 'Point', coordinates: [v.lon, v.lat] },

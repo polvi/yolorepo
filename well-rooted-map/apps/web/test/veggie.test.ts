@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   GROUPS,
   OPTION_BY_LABEL,
+  displayName,
   haversineMeters,
   resolveClaim,
   type VeggieRow,
@@ -77,6 +78,18 @@ describe('resolveClaim', () => {
   it('refines watermelon up to golden midget', () => {
     const r = resolveClaim(opt('Golden Midget Watermelon'), 'Mia', veg({}));
     expect(r).toMatchObject({ action: 'refine', points: 6 });
+  });
+});
+
+describe('displayName', () => {
+  it('prefers the mapped name', () => {
+    expect(displayName('550e8400-e29b-41d4-a716-446655440000', 'Ravi')).toBe('Ravi');
+  });
+  it('shortens unmapped uuid keys', () => {
+    expect(displayName('550e8400-e29b-41d4-a716-446655440000')).toBe('Player-550e');
+  });
+  it('passes through human-looking keys (Shortcuts device names)', () => {
+    expect(displayName("Ravi's Apple Watch")).toBe("Ravi's Apple Watch");
   });
 });
 
