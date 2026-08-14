@@ -98,6 +98,34 @@ trains on Metal, the server trains on CPU — the node's A6000 is not exposed
 to k8s yet (no nvidia device plugin on Talos), so expect the server to win
 COLMAP stages on cores and lose training until that lands.
 
+### Benchmark results (2026-08, 1067 photos / 15.9 GB, ~2 acre property)
+
+| stage | laptop (M-series, 64 GB) | server (96-core Xeon, 1 TB) |
+|---|---|---|
+| upload | — | 70 min (3.8 MB/s, WAN-bound) |
+| extract | 174 min | **11 min** |
+| match (sequential) | **16 min** | 80 min |
+| map | **130 min** (1065/1067 registered) | ~15 h |
+| train 30k iters | **4.25 h** (Brush, Metal) | terminated at 21%; ≥106 h projected |
+| sog | 4 min | not reached |
+| **end to end** | **~9.6 h** | called after 2+ days |
+
+Takeaways: the server wins embarrassingly at feature extraction (96 cores vs
+COLMAP's ~1.7-core usage on macOS) and loses everywhere else — COLMAP's
+incremental mapper is largely serial so single-core speed dominates, and CPU
+splat training decelerates as densification grows the model (19 → 3
+steps/min). The laptop's Metal GPU is ~25x faster at training. The honest
+architecture for this node: extract/match remotely, map and train locally —
+or put the A6000 in the cluster. Trainer footnote: torch-MPS OpenSplat
+OOM'd twice and deadlocked twice on this 1067-image scene; Brush (wgpu)
+trained it flawlessly in bounded memory and is the recommended local
+trainer. Operational lessons encoded in the tooling: long work in pods must
+be detached with file logs (a dropped kubectl websocket pipe-deadlocked a
+mapper for 8 h), stall detection must use cumulative CPU-time deltas (%cpu
+lifetime averages decay smoothly and mask hangs), and hung kubelogin
+processes queue silently on the token-cache lock, blocking every kubectl
+with no output.
+
 If a scene comes out upside down (splats inherit COLMAP's y-down frame; the
 viewer rotates 180° about X by default), republish with `--rot-x 0`.
 
