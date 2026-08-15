@@ -8,6 +8,17 @@ export const ORTHO_BOUNDS: [number, number, number, number] = [
   -121.3098335, 44.1737092, -121.3024521, 44.1793725,
 ];
 
+// Below this zoom the ortho layer is hidden, which makes MapLibre stop
+// requesting COG tiles entirely (a hidden layer marks its source unused).
+// That is a memory guard, not a cosmetic choice: the COG protocol asks
+// geotiff for the tile's footprint in image pixels, and geotiff allocates
+// windowWidth * windowHeight * bands BEFORE clamping to the image. Our
+// smallest overview is 172px wide, so a tile's window grows 4x per zoom
+// step out — ~3 MB at z13, 201 MB at z10, 3.2 GB at z8. Zooming out fast
+// used to walk straight through those levels and OOM the browser tab.
+// The farm is a ~30px speck at z13 anyway; OSM carries the wider view.
+export const ORTHO_MIN_ZOOM = 13;
+
 // Base style shared by the main map and the leaderboard mini-map: OSM
 // underneath, the COG orthophoto on top, regions source ready for layers.
 export function farmStyle(): maplibregl.StyleSpecification {
@@ -34,7 +45,7 @@ export function farmStyle(): maplibregl.StyleSpecification {
     },
     layers: [
       { id: 'osm', type: 'raster', source: 'osm' },
-      { id: 'ortho', type: 'raster', source: 'ortho' },
+      { id: 'ortho', type: 'raster', source: 'ortho', minzoom: ORTHO_MIN_ZOOM },
     ],
   };
 }

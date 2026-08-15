@@ -38,6 +38,16 @@ JPEG keeps the file ~6x smaller than DEFLATE; the alpha collar of the
 orthophoto survives as an internal TIFF mask, which the COG protocol
 renders as transparency.
 
+**Zoom floor (memory guard).** The ortho layer sets `minzoom:
+ORTHO_MIN_ZOOM` (`apps/web/src/farmmap.ts`), which stops MapLibre
+requesting COG tiles below it. This is load-bearing: the COG protocol asks
+geotiff for a tile's footprint in image pixels, and geotiff allocates
+`windowWidth * windowHeight * bands` before clamping to the image, so the
+per-tile allocation quadruples per zoom step out (~3 MB at z13, 201 MB at
+z10, 3.2 GB at z8) and a fast zoom-out crashed the tab. The threshold
+depends on the smallest overview: ours is 172px wide (~z15 by resolution).
+Re-check it when replacing the imagery.
+
 ## Regions (labels for the maze, corn, flowers, ...)
 
 `apps/web/src/public/regions.geojson` holds one Polygon Feature per area
