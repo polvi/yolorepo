@@ -28,6 +28,10 @@ XMR via [Cake Wallet](https://cakewallet.com) (or any wallet that opens
   signed in. When they eventually join (via the invite link), they tap
   "This is me" and their whole ledger identity merges into their account
   atomically (overlapping shares sum, so conservation is untouched).
+- Each trip lists **who's in** with the tail of everyone's wallet address
+  (`44AF..EP3A`, tap to copy the full thing). You change your own key from
+  your profile; ghosts cannot sign in, so any member maintains theirs. No
+  member can rewrite another real account's payout address.
 - Auth is fully in-page: Sign in / Create account run the WebAuthn ceremony
   directly against AuthGravity from the homepage and invite landing. No
   hosted auth screens.

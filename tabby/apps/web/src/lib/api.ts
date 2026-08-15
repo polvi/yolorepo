@@ -151,6 +151,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
+  updateMember: (
+    groupId: string,
+    userId: string,
+    fields: { display_name?: string; xmr_address?: string }
+  ) =>
+    request<{ ok: true }>(`/groups/${groupId}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(fields),
+    }),
   setSettling: (groupId: string, settling: boolean) =>
     request<{ ok: true }>(`/groups/${groupId}/settling`, {
       method: 'POST',

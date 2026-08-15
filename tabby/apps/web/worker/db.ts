@@ -82,6 +82,27 @@ export async function createGhostMember(
 // Folds a ghost's entire ledger identity into the claiming user, atomically.
 // Where both already hold a share of the same expense the amounts merge, so
 // per-expense share sums (and therefore conservation) are untouched.
+// Ghosts cannot sign in, so the group maintains them: any member may set a
+// ghost's payout address or rename them. Deliberately restricted to ghosts —
+// letting one member rewrite a real account's payout address would be a way
+// to quietly redirect everyone's payments.
+export async function updateGhost(
+  db: D1Database,
+  args: { groupId: string; ghostId: string; displayName?: string; xmrAddress?: string }
+): Promise<boolean> {
+  const res = await db
+    .prepare(
+      `UPDATE users SET display_name = COALESCE(?, display_name),
+         xmr_address = COALESCE(?, xmr_address)
+       WHERE id = ? AND is_ghost = 1
+         AND EXISTS (SELECT 1 FROM group_members gm
+                     WHERE gm.user_id = users.id AND gm.group_id = ?)`
+    )
+    .bind(args.displayName ?? null, args.xmrAddress ?? null, args.ghostId, args.groupId)
+    .run();
+  return res.meta.changes > 0;
+}
+
 export async function claimGhost(
   db: D1Database,
   args: { groupId: string; ghostId: string; claimerId: string }

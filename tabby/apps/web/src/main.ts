@@ -505,20 +505,28 @@ async function renderGroup(groupId: string): Promise<void> {
     .join('');
 
   // Everyone in the trip with the tail of their wallet address, so people can
-  // check they are about to pay the wallet they think they are.
+  // check they are about to pay the wallet they think they are — and change
+  // it. You edit your own key via your profile; ghosts cannot sign in, so any
+  // member maintains theirs. Nobody can edit another real account's key.
   const membersCard = `<div class="card">
     ${detail.members
-      .map(
-        (m) => `<div class="feed-item">
+      .map((m) => {
+        const address = m.xmr_address
+          ? `<button class="conv" data-copy="${esc(m.xmr_address)}"
+              title="Copy full address">${esc(shortAddress(m.xmr_address))}</button>`
+          : '<span class="muted">no address yet</span>';
+        const edit =
+          m.id === myId
+            ? `<a class="btn small secondary" href="#/profile">Edit</a>`
+            : m.is_ghost
+              ? `<button class="btn small secondary" data-editkey="${m.id}">Edit</button>`
+              : '';
+        return `<div class="feed-item" data-memberrow="${m.id}">
           <div class="grow"><strong>${esc(memberName(detail.members, m.id))}</strong></div>
-          ${
-            m.xmr_address
-              ? `<button class="conv" data-copy="${esc(m.xmr_address)}"
-                  title="Copy full address">${esc(shortAddress(m.xmr_address))}</button>`
-              : '<span class="muted">no address yet</span>'
-          }
-        </div>`
-      )
+          ${address}
+          ${edit}
+        </div>`;
+      })
       .join('')}
   </div>`;
 
@@ -675,6 +683,44 @@ async function renderGroup(groupId: string): Promise<void> {
       showError(err);
     }
   });
+
+  for (const btn of app.querySelectorAll<HTMLButtonElement>('[data-editkey]')) {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.editkey!;
+      const row = app.querySelector<HTMLElement>(`[data-memberrow="${id}"]`);
+      const member = detail.members.find((m) => m.id === id);
+      if (!row || !member) return;
+      const name = memberName(detail.members, id);
+      row.innerHTML = `
+        <form class="grow" data-keyform>
+          <label class="field" style="margin-bottom:8px;">
+            <span>${esc(name)}'s Monero address (from Cake Wallet → Receive)</span>
+            <input type="text" id="key-input-${esc(id)}" placeholder="4…" autocomplete="off"
+              autocapitalize="off" autocorrect="off" spellcheck="false"
+              value="${esc(member.xmr_address ?? '')}" required />
+          </label>
+          <div class="row">
+            <button class="btn small" type="submit">Save</button>
+            <button class="btn small secondary" type="button" data-cancel>Cancel</button>
+          </div>
+        </form>`;
+      row.querySelector('[data-cancel]')!.addEventListener('click', () => {
+        void renderGroup(groupId);
+      });
+      row.querySelector('[data-keyform]')!.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const value = (
+          document.getElementById(`key-input-${id}`) as HTMLInputElement
+        ).value.trim();
+        try {
+          await api.updateMember(groupId, id, { xmr_address: value });
+          await renderGroup(groupId);
+        } catch (err) {
+          showError(err);
+        }
+      });
+    });
+  }
 
   for (const btn of app.querySelectorAll<HTMLButtonElement>('[data-claim]')) {
     btn.addEventListener('click', async () => {

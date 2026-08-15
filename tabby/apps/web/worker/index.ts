@@ -196,6 +196,30 @@ api.post('/groups/:id/members', async (c) => {
   return c.json({ user_id: id }, 201);
 });
 
+api.put('/groups/:id/members/:uid', async (c) => {
+  const groupId = c.req.param('id');
+  if (!(await db.isMember(c.env.DB, groupId, c.get('userId')))) {
+    return c.json({ error: 'not a member' }, 403);
+  }
+  const parsed = z
+    .object({
+      display_name: z.string().trim().min(1).max(40).optional(),
+      xmr_address: z.string().regex(XMR_ADDRESS_RE, 'not a Monero address').optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'invalid' }, 400);
+
+  const updated = await db.updateGhost(c.env.DB, {
+    groupId,
+    ghostId: c.req.param('uid'),
+    displayName: parsed.data.display_name,
+    xmrAddress: parsed.data.xmr_address,
+  });
+  return updated
+    ? c.json({ ok: true })
+    : c.json({ error: 'only members added by name can be edited here' }, 403);
+});
+
 api.post('/groups/:id/claim', async (c) => {
   const groupId = c.req.param('id');
   const userId = c.get('userId');
