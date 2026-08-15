@@ -1,6 +1,11 @@
 import { api, ApiError, type GroupDetail, type Me, type Member } from './lib/api';
 import { friendlyAuthError, passkeyCreateAccount, passkeySignIn } from './lib/authg';
-import { buildMoneroUri, piconeroToXmr, tabMicroToPiconero } from './lib/moneroUri';
+import {
+  buildMoneroUri,
+  piconeroToXmr,
+  shortAddress,
+  tabMicroToPiconero,
+} from './lib/moneroUri';
 import { qrSvg } from './lib/qr';
 
 const app = document.getElementById('app')!;
@@ -90,6 +95,42 @@ function convChip(tabMicro: number): string {
   return `<button class="conv" type="button" data-conv
     title="Switch conversion currency">${fmtConversion(tabMicro)}</button>`;
 }
+
+// execCommand is synchronous, permission-free, and the path iOS Safari
+// actually honours. navigator.clipboard can sit pending forever behind a
+// permission prompt, which would leave the button looking dead, so it rides
+// along fire-and-forget instead of being awaited.
+function copyText(value: string): boolean {
+  const scratch = document.createElement('textarea');
+  scratch.value = value;
+  scratch.setAttribute('readonly', '');
+  scratch.style.cssText = 'position:fixed; top:0; left:0; opacity:0;';
+  document.body.appendChild(scratch);
+  scratch.select();
+  scratch.setSelectionRange(0, value.length); // iOS ignores select() alone
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  scratch.remove();
+  void navigator.clipboard?.writeText(value).catch(() => {});
+  return ok;
+}
+
+// Tap-to-copy for addresses and amounts: the escape hatch whenever a wallet
+// ignores the deep link. Confirms in place so it is obvious the copy landed.
+app.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('[data-copy]') as HTMLElement | null;
+  if (!btn) return;
+  e.preventDefault();
+  const original = btn.textContent;
+  btn.textContent = copyText(btn.dataset.copy!) ? 'copied ✓' : 'press and hold to copy';
+  setTimeout(() => {
+    btn.textContent = original;
+  }, 1400);
+});
 
 app.addEventListener('click', (e) => {
   const chip = (e.target as HTMLElement).closest('[data-conv]');
@@ -364,16 +405,20 @@ async function renderGroup(groupId: string): Promise<void> {
         </div>`;
       }
       const piconero = tabMicroToPiconero(t.amount_tab_micro, rate.xmr_rate_tab_micro);
-      const uri = buildMoneroUri(
-        payee.xmr_address,
-        piconero,
-        `tabby ${detail.group.name} ${fromName} to ${toName}`
-      );
+      const xmr = piconeroToXmr(piconero);
+      const uri = buildMoneroUri(payee.xmr_address, piconero);
+      // Wallets vary in how they honour a deep link, so the exact figures stay
+      // on screen and copyable: worst case this is a paste-and-send.
       return `<div class="card transfer">${line}
-        <p class="muted" style="margin:10px 0 12px;">${piconeroToXmr(piconero)} XMR exact,
-          at today's rate, to ${esc(toName)}</p>
+        <p class="muted" style="margin:10px 0 12px;">${xmr} XMR at today's rate,
+          to ${esc(toName)}</p>
         <a class="btn" href="${esc(uri)}">Pay</a>
         <div class="qr" aria-label="Scan with your Monero wallet">${qrSvg(uri)}</div>
+        <div class="row" style="margin-top:10px; gap:6px;">
+          <button class="btn small secondary grow" data-copy="${esc(payee.xmr_address)}"
+            >Copy address ${esc(shortAddress(payee.xmr_address))}</button>
+          <button class="btn small secondary" data-copy="${xmr}">Copy amount</button>
+        </div>
         <button class="btn ghost" style="margin-top:10px;" data-pay="${i}"
           data-uuid="${crypto.randomUUID()}">I paid this</button>
         ${cashBtn}
@@ -459,6 +504,24 @@ async function renderGroup(groupId: string): Promise<void> {
     })
     .join('');
 
+  // Everyone in the trip with the tail of their wallet address, so people can
+  // check they are about to pay the wallet they think they are.
+  const membersCard = `<div class="card">
+    ${detail.members
+      .map(
+        (m) => `<div class="feed-item">
+          <div class="grow"><strong>${esc(memberName(detail.members, m.id))}</strong></div>
+          ${
+            m.xmr_address
+              ? `<button class="conv" data-copy="${esc(m.xmr_address)}"
+                  title="Copy full address">${esc(shortAddress(m.xmr_address))}</button>`
+              : '<span class="muted">no address yet</span>'
+          }
+        </div>`
+      )
+      .join('')}
+  </div>`;
+
   const ghosts = detail.members.filter((m) => m.is_ghost);
   const claimCard = ghosts.length
     ? `<div class="card">
@@ -505,6 +568,8 @@ async function renderGroup(groupId: string): Promise<void> {
     <h2>Expenses</h2>
     <div class="card">${expenseFeed || '<p class="muted" style="margin:0;">Nothing yet — add the first expense.</p>'}</div>
     ${paymentFeed ? `<h2>Payments</h2><div class="card">${paymentFeed}</div>` : ''}
+    <h2>Who's in</h2>
+    ${membersCard}
     <a class="btn fab" href="#/g/${groupId}/add">＋ Add expense</a>`;
 
   wireNameNudge();

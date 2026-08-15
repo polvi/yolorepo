@@ -9,22 +9,30 @@ export function piconeroToXmr(piconero: bigint): string {
   return `${whole}.${fracStr}`;
 }
 
+// Payments are quoted to 8 decimal places (1e-8 XMR is a rounding error of
+// well under a hundredth of a cent). Atomic-unit precision produced amounts
+// like 0.169799878714, which read as noise to a human and push wallet amount
+// fields to their limits; rounding up also means a settled debt is never
+// left a hair short.
+const PICO_PER_QUOTE = 10_000n; // 1e-8 XMR
+
 // µTAB → piconero at an integral µTAB-per-XMR rate. BigInt keeps the
 // intermediate product exact (µTAB × 1e12 overflows doubles fast).
 export function tabMicroToPiconero(amountTabMicro: number, rateTabMicroPerXmr: number): bigint {
-  return (BigInt(amountTabMicro) * PICO_PER_XMR) / BigInt(rateTabMicroPerXmr);
+  const exact = (BigInt(amountTabMicro) * PICO_PER_XMR) / BigInt(rateTabMicroPerXmr);
+  return ((exact + PICO_PER_QUOTE - 1n) / PICO_PER_QUOTE) * PICO_PER_QUOTE;
 }
 
-// Standard wallet URI; Cake Wallet opens these directly on mobile. Wallet
-// URI parsers are strict: URLSearchParams' form encoding ('+' for spaces)
-// and raw ':' made Cake Wallet drop the whole query, so the description is
-// sanitized to plain words and percent-encoded by hand (%20 spaces).
-export function buildMoneroUri(address: string, piconero: bigint, description: string): string {
-  const desc = description
-    .replace(/[^\w\s.-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 60);
-  const query = `tx_amount=${piconeroToXmr(piconero)}${desc ? `&tx_description=${encodeURIComponent(desc)}` : ''}`;
-  return `monero:${address}?${query}`;
+// Deliberately minimal: address plus amount, nothing else. monero-wallet-gui
+// (wallet2::parse_uri) rejects the WHOLE uri, prefilling nothing, if any one
+// parameter displeases it, and a tx_description buys nothing when the group
+// already knows what the payment is for. Fewer parameters, fewer ways for a
+// wallet to hand back an empty send screen.
+export function buildMoneroUri(address: string, piconero: bigint): string {
+  return `monero:${address}?tx_amount=${piconeroToXmr(piconero)}`;
+}
+
+// 44AF..EP3A — enough to eyeball that two people mean the same wallet.
+export function shortAddress(address: string): string {
+  return `${address.slice(0, 4)}..${address.slice(-4)}`;
 }
