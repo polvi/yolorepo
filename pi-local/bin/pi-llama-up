@@ -81,10 +81,22 @@ args=(
 if [ -n "$model" ]; then
   args=(--model "$model" "${args[@]}")
   [ "$PI_LLAMA_VISION" = "1" ] && [ -n "$mmproj" ] && args+=(--mmproj "$mmproj")
-else
-  # Not in the cache: let llama.cpp fetch it (first run only).
-  echo "pi-llama-up: ${PI_LLAMA_QUANT} not in the HF cache, downloading via -hf" >&2
+elif [ "${PI_LLAMA_ALLOW_DOWNLOAD:-0}" = "1" ]; then
+  echo "pi-llama-up: ${PI_LLAMA_QUANT} not found locally, downloading via -hf" >&2
   args=(-hf "${PI_LLAMA_REPO}:${PI_LLAMA_QUANT}" "${args[@]}")
+else
+  # Downloading is opt-in: these files are tens of GB, and a typo in
+  # PI_LLAMA_QUANT should not quietly pull one down.
+  cat >&2 <<EOF
+pi-llama-up: no local model matching quant '${PI_LLAMA_QUANT}' for ${PI_LLAMA_REPO}
+
+  searched: ${snapshots}
+            ${model_dir}
+
+  fetch it:     pi-llama-fetch ${PI_LLAMA_REPO} <FILENAME>.gguf
+  or download:  PI_LLAMA_ALLOW_DOWNLOAD=1 pi-llama-up
+EOF
+  exit 1
 fi
 
 mkdir -p "$(dirname "$PI_LLAMA_LOG")"

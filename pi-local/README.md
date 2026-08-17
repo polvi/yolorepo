@@ -3,10 +3,12 @@
 pi.dev running fully local: [pi](https://pi.dev) as the agent, llama.cpp as the
 inference server, on an M1 Max 64 GB. No tokens leave the laptop.
 
-Three models are configured. **Qwen3.6-35B-A3B is the default and the one to
-use** — it is the fastest, the smallest in memory, and the only one that got
-every task in the eval suite right. See [MODELS.md](MODELS.md) for the
-measured comparison and the routing rule.
+Two models are kept. **Qwen3.6-35B-A3B is the default and the one to use** —
+it is the fastest, the smallest in memory, and the only one that got every
+task in the eval suite right. The dense Qwen3.8-27B stays as a
+hardest-reasoning fallback. A third, Qwen3-Coder-Next 80B-A3B, was measured
+and deleted. See [MODELS.md](MODELS.md) for the comparison and the routing
+rule.
 
 Infra-only, no proc subdomain.
 
@@ -170,6 +172,7 @@ Every knob is an environment variable, readable from `~/.pi-local.env`:
 | `PI_LLAMA_BATCH` / `PI_LLAMA_UBATCH` | `2048` / `512` |
 | `PI_LLAMA_KV_TYPE` | `f16` |
 | `PI_LLAMA_VISION` | `1` |
+| `PI_LLAMA_ALLOW_DOWNLOAD` | `0`; set `1` to let a missing model download via `-hf` |
 | `PI_LLAMA_LOG` | `~/Library/Logs/pi-llama.log` |
 
 ## pi provider
@@ -185,9 +188,14 @@ Two details matter:
 `cost` is all zeros, which is the honest number and keeps pi's session
 accounting from inventing spend.
 
-All three models are registered at once even though only one can be loaded.
-pi will happily list a model whose server is not running; the request just
-fails until you restart the server with the matching env.
+Both models are registered at once even though only one can be loaded. pi will
+happily list a model whose server is not running; the request just fails until
+you restart the server with the matching env.
+
+Downloading is opt-in. If no local file matches `PI_LLAMA_QUANT`,
+`pi-llama-up` prints where it looked and exits rather than pulling tens of GB
+because of a typo. Override with `PI_LLAMA_ALLOW_DOWNLOAD=1`, or fetch
+explicitly with `pi-llama-fetch`.
 
 ## Evaluating
 

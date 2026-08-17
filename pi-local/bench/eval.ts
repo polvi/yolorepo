@@ -38,12 +38,15 @@ const MODELS: Model[] = [
     quant: "UD-Q4_K_XL",
     thinking: "medium",
   },
-  {
-    alias: "qwen3-coder-next",
-    repo: "unsloth/Qwen3-Coder-Next-GGUF",
-    quant: "UD-IQ4_XS",
-    thinking: "off", // this model emits no thinking blocks at all
-  },
+  // Qwen3-Coder-Next 80B-A3B was measured and rejected (see MODELS.md): bigger,
+  // slower, and the only model to fail async-concurrency. Its weights have been
+  // deleted. To re-measure it, fetch the GGUF and put this entry back:
+  //
+  //   pi-llama-fetch unsloth/Qwen3-Coder-Next-GGUF Qwen3-Coder-Next-UD-IQ4_XS.gguf
+  //   { alias: "qwen3-coder-next", repo: "unsloth/Qwen3-Coder-Next-GGUF",
+  //     quant: "UD-IQ4_XS", thinking: "off" }
+  //
+  // It also needs a matching entry in config/models.json with reasoning: false.
 ];
 
 type Task = {

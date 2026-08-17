@@ -43,22 +43,6 @@
             "min_p": 0.0,
             "presence_penalty": 0.0
           }
-        },
-        {
-          "id": "qwen3-coder-next",
-          "name": "Qwen3-Coder-Next 80B-A3B MoE IQ4 (local, agent driver)",
-          "reasoning": false,
-          "input": ["text"],
-          "contextWindow": 65536,
-          "maxTokens": 16384,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
-          "samplingParams": {
-            "temperature": 1.0,
-            "top_p": 0.95,
-            "top_k": 40,
-            "min_p": 0.01,
-            "presence_penalty": 0.0
-          }
         }
       ]
     }

@@ -15,6 +15,21 @@ memory, and the only one that got every task right. The 80B coder model is
 bigger, slower, and less accurate; the dense 27B matches it on correctness but
 takes five times as long.
 
+### What is actually on disk
+
+Only the two models that earned their space:
+
+| Model | Kept | Why |
+|---|---|---|
+| Qwen3.6-35B-A3B UD-Q4_K_XL | yes, 21 GiB | the default |
+| Qwen3.8-27B UD-Q6_K_XL | yes, 24 GiB | hardest-reasoning fallback |
+| Qwen3.8-27B UD-Q5_K_XL / UD-Q4_K_XL | deleted | superseded quants, 35.5 GiB |
+| Qwen3-Coder-Next UD-IQ4_XS | deleted | rejected, 35.8 GiB |
+
+Deleting the coder model also removed it from `config/models.json` and from
+the default list in `bench/eval.ts`, so nothing advertises a model that cannot
+load. Everything is one `pi-llama-fetch` away if you want it back.
+
 ## The numbers
 
 Raw throughput, `llama-bench`, flash attention on, full Metal offload:
