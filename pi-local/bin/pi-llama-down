@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Stop the local llama.cpp server started by pi-llama-up.
+set -euo pipefail
+
+[ -f "${PI_LOCAL_ENV:-$HOME/.pi-local.env}" ] && . "${PI_LOCAL_ENV:-$HOME/.pi-local.env}"
+PI_LLAMA_PORT="${PI_LLAMA_PORT:-8080}"
+
+pids=$(pgrep -f "llama-server .*--port ${PI_LLAMA_PORT}" || true)
+if [ -z "$pids" ]; then
+  echo "pi-llama-down: nothing listening on port ${PI_LLAMA_PORT}"
+  exit 0
+fi
+
+echo "pi-llama-down: stopping $pids"
+kill $pids
+for _ in $(seq 1 30); do
+  pgrep -f "llama-server .*--port ${PI_LLAMA_PORT}" >/dev/null || { echo "pi-llama-down: stopped"; exit 0; }
+  sleep 1
+done
+
+echo "pi-llama-down: still running, sending SIGKILL" >&2
+kill -9 $pids 2>/dev/null || true

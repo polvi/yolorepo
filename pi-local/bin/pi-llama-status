@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Show what the local inference server is running, and what it costs in RAM.
+set -euo pipefail
+
+[ -f "${PI_LOCAL_ENV:-$HOME/.pi-local.env}" ] && . "${PI_LOCAL_ENV:-$HOME/.pi-local.env}"
+PI_LLAMA_HOST="${PI_LLAMA_HOST:-127.0.0.1}"
+PI_LLAMA_PORT="${PI_LLAMA_PORT:-8080}"
+base="http://${PI_LLAMA_HOST}:${PI_LLAMA_PORT}"
+
+if ! curl -sf --max-time 2 "$base/health" >/dev/null 2>&1; then
+  echo "status: down (nothing healthy on $base)"
+  exit 1
+fi
+
+pid=$(pgrep -f "llama-server .*--port ${PI_LLAMA_PORT}" | head -1 || true)
+echo "status: up on $base (pid ${pid:-?})"
+
+if [ -n "$pid" ]; then
+  ps -o rss=,etime= -p "$pid" | awk '{printf "  resident: %.2f GiB   uptime: %s\n", $1/1048576, $2}'
+fi
+
+curl -sf "$base/props" 2>/dev/null | python3 -c '
+import json,sys
+try: p = json.load(sys.stdin)
+except Exception: sys.exit(0)
+d = p.get("default_generation_settings", {})
+print("  model:    %s" % (p.get("model_path","?").split("/")[-1]))
+print("  context:  %s tokens across %s slot(s)" % (d.get("n_ctx","?"), p.get("total_slots","?")))
+' 2>/dev/null || true
+
+echo "  models:   $(curl -sf "$base/v1/models" | python3 -c 'import json,sys;print(", ".join(m["id"] for m in json.load(sys.stdin)["data"]))' 2>/dev/null || echo '?')"

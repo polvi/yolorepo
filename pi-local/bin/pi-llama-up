@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Start the local llama.cpp inference server that backs pi.
+#
+# Tuned for Apple Silicon (M1 Max 64 GB) running Qwen3.8-27B UD-Q6_K_XL:
+# full Metal offload, Flash Attention on, 64K context, one slot.
+#
+# Every knob is overridable from the environment or ~/.pi-local.env.
+set -euo pipefail
+
+[ -f "${PI_LOCAL_ENV:-$HOME/.pi-local.env}" ] && . "${PI_LOCAL_ENV:-$HOME/.pi-local.env}"
+
+PI_LLAMA_REPO="${PI_LLAMA_REPO:-unsloth/Qwen3.8-27B-GGUF}"
+PI_LLAMA_QUANT="${PI_LLAMA_QUANT:-UD-Q6_K_XL}"
+PI_LLAMA_ALIAS="${PI_LLAMA_ALIAS:-qwen3.8-27b}"
+PI_LLAMA_CTX="${PI_LLAMA_CTX:-65536}"
+PI_LLAMA_HOST="${PI_LLAMA_HOST:-127.0.0.1}"
+PI_LLAMA_PORT="${PI_LLAMA_PORT:-8080}"
+PI_LLAMA_BATCH="${PI_LLAMA_BATCH:-2048}"
+PI_LLAMA_UBATCH="${PI_LLAMA_UBATCH:-512}"
+PI_LLAMA_KV_TYPE="${PI_LLAMA_KV_TYPE:-f16}"
+PI_LLAMA_VISION="${PI_LLAMA_VISION:-1}"
+PI_LLAMA_LOG="${PI_LLAMA_LOG:-$HOME/Library/Logs/pi-llama.log}"
+
+LLAMA_SERVER="${LLAMA_SERVER:-$(command -v llama-server || true)}"
+if [ -z "$LLAMA_SERVER" ]; then
+  echo "pi-llama-up: llama-server not found. Install it with: brew install llama.cpp" >&2
+  exit 1
+fi
+
+# Resolve the GGUF out of the Hugging Face cache so we never re-download a
+# model that is already on disk. Multi-part GGUFs sort so part 1 comes first,
+# which is the part llama.cpp wants.
+hf_hub="${HF_HOME:-$HOME/.cache/huggingface}/hub"
+snapshots="$hf_hub/models--${PI_LLAMA_REPO//\//--}/snapshots"
+
+model=""
+mmproj=""
+if [ -d "$snapshots" ]; then
+  model=$(/usr/bin/find "$snapshots" -name "*${PI_LLAMA_QUANT}*.gguf" -not -name "mmproj*" 2>/dev/null | sort | head -1)
+  if [ -n "$model" ]; then
+    mmproj=$(/usr/bin/find "$(dirname "$model")" -name "mmproj*.gguf" 2>/dev/null | sort | head -1)
+  fi
+fi
+
+args=(
+  --alias "$PI_LLAMA_ALIAS"
+  --ctx-size "$PI_LLAMA_CTX"
+  --n-gpu-layers 99          # full Metal offload
+  --flash-attn on
+  --parallel 1               # one slot, so the whole context belongs to one conversation
+  --cache-type-k "$PI_LLAMA_KV_TYPE"
+  --cache-type-v "$PI_LLAMA_KV_TYPE"
+  --batch-size "$PI_LLAMA_BATCH"
+  --ubatch-size "$PI_LLAMA_UBATCH"
+  --cache-reuse 256          # reuse prefix chunks across agent turns
+  --no-context-shift         # fail loudly instead of silently dropping tool history
+  --jinja                    # model's own template: tool calls + thinking toggle
+  --reasoning-format deepseek
+  --reasoning-preserve       # keep thinking across tool-call round trips
+  --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
+  --host "$PI_LLAMA_HOST"
+  --port "$PI_LLAMA_PORT"
+  --no-webui
+  --metrics
+)
+
+if [ -n "$model" ]; then
+  args=(--model "$model" "${args[@]}")
+  [ "$PI_LLAMA_VISION" = "1" ] && [ -n "$mmproj" ] && args+=(--mmproj "$mmproj")
+else
+  # Not in the cache: let llama.cpp fetch it (first run only).
+  echo "pi-llama-up: ${PI_LLAMA_QUANT} not in the HF cache, downloading via -hf" >&2
+  args=(-hf "${PI_LLAMA_REPO}:${PI_LLAMA_QUANT}" "${args[@]}")
+fi
+
+mkdir -p "$(dirname "$PI_LLAMA_LOG")"
+
+if [ "${PI_LLAMA_FOREGROUND:-0}" = "1" ]; then
+  exec "$LLAMA_SERVER" "${args[@]}"
+fi
+
+if curl -sf --max-time 2 "http://${PI_LLAMA_HOST}:${PI_LLAMA_PORT}/health" >/dev/null 2>&1; then
+  echo "pi-llama-up: already serving on http://${PI_LLAMA_HOST}:${PI_LLAMA_PORT}"
+  exit 0
+fi
+
+nohup "$LLAMA_SERVER" "${args[@]}" >>"$PI_LLAMA_LOG" 2>&1 &
+pid=$!
+echo "pi-llama-up: pid $pid, log $PI_LLAMA_LOG"
+echo -n "pi-llama-up: loading ${PI_LLAMA_QUANT} at ${PI_LLAMA_CTX} ctx"
+
+for _ in $(seq 1 180); do
+  if curl -sf --max-time 2 "http://${PI_LLAMA_HOST}:${PI_LLAMA_PORT}/health" >/dev/null 2>&1; then
+    echo
+    echo "pi-llama-up: ready on http://${PI_LLAMA_HOST}:${PI_LLAMA_PORT}"
+    exit 0
+  fi
+  kill -0 "$pid" 2>/dev/null || { echo; echo "pi-llama-up: server died, see $PI_LLAMA_LOG" >&2; exit 1; }
+  echo -n "."
+  sleep 1
+done
+
+echo
+echo "pi-llama-up: timed out waiting for health, see $PI_LLAMA_LOG" >&2
+exit 1
