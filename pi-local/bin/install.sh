@@ -83,7 +83,7 @@ if os.path.exists(path) and os.path.getsize(path) > 0:
         print(f"existing settings.json was not valid JSON, moved to {backup}")
 
 settings["defaultProvider"] = "llama-cpp"
-settings["defaultModel"] = "qwen3.8-27b"
+settings["defaultModel"] = "qwen3.6-35b-a3b"
 
 with open(path, "w") as f:
     json.dump(settings, f, indent=2)
@@ -105,4 +105,5 @@ fi
 
 echo
 echo "done. start the server with:  pi-llama-up"
-echo "then:                         pi --provider llama-cpp --model qwen3.8-27b"
+echo "then:                         pi --provider llama-cpp --model qwen3.6-35b-a3b"
+echo "model comparison and routing: MODELS.md"

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Download a GGUF from Hugging Face using parallel range requests.
+#
+# huggingface-cli uses a single connection, and HF throttles per connection
+# (measured ~3-6 MB/s here), so a 38 GB model takes hours. Eight ranges in
+# parallel saturate the link instead. Resumable: finished parts are skipped.
+#
+# Usage: pi-llama-fetch <repo> <file> [dest-dir]
+#   pi-llama-fetch unsloth/Qwen3-Coder-Next-GGUF Qwen3-Coder-Next-UD-IQ4_XS.gguf
+set -euo pipefail
+
+repo="${1:?usage: pi-llama-fetch <repo> <file> [dest-dir]}"
+file="${2:?usage: pi-llama-fetch <repo> <file> [dest-dir]}"
+dest="${3:-${PI_LLAMA_MODEL_DIR:-$HOME/models}}"
+jobs="${PI_LLAMA_FETCH_JOBS:-8}"
+
+url="https://huggingface.co/${repo}/resolve/main/${file}"
+mkdir -p "$dest"
+out="$dest/$file"
+parts="$dest/.parts-$file"
+
+if [ -f "$out" ]; then
+  echo "pi-llama-fetch: $out already exists"
+  exit 0
+fi
+
+size=$(curl -sIL "$url" | awk 'BEGIN{IGNORECASE=1} /^content-length:/ {v=$2} END {gsub(/\r/,"",v); print v}')
+if [ -z "$size" ] || [ "$size" -lt 1 ]; then
+  echo "pi-llama-fetch: could not determine size of $url" >&2
+  exit 1
+fi
+echo "pi-llama-fetch: $file is $(( size / 1000000 )) MB, $jobs parallel ranges"
+
+mkdir -p "$parts"
+chunk=$(( (size + jobs - 1) / jobs ))
+
+pids=()
+for i in $(seq 0 $(( jobs - 1 ))); do
+  start=$(( i * chunk ))
+  end=$(( start + chunk - 1 ))
+  [ "$end" -ge "$size" ] && end=$(( size - 1 ))
+  [ "$start" -gt "$end" ] && continue
+  want=$(( end - start + 1 ))
+  p="$parts/part.$i"
+
+  if [ -f "$p" ] && [ "$(stat -f %z "$p")" -eq "$want" ]; then
+    echo "  part $i already complete"
+    continue
+  fi
+
+  curl -sL --retry 5 --retry-delay 2 -r "${start}-${end}" -o "$p" "$url" &
+  pids+=($!)
+done
+
+fail=0
+for pid in ${pids[@]+"${pids[@]}"}; do
+  wait "$pid" || fail=1
+done
+[ "$fail" -eq 0 ] || { echo "pi-llama-fetch: a range failed, re-run to resume" >&2; exit 1; }
+
+# Verify every part is exactly the size we asked for before joining them.
+for i in $(seq 0 $(( jobs - 1 ))); do
+  start=$(( i * chunk ))
+  end=$(( start + chunk - 1 ))
+  [ "$end" -ge "$size" ] && end=$(( size - 1 ))
+  [ "$start" -gt "$end" ] && continue
+  want=$(( end - start + 1 ))
+  got=$(stat -f %z "$parts/part.$i")
+  if [ "$got" -ne "$want" ]; then
+    echo "pi-llama-fetch: part $i is $got bytes, expected $want; re-run to resume" >&2
+    exit 1
+  fi
+done
+
+echo "pi-llama-fetch: joining parts"
+: > "$out.tmp"
+for i in $(seq 0 $(( jobs - 1 ))); do
+  [ -f "$parts/part.$i" ] && cat "$parts/part.$i" >> "$out.tmp"
+done
+
+final=$(stat -f %z "$out.tmp")
+if [ "$final" -ne "$size" ]; then
+  echo "pi-llama-fetch: joined size $final != expected $size" >&2
+  exit 1
+fi
+
+mv "$out.tmp" "$out"
+rm -rf "$parts"
+echo "pi-llama-fetch: wrote $out"

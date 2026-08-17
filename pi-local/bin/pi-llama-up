@@ -9,9 +9,11 @@ set -euo pipefail
 
 [ -f "${PI_LOCAL_ENV:-$HOME/.pi-local.env}" ] && . "${PI_LOCAL_ENV:-$HOME/.pi-local.env}"
 
-PI_LLAMA_REPO="${PI_LLAMA_REPO:-unsloth/Qwen3.8-27B-GGUF}"
-PI_LLAMA_QUANT="${PI_LLAMA_QUANT:-UD-Q6_K_XL}"
-PI_LLAMA_ALIAS="${PI_LLAMA_ALIAS:-qwen3.8-27b}"
+# Default is Qwen3.6-35B-A3B: fastest, smallest, and the only model that got
+# every task in bench/eval.ts right. See MODELS.md for the measurements.
+PI_LLAMA_REPO="${PI_LLAMA_REPO:-unsloth/Qwen3.6-35B-A3B-GGUF}"
+PI_LLAMA_QUANT="${PI_LLAMA_QUANT:-UD-Q4_K_XL}"
+PI_LLAMA_ALIAS="${PI_LLAMA_ALIAS:-qwen3.6-35b-a3b}"
 PI_LLAMA_CTX="${PI_LLAMA_CTX:-65536}"
 PI_LLAMA_HOST="${PI_LLAMA_HOST:-127.0.0.1}"
 PI_LLAMA_PORT="${PI_LLAMA_PORT:-8080}"
@@ -33,13 +35,25 @@ fi
 hf_hub="${HF_HOME:-$HOME/.cache/huggingface}/hub"
 snapshots="$hf_hub/models--${PI_LLAMA_REPO//\//--}/snapshots"
 
-model=""
+model="${PI_LLAMA_MODEL:-}"
 mmproj=""
-if [ -d "$snapshots" ]; then
+if [ -n "$model" ] && [ ! -f "$model" ]; then
+  echo "pi-llama-up: PI_LLAMA_MODEL=$model does not exist" >&2
+  exit 1
+fi
+
+if [ -z "$model" ] && [ -d "$snapshots" ]; then
   model=$(/usr/bin/find "$snapshots" -name "*${PI_LLAMA_QUANT}*.gguf" -not -name "mmproj*" 2>/dev/null | sort | head -1)
-  if [ -n "$model" ]; then
-    mmproj=$(/usr/bin/find "$(dirname "$model")" -name "mmproj*.gguf" 2>/dev/null | sort | head -1)
-  fi
+fi
+
+# Models fetched with pi-llama-fetch live in a plain directory, not the HF cache.
+model_dir="${PI_LLAMA_MODEL_DIR:-$HOME/models}"
+if [ -z "$model" ] && [ -d "$model_dir" ]; then
+  model=$(/usr/bin/find "$model_dir" -name "*${PI_LLAMA_QUANT}*.gguf" -not -name "mmproj*" 2>/dev/null | sort | head -1)
+fi
+
+if [ -n "$model" ]; then
+  mmproj=$(/usr/bin/find "$(dirname "$model")" -name "mmproj*.gguf" 2>/dev/null | sort | head -1)
 fi
 
 args=(

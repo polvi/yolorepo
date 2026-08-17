@@ -1,0 +1,184 @@
+{
+  "results": [
+    {
+      "model": "qwen3.8-27b",
+      "task": "tool-chain",
+      "pass": true,
+      "seconds": 98.855,
+      "input": 24,
+      "output": 92,
+      "cacheRead": 2922,
+      "genTps": 0.9306560113297253
+    },
+    {
+      "model": "qwen3.8-27b",
+      "task": "code-repair",
+      "pass": true,
+      "seconds": 150.719,
+      "input": 121,
+      "output": 141,
+      "cacheRead": 5246,
+      "genTps": 0.9355157611183726
+    },
+    {
+      "model": "qwen3.8-27b",
+      "task": "long-context",
+      "pass": true,
+      "seconds": 396.085,
+      "input": 31669,
+      "output": 88,
+      "cacheRead": 1324,
+      "genTps": 0.2221745332441269
+    },
+    {
+      "model": "qwen3.8-27b",
+      "task": "instruction",
+      "pass": true,
+      "seconds": 10.64,
+      "input": 514,
+      "output": 23,
+      "cacheRead": 1324,
+      "genTps": 2.161654135338346
+    },
+    {
+      "model": "qwen3.6-35b-a3b",
+      "task": "tool-chain",
+      "pass": true,
+      "seconds": 14.517,
+      "input": 72,
+      "output": 58,
+      "cacheRead": 2901,
+      "genTps": 3.9953158366053594
+    },
+    {
+      "model": "qwen3.6-35b-a3b",
+      "task": "code-repair",
+      "pass": true,
+      "seconds": 21.612,
+      "input": 120,
+      "output": 153,
+      "cacheRead": 4802,
+      "genTps": 7.079400333148252
+    },
+    {
+      "model": "qwen3.6-35b-a3b",
+      "task": "long-context",
+      "pass": true,
+      "seconds": 86.984,
+      "input": 31672,
+      "output": 113,
+      "cacheRead": 1289,
+      "genTps": 1.29908948772188
+    },
+    {
+      "model": "qwen3.6-35b-a3b",
+      "task": "instruction",
+      "pass": true,
+      "seconds": 2.485,
+      "input": 514,
+      "output": 36,
+      "cacheRead": 1289,
+      "genTps": 14.486921529175051
+    },
+    {
+      "model": "qwen3.6-35b-a3b",
+      "task": "hidden-tests",
+      "pass": true,
+      "seconds": 17.497,
+      "input": 197,
+      "output": 188,
+      "cacheRead": 2397,
+      "genTps": 10.744699091272789
+    },
+    {
+      "model": "qwen3.8-27b",
+      "task": "hidden-tests",
+      "pass": true,
+      "seconds": 101.386,
+      "input": 71,
+      "output": 183,
+      "cacheRead": 2230,
+      "genTps": 1.8049829365001087
+    },
+    {
+      "model": "qwen3.6-35b-a3b",
+      "task": "async-concurrency",
+      "pass": true,
+      "seconds": 59.267,
+      "input": 257,
+      "output": 332,
+      "cacheRead": 4105,
+      "genTps": 5.601768269019859
+    },
+    {
+      "model": "qwen3.8-27b",
+      "task": "async-concurrency",
+      "pass": true,
+      "seconds": 245.93,
+      "input": 26,
+      "output": 174,
+      "cacheRead": 3202,
+      "genTps": 0.7075183995445858
+    },
+    {
+      "model": "qwen3-coder-next",
+      "task": "tool-chain",
+      "pass": true,
+      "seconds": 8.848,
+      "input": 22,
+      "output": 30,
+      "cacheRead": 2617,
+      "genTps": 3.3905967450271244
+    },
+    {
+      "model": "qwen3-coder-next",
+      "task": "code-repair",
+      "pass": true,
+      "seconds": 40.23,
+      "input": 118,
+      "output": 8,
+      "cacheRead": 8032,
+      "genTps": 0.1988565746955009
+    },
+    {
+      "model": "qwen3-coder-next",
+      "task": "long-context",
+      "pass": true,
+      "seconds": 107.739,
+      "input": 31584,
+      "output": 12,
+      "cacheRead": 0,
+      "genTps": 0.1113802801214045
+    },
+    {
+      "model": "qwen3-coder-next",
+      "task": "hidden-tests",
+      "pass": true,
+      "seconds": 16.518,
+      "input": 66,
+      "output": 81,
+      "cacheRead": 2173,
+      "genTps": 4.903741373047584
+    },
+    {
+      "model": "qwen3-coder-next",
+      "task": "instruction",
+      "pass": true,
+      "seconds": 6.28,
+      "input": 1835,
+      "output": 6,
+      "cacheRead": 0,
+      "genTps": 0.9554140127388535
+    },
+    {
+      "model": "qwen3-coder-next",
+      "task": "async-concurrency",
+      "pass": false,
+      "seconds": 14.102,
+      "input": 1923,
+      "output": 362,
+      "cacheRead": 0,
+      "genTps": 25.67011771379946
+    }
+  ]
+}
