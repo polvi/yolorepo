@@ -17,7 +17,7 @@
 // settings is worse than skipping the upgrade.
 
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import type { Config } from "./config.ts";
 import { releaseKey } from "./plan.ts";
 import type { Inventory } from "./types.ts";
@@ -35,7 +35,10 @@ export async function materializeValues(cfg: Config, inv: Inventory): Promise<Re
   const paths: Record<string, string> = {};
   const notes: string[] = [];
   const skipped: string[] = [];
-  const dir = join(cfg.plansDir, "values");
+  // Absolute, because the path is handed to helm as -f. A relative one would
+  // only resolve when clusterpilot happened to be invoked from its own
+  // directory, and the failure would land mid-run.
+  const dir = resolve(join(cfg.plansDir, "values"));
   let madeDir = false;
 
   for (const rel of inv.helmReleases) {
@@ -43,8 +46,9 @@ export async function materializeValues(cfg: Config, inv: Inventory): Promise<Re
     const authored = cfg.helmValues[key] ?? cfg.helmValues[rel.name];
 
     if (authored) {
-      paths[key] = authored;
-      notes.push(`${key}: applying authored ${authored}`);
+      const abs = isAbsolute(authored) ? authored : resolve(authored);
+      paths[key] = abs;
+      notes.push(`${key}: applying authored ${abs}`);
       continue;
     }
 

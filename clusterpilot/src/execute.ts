@@ -45,7 +45,9 @@ function timeoutFor(step: Step): number {
     case "k8s-upgrade":
       return 30 * 60_000;
     case "helm-upgrade":
-      return 15 * 60_000;
+      // Must exceed helm's own --wait, or we kill it mid-flight and leave the
+      // release in a state helm never got to finish reconciling.
+      return 25 * 60_000;
     default:
       return 5 * 60_000;
   }

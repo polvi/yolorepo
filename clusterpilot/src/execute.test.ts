@@ -175,6 +175,16 @@ describe("plan compiler", () => {
 
   // A bare `helm upgrade` resets a release to chart defaults. Emitting no step
   // is the safe failure; emitting a destructive one is not.
+  // The wall-clock budget must outlast helm's own --wait; killing helm
+  // mid-reconcile leaves the release in a state it never finished.
+  test("gives helm more wall clock than its own --wait", () => {
+    const plan = buildPlan(cfg, inventory, upstream, withValues);
+    const helm = plan.steps.find((s) => s.kind === "helm-upgrade")!;
+    const wait = helm.argv[helm.argv.indexOf("--timeout") + 1];
+    expect(wait).toBe("15m");
+    expect(helm.watch!.timeoutMs).toBeGreaterThan(15 * 60_000);
+  });
+
   test("emits no helm step when there are no values to apply", () => {
     const plan = buildPlan(cfg, inventory, upstream, { valuesPaths: {} });
     expect(plan.steps.some((s) => s.kind === "helm-upgrade")).toBe(false);

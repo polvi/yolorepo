@@ -14,8 +14,15 @@ import type { ExecutionPlan, Inventory, PreflightCheck, Step, UpstreamVersions }
 /** A node reboot on real hardware is slow; the R740xd takes minutes to POST. */
 const NODE_REBOOT_TIMEOUT_MS = 20 * 60_000;
 const K8S_UPGRADE_TIMEOUT_MS = 20 * 60_000;
-const HELM_TIMEOUT_MS = 10 * 60_000;
-const SETTLE_TIMEOUT_MS = 5 * 60_000;
+const HELM_TIMEOUT_MS = 20 * 60_000;
+/**
+ * Generous on purpose. A false timeout is not a harmless retry here: helm marks
+ * a timed-out release `failed`, which then needs a rollback to clean up, and
+ * the kube-prometheus release on this cluster has a "context deadline exceeded"
+ * failure in its own history. Waiting longer costs nothing when things go well.
+ */
+const HELM_WAIT = "15m";
+const SETTLE_TIMEOUT_MS = 10 * 60_000;
 
 function kubectlBase(cfg: Config): string[] {
   const argv = [cfg.bin.kubectl];
@@ -176,7 +183,7 @@ export function buildPlan(
           valuesPath,
           "--wait",
           "--timeout",
-          "10m",
+          HELM_WAIT,
         ],
         effect: `Upgrades the ${rel.name} release in ${rel.namespace} from ${rel.chartVersion} to ${latest}, applying ${valuesPath} on top of the new chart's defaults.`,
         downtime: "none",
