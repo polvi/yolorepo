@@ -1,0 +1,99 @@
+// Configuration, with everything optional. The defaults discover the cluster
+// from the ambient kubeconfig and talosconfig, so clusterpilot runs against
+// whatever you are already pointed at without a config file.
+
+import { readFile } from "node:fs/promises";
+import { run } from "./exec.ts";
+
+export interface Config {
+  /** kubectl context name. Defaults to the current context. */
+  kubeContext: string;
+  /**
+   * Talos nodes to query. Defaults to the Kubernetes node names, which is
+   * right for Omni-managed clusters where node name resolves through the proxy.
+   */
+  talosNodes: string[];
+  /** Binary paths, so a non-PATH install still works. */
+  bin: { talosctl: string; kubectl: string; helm: string };
+  /** GitHub repos used for upstream release lookups. */
+  releases: { talos: string; kubernetes: string };
+  /**
+   * Helm chart name -> repo index URL. Charts not listed here are reported as
+   * "no upstream configured" rather than silently skipped.
+   */
+  helmRepos: Record<string, string>;
+  /** OpenAI-compatible base URL of the local llama.cpp server. */
+  llamaBaseUrl: string;
+  /**
+   * Model id to use. When unset, clusterpilot asks the server which model is
+   * loaded and uses that, so it never fights whatever you already have resident.
+   */
+  model?: string;
+  /** Where written plans land. */
+  plansDir: string;
+  /** Per-command timeout. Talos calls over Omni can be slow. */
+  timeoutMs: number;
+}
+
+const DEFAULT_HELM_REPOS: Record<string, string> = {
+  "kube-prometheus-stack": "https://prometheus-community.github.io/helm-charts",
+  "tailscale-operator": "https://pkgs.tailscale.com/helmcharts",
+  "caddy-ingress-controller": "https://caddyserver.github.io/ingress/",
+  gitea: "https://dl.gitea.com/charts/",
+  "zfs-localpv": "https://openebs.github.io/zfs-localpv",
+};
+
+async function currentKubeContext(kubectl: string): Promise<string> {
+  const res = await run([kubectl, "config", "current-context"], { timeoutMs: 10_000 });
+  return res.ok ? res.stdout.trim() : "";
+}
+
+async function discoverNodes(kubectl: string, context: string): Promise<string[]> {
+  const args = [kubectl, "get", "nodes", "-o", "jsonpath={range .items[*]}{.metadata.name}{'\\n'}{end}"];
+  if (context) args.splice(1, 0, "--context", context);
+  const res = await run(args, { timeoutMs: 30_000 });
+  if (!res.ok) return [];
+  return res.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Loads clusterpilot.config.json if present, fills the gaps by asking the
+ * cluster, and returns a fully-resolved config.
+ */
+export async function loadConfig(path = "clusterpilot.config.json"): Promise<Config> {
+  let file: Partial<Config> = {};
+  try {
+    file = JSON.parse(await readFile(path, "utf8")) as Partial<Config>;
+  } catch {
+    // No config file is the normal case.
+  }
+
+  const bin = {
+    talosctl: process.env.TALOSCTL ?? file.bin?.talosctl ?? "talosctl",
+    kubectl: process.env.KUBECTL ?? file.bin?.kubectl ?? "kubectl",
+    helm: process.env.HELM ?? file.bin?.helm ?? "helm",
+  };
+
+  const kubeContext =
+    process.env.CLUSTERPILOT_CONTEXT ?? file.kubeContext ?? (await currentKubeContext(bin.kubectl));
+
+  const talosNodes =
+    file.talosNodes && file.talosNodes.length > 0
+      ? file.talosNodes
+      : await discoverNodes(bin.kubectl, kubeContext);
+
+  return {
+    kubeContext,
+    talosNodes,
+    bin,
+    releases: {
+      talos: file.releases?.talos ?? "siderolabs/talos",
+      kubernetes: file.releases?.kubernetes ?? "kubernetes/kubernetes",
+    },
+    helmRepos: { ...DEFAULT_HELM_REPOS, ...(file.helmRepos ?? {}) },
+    llamaBaseUrl: process.env.LLAMA_BASE_URL ?? file.llamaBaseUrl ?? "http://127.0.0.1:8080/v1",
+    model: process.env.CLUSTERPILOT_MODEL ?? file.model,
+    plansDir: file.plansDir ?? "plans",
+    timeoutMs: file.timeoutMs ?? 45_000,
+  };
+}
