@@ -29,6 +29,19 @@ export interface Config {
    * loaded and uses that, so it never fights whatever you already have resident.
    */
   model?: string;
+  /**
+   * Authored values files, keyed by release name or "namespace/release".
+   * When a release has one, upgrades apply it with -f so your file stays the
+   * source of its settings. Releases without one get their current supplied
+   * values replayed instead, captured at plan time.
+   */
+  helmValues: Record<string, string>;
+  /**
+   * Where `sync` writes the generated cluster-state file. The cluster is the
+   * source of truth and this records it, so the file is machine-written and
+   * should not be hand-edited.
+   */
+  syncPath?: string;
   /** Where written plans land. */
   plansDir: string;
   /** Per-command timeout. Talos calls over Omni can be slow. */
@@ -91,6 +104,8 @@ export async function loadConfig(path = "clusterpilot.config.json"): Promise<Con
       kubernetes: file.releases?.kubernetes ?? "kubernetes/kubernetes",
     },
     helmRepos: { ...DEFAULT_HELM_REPOS, ...(file.helmRepos ?? {}) },
+    helmValues: file.helmValues ?? {},
+    syncPath: process.env.CLUSTERPILOT_SYNC_PATH ?? file.syncPath,
     llamaBaseUrl: process.env.LLAMA_BASE_URL ?? file.llamaBaseUrl ?? "http://127.0.0.1:8080/v1",
     model: process.env.CLUSTERPILOT_MODEL ?? file.model,
     plansDir: file.plansDir ?? "plans",

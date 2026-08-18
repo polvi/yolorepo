@@ -70,6 +70,31 @@ export async function probeHelm(
     };
   });
 
+  // Fetch each release's supplied values. Needed both to build a correct
+  // upgrade command and to record the release in the synced state file.
+  await Promise.all(
+    releases.map(async (rel) => {
+      const argv = [cfg.bin.helm];
+      if (cfg.kubeContext) argv.push("--kube-context", cfg.kubeContext);
+      argv.push("-n", rel.namespace, "get", "values", rel.name, "-o", "yaml");
+
+      const got = await run(argv, { timeoutMs: cfg.timeoutMs });
+      probes.push({
+        id: `helm.values.${rel.namespace}.${rel.name}`,
+        command: argv,
+        ok: got.ok,
+        error: got.ok ? undefined : got.stderr.trim() || `exit ${got.code}`,
+        durationMs: got.durationMs,
+      });
+
+      if (got.ok) {
+        const text = got.stdout.trim();
+        // helm prints "null" for a release installed with no overrides.
+        rel.userValues = text === "null" || text === "" ? "" : text;
+      }
+    }),
+  );
+
   probes.push({
     id: "helm.list",
     command,

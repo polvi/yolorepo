@@ -12,8 +12,45 @@ bun run src/index.ts status          # cluster state and computed findings, no m
 bun run src/index.ts plan            # write a narrative upgrade plan
 bun run src/index.ts apply           # build an execution plan and dry-run it
 bun run src/index.ts apply --apply   # actually execute, confirming each step
+bun run src/index.ts sync            # record what the cluster IS into git
 bun run src/index.ts ask "is etcd healthy?"
 ```
+
+## Not GitOps
+
+Under GitOps, git says what the cluster should be and a reconciler drives the
+cluster toward it. Clusterpilot runs the other way: upgrades move the cluster to
+the latest, and `sync` records the result into a git-tracked file. Git becomes
+the history of what has actually run, not the thing that drives it.
+
+The costs of that, stated plainly:
+
+- **The state file is an output.** Editing it changes nothing; the next sync
+  overwrites it. Authored inputs — your Helm values files — live separately and
+  are never written by clusterpilot.
+- **Git no longer tells you what should be.** Recovery means reading the last
+  good commit and acting on it yourself, not re-applying the repo.
+- **Drift reads backwards.** A difference between file and cluster means the
+  file is stale, not that the cluster is wrong.
+
+`sync` commits but never pushes. Publishing is a human's call, and `git push` is
+refused at the gate rather than merely unused.
+
+### Secrets never reach the state file
+
+`helm get values` returns everything an operator supplied, and for real releases
+that includes database passwords and admin credentials in plaintext. The state
+file is committed and eventually pushed, so secret-shaped keys are redacted on
+the way in, along with credentials embedded in URLs.
+
+That means the file records configuration *shape*, not a restorable copy. To
+keep changes visible anyway, each release also carries a `valuesDigest` — a hash
+of the real values — so a changed password still shows up as a change without
+revealing it.
+
+The redaction list errs toward over-redaction. Hiding one harmless setting is a
+small loss; leaking a Postgres password to a git remote is not, and it is
+unrecoverable once pushed.
 
 ## The safety model
 
@@ -161,11 +198,38 @@ kubeconfig. Drop a `clusterpilot.config.json` next to the source to override:
 | --- | --- |
 | `LLAMA_BASE_URL` | OpenAI-compatible endpoint (default `http://127.0.0.1:8080/v1`) |
 | `CLUSTERPILOT_CONTEXT` | Override the kubectl context |
+| `CLUSTERPILOT_SYNC_PATH` | Where `sync` writes the state file |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit for release lookups |
 | `TALOSCTL` / `KUBECTL` / `HELM` | Binary paths |
 
 A chart with no entry in `helmRepos` is skipped rather than guessed at, since
 without a repo there is no way to name the chart reference.
+
+### Helm values
+
+Every generated `helm upgrade` carries an explicit `-f`, never `--reuse-values`.
+`--reuse-values` layers your old values over the new chart and suppresses its
+newly-introduced defaults, which defeats the point of moving to the latest
+chart. The values file is resolved in this order:
+
+1. An authored file from `helmValues` in config, keyed by release name or
+   `namespace/release`. Yours, and the source of that release's settings.
+2. Otherwise the values currently supplied to the release, captured from
+   `helm get values` and replayed onto the new chart — which is how new chart
+   defaults get through.
+
+A release with neither gets **no upgrade step at all**. A bare `helm upgrade`
+resets a release to chart defaults, and silently discarding an operator's
+settings is worse than skipping the upgrade.
+
+```json
+{
+  "helmValues": {
+    "kube-prometheus": "/Users/you/Code/proc-infra/clusters/proc-dev/prom/values.yaml"
+  },
+  "syncPath": "/Users/you/Code/proc-infra/clusters/proc-dev/cluster-state.yaml"
+}
+```
 
 ## Layout
 
@@ -177,6 +241,8 @@ src/
   semver.ts       version comparison and upgrade paths
   analyze.ts      deterministic findings
   plan.ts         findings -> ordered ExecutionPlan (the only place argv is built)
+  values.ts       resolves which values file each helm upgrade applies
+  sync.ts         writes and commits the redacted cluster-state file
   preflight.ts    gates evaluated against fresh state
   execute.ts      the runner
   watch.ts        rollout convergence

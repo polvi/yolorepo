@@ -60,6 +60,13 @@ export interface HelmRelease {
   chartVersion: string;
   appVersion: string;
   status: string;
+  /**
+   * The values the operator actually supplied, as YAML -- `helm get values`,
+   * not `--all`. Chart defaults are deliberately excluded: replaying only the
+   * explicit overrides onto a new chart is what lets new defaults through,
+   * which is the whole point of upgrading.
+   */
+  userValues?: string;
 }
 
 export interface WorkloadHealth {

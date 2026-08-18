@@ -6,6 +6,9 @@ import type { Config } from "./config.ts";
 import { execute } from "./execute.ts";
 import { Journal } from "./journal.ts";
 import { buildPlan, type PlanOptions } from "./plan.ts";
+import { collect } from "./probes/index.ts";
+import { sync } from "./sync.ts";
+import { materializeValues } from "./values.ts";
 import type { ExecutionPlan, Inventory, Step, UpstreamVersions } from "./types.ts";
 
 function renderPlan(plan: ExecutionPlan): string {
@@ -57,10 +60,16 @@ export async function cmdApply(args: string[], deps: ApplyDeps): Promise<void> {
     return i >= 0 ? args[i + 1] : undefined;
   };
 
+  const resolved = await materializeValues(cfg, inventory);
+  for (const note of resolved.notes) console.log(`values: ${note}`);
+  for (const skip of resolved.skipped) console.log(`skipping: ${skip}`);
+  if (resolved.notes.length > 0 || resolved.skipped.length > 0) console.log("");
+
   const planOpts: PlanOptions = {
     snapshotPath: flagValue("--snapshot"),
     talosOnly: args.includes("--talos-only"),
     skipHelm: args.includes("--skip-helm"),
+    valuesPaths: resolved.paths,
   };
 
   const plan = buildPlan(cfg, inventory, upstream, planOpts);
@@ -95,6 +104,22 @@ export async function cmdApply(args: string[], deps: ApplyDeps): Promise<void> {
   const done = result.outcomes.filter((o) => o.status === "succeeded").length;
   console.log(`\n${result.status}: ${done}/${plan.steps.length} step(s) completed.`);
   console.log(`full record: ${journalPath}`);
+
+  // Record the result. Worth doing even on a failed run: a partially-applied
+  // upgrade is exactly the state you most want written down, and a sync that
+  // only ran on success would leave git describing a cluster that no longer
+  // exists. Re-collect first, because the inventory above predates the run.
+  if (apply && done > 0 && (cfg.syncPath || args.includes("--sync"))) {
+    console.log("\nsyncing state to git...");
+    try {
+      const fresh = await collect(cfg);
+      const synced = await sync({ cfg, inventory: fresh, log: (l) => console.log(`  ${l}`) });
+      for (const line of synced.summary) console.log(`  ${line}`);
+      if (synced.committed) console.log("  review and push when you are ready");
+    } catch (err) {
+      console.log(`  sync failed: ${(err as Error).message}`);
+    }
+  }
 
   if (result.status !== "completed") process.exitCode = 1;
 }

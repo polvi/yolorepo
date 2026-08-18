@@ -30,7 +30,15 @@ export interface PlanOptions {
   talosOnly?: boolean;
   /** Skip chart upgrades. */
   skipHelm?: boolean;
+  /**
+   * Values file to apply per release, keyed by "namespace/release". Supplied by
+   * materializeValues(); a release missing from this map gets no upgrade step,
+   * because upgrading without values would silently reset it to chart defaults.
+   */
+  valuesPaths?: Record<string, string>;
 }
+
+export const releaseKey = (namespace: string, name: string) => `${namespace}/${name}`;
 
 export function buildPlan(
   cfg: Config,
@@ -138,6 +146,13 @@ export function buildPlan(
       // rather than a guess at the reference.
       if (!repo) continue;
 
+      // Every upgrade carries an explicit -f. A bare `helm upgrade` resets the
+      // release to chart defaults, which on this cluster would mean discarding
+      // things like a 500Gi TSDB volume and its retention. If we have no values
+      // to apply, we emit no step rather than a destructive one.
+      const valuesPath = opts.valuesPaths?.[releaseKey(rel.namespace, rel.name)];
+      if (!valuesPath) continue;
+
       steps.push({
         id: `helm-${rel.namespace}-${rel.name}-${latest}`,
         title: `Upgrade ${rel.chart} (${rel.name}) to ${latest}`,
@@ -154,13 +169,16 @@ export function buildPlan(
           repo,
           "--version",
           latest,
-          // Keep the operator's existing values; a bare upgrade would reset them.
-          "--reuse-values",
+          // -f rather than --reuse-values on purpose: --reuse-values layers the
+          // old values over the new chart and suppresses newly-introduced
+          // defaults, which defeats the point of moving to the latest chart.
+          "-f",
+          valuesPath,
           "--wait",
           "--timeout",
           "10m",
         ],
-        effect: `Upgrades the ${rel.name} release in ${rel.namespace} from ${rel.chartVersion} to ${latest}, reusing its current values.`,
+        effect: `Upgrades the ${rel.name} release in ${rel.namespace} from ${rel.chartVersion} to ${latest}, applying ${valuesPath} on top of the new chart's defaults.`,
         downtime: "none",
         preflight: [{ kind: "cluster-healthy" }],
         watch: {

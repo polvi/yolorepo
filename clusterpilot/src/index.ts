@@ -13,6 +13,7 @@ import { cmdApply } from "./cli-apply.ts";
 import { loadConfig } from "./config.ts";
 import { detectLoadedModel } from "./model.ts";
 import { collect } from "./probes/index.ts";
+import { sync } from "./sync.ts";
 import { buildPrompt } from "./prompt.ts";
 import { renderDigest, renderPlanDocument } from "./render.ts";
 import { fetchUpstream } from "./upstream/index.ts";
@@ -22,6 +23,7 @@ const USAGE = `clusterpilot — Talos/Kubernetes upgrade planner and runner
   clusterpilot status [--json]   Collect cluster state and computed findings. No model.
   clusterpilot plan [--out FILE] Collect, analyze, and write an upgrade plan with the local model.
   clusterpilot apply [--apply]   Build an execution plan and run it. Dry run unless --apply.
+  clusterpilot sync [--out F]    Record what the cluster IS into a git-tracked state file.
   clusterpilot ask "<question>"  Ask the model one question; it can probe the cluster to answer.
 
 Options
@@ -36,6 +38,11 @@ apply options
   --talos-only    Stop after the Talos steps.
   --skip-helm     Leave Helm releases alone.
   --snapshot PATH Where to write the pre-upgrade etcd snapshot.
+  --sync          Sync state to git afterwards even if syncPath is unset.
+
+sync options
+  --out FILE      Where to write the state file (default: config syncPath).
+  --no-commit     Write the file but leave git alone.
 
 Environment
   LLAMA_BASE_URL        OpenAI-compatible endpoint (default http://127.0.0.1:8080/v1)
@@ -135,6 +142,20 @@ async function main() {
     case "apply": {
       const { cfg, inventory, upstream } = await gather();
       await cmdApply(args, { cfg, inventory, upstream });
+      break;
+    }
+    case "sync": {
+      const cfg = await loadConfig();
+      const inventory = await collect(cfg);
+      const result = await sync({
+        cfg,
+        inventory,
+        outPath: flag(args, "--out"),
+        noCommit: args.includes("--no-commit"),
+        log: (l) => console.log(l),
+      });
+      for (const line of result.summary) console.log(`  ${line}`);
+      if (result.committed) console.log("committed, not pushed");
       break;
     }
     case "ask":

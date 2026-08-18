@@ -10,6 +10,7 @@ const cfg: Config = {
   bin: { talosctl: "talosctl", kubectl: "kubectl", helm: "helm" },
   releases: { talos: "siderolabs/talos", kubernetes: "kubernetes/kubernetes" },
   helmRepos: { gitea: "https://dl.gitea.com/charts/" },
+  helmValues: {},
   llamaBaseUrl: "http://127.0.0.1:8080/v1",
   plansDir: "plans",
   timeoutMs: 5000,
@@ -150,11 +151,33 @@ describe("plan compiler", () => {
   });
 
   test("every generated command passes the mutation gate", () => {
-    const plan = buildPlan(cfg, inventory, upstream);
+    const plan = buildPlan(cfg, inventory, upstream, {
+      valuesPaths: { "default/gitea": "/tmp/gitea-values.yaml" },
+    });
+    expect(plan.steps.some((s) => s.kind === "helm-upgrade")).toBe(true);
     for (const step of plan.steps) {
       if (step.kind === "verify") continue;
       expect(() => assertMutation(step.argv)).not.toThrow();
     }
+  });
+
+  const withValues = { valuesPaths: { "default/gitea": "/tmp/gitea-values.yaml" } };
+
+  test("applies the values file with -f rather than --reuse-values", () => {
+    const plan = buildPlan(cfg, inventory, upstream, withValues);
+    const helm = plan.steps.find((s) => s.kind === "helm-upgrade")!;
+    expect(helm.argv).toContain("-f");
+    expect(helm.argv[helm.argv.indexOf("-f") + 1]).toBe("/tmp/gitea-values.yaml");
+    // --reuse-values layers old values over the new chart and suppresses its
+    // new defaults, which defeats upgrading to latest.
+    expect(helm.argv).not.toContain("--reuse-values");
+  });
+
+  // A bare `helm upgrade` resets a release to chart defaults. Emitting no step
+  // is the safe failure; emitting a destructive one is not.
+  test("emits no helm step when there are no values to apply", () => {
+    const plan = buildPlan(cfg, inventory, upstream, { valuesPaths: {} });
+    expect(plan.steps.some((s) => s.kind === "helm-upgrade")).toBe(false);
   });
 
   test("respects --talos-only and --skip-helm", () => {

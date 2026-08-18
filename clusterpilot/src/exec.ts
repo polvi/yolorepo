@@ -142,6 +142,40 @@ const NEVER = new Set([
   "gen",
 ]);
 
+/**
+ * Git operations the sync step may perform, in a repo it is pointed at.
+ *
+ * `push` is absent deliberately. Sync records what the cluster is into a local
+ * commit; publishing that is a human's call, and a tool that pushed on its own
+ * would be making a decision about a shared branch nobody asked it to make.
+ * `reset`, `clean`, `checkout`, and `rebase` are absent for the obvious reason:
+ * they can destroy uncommitted work in a repo clusterpilot does not own.
+ */
+const GIT_ALLOWED = new Set(["add", "commit", "status", "rev-parse", "diff", "log", "show"]);
+
+export class GitNotAllowedError extends Error {}
+
+const GIT_NEVER = ["push", "reset", "clean", "checkout", "rebase", "merge", "fetch", "pull"];
+
+export function assertGit(argv: string[]): void {
+  if (argv[0]?.split("/").pop() !== "git") {
+    throw new GitNotAllowedError("not a git command");
+  }
+
+  for (const arg of argv.slice(1)) {
+    if (GIT_NEVER.includes(arg)) {
+      throw new GitNotAllowedError(`git '${arg}' is never run by clusterpilot`);
+    }
+  }
+
+  const sub = findSubcommand(argv);
+  if (!sub || !GIT_ALLOWED.has(sub)) {
+    throw new GitNotAllowedError(
+      `git '${sub ?? "?"}' is not allowed; sync may only ${[...GIT_ALLOWED].join(", ")}`,
+    );
+  }
+}
+
 export class MutationNotPlannedError extends Error {}
 
 /**
@@ -188,6 +222,8 @@ export function assertMutation(argv: string[]): void {
  * get disks` reads `proc-0` as the subcommand and gets refused.
  */
 const VALUE_FLAGS = new Set([
+  // git's repo-directory flag, so `git -C /path add` parses `add` as the verb.
+  "-C",
   "-n",
   "--nodes",
   "--namespace",
@@ -249,6 +285,8 @@ export interface RunOptions {
    * that omit it -- including every model-facing path -- get the read-only gate.
    */
   mutating?: boolean;
+  /** Route through the git gate. Only src/sync.ts sets this. */
+  git?: boolean;
   /** Streams output as it arrives, for long operations like a node upgrade. */
   onOutput?: (chunk: string) => void;
 }
@@ -283,7 +321,8 @@ export function assertReadOnly(argv: string[]): void {
 }
 
 export async function run(argv: string[], opts: RunOptions = {}): Promise<RunResult> {
-  if (opts.mutating) assertMutation(argv);
+  if (opts.git) assertGit(argv);
+  else if (opts.mutating) assertMutation(argv);
   else assertReadOnly(argv);
 
   const timeoutMs = opts.timeoutMs ?? 45_000;
