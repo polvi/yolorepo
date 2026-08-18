@@ -25,6 +25,8 @@ export interface RunAgentOptions {
   /** Stream assistant text to stdout as it arrives. */
   stream?: boolean;
   thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high";
+  /** Overrides the planning prompt; the troubleshooter passes its own. */
+  systemPrompt?: string;
 }
 
 export interface AgentOutcome {
@@ -59,7 +61,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutcome> {
     getPrompts: () => ({ prompts: [], diagnostics: [] }),
     getThemes: () => ({ themes: [], diagnostics: [] }),
     getAgentsFiles: () => ({ agentsFiles: [] }),
-    getSystemPrompt: () => SYSTEM_PROMPT,
+    getSystemPrompt: () => opts.systemPrompt ?? SYSTEM_PROMPT,
     getSystemPromptSource: () => undefined,
     getAppendSystemPrompt: () => [],
     getAppendSystemPromptSources: () => [],

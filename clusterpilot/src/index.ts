@@ -9,6 +9,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { runAgent } from "./agent.ts";
 import { analyze } from "./analyze.ts";
+import { cmdApply } from "./cli-apply.ts";
 import { loadConfig } from "./config.ts";
 import { detectLoadedModel } from "./model.ts";
 import { collect } from "./probes/index.ts";
@@ -16,10 +17,11 @@ import { buildPrompt } from "./prompt.ts";
 import { renderDigest, renderPlanDocument } from "./render.ts";
 import { fetchUpstream } from "./upstream/index.ts";
 
-const USAGE = `clusterpilot — read-only Talos/Kubernetes upgrade planner
+const USAGE = `clusterpilot — Talos/Kubernetes upgrade planner and runner
 
   clusterpilot status [--json]   Collect cluster state and computed findings. No model.
   clusterpilot plan [--out FILE] Collect, analyze, and write an upgrade plan with the local model.
+  clusterpilot apply [--apply]   Build an execution plan and run it. Dry run unless --apply.
   clusterpilot ask "<question>"  Ask the model one question; it can probe the cluster to answer.
 
 Options
@@ -28,13 +30,21 @@ Options
   --no-stream     Do not stream model output to stdout
   --thinking L    off | minimal | low | medium | high (default: medium)
 
+apply options
+  --apply         Actually execute. Without it, apply is a dry run.
+  --yes           Skip the per-step confirmation prompt.
+  --talos-only    Stop after the Talos steps.
+  --skip-helm     Leave Helm releases alone.
+  --snapshot PATH Where to write the pre-upgrade etcd snapshot.
+
 Environment
   LLAMA_BASE_URL        OpenAI-compatible endpoint (default http://127.0.0.1:8080/v1)
   CLUSTERPILOT_CONTEXT  Override the kubectl context
   GITHUB_TOKEN          Raises the GitHub API rate limit for release lookups
 
-Clusterpilot never mutates the cluster. Mutating commands are refused at the
-process level, including any the model tries to run.`;
+Every command the model can reach is read-only. Mutations happen only through
+"apply --apply", only for commands clusterpilot generated itself, and only for
+the handful of upgrade operations it knows how to verify.`;
 
 function flag(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
@@ -122,6 +132,11 @@ async function main() {
     case "plan":
       await cmdPlan(args);
       break;
+    case "apply": {
+      const { cfg, inventory, upstream } = await gather();
+      await cmdApply(args, { cfg, inventory, upstream });
+      break;
+    }
     case "ask":
       await cmdAsk(args);
       break;

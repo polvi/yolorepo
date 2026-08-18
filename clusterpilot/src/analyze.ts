@@ -71,7 +71,7 @@ function findingsForTalos(inv: Inventory, up: UpstreamVersions): Finding[] {
     const severity = distance >= 2 ? "critical" : distance === 1 ? "warning" : "info";
     const steps = path.map(
       (v) =>
-        `talosctl upgrade --nodes ${node.name} --image ${installerImage(v, node.schematic)}${singleNode ? " --preserve" : ""}`,
+        `talosctl upgrade --nodes ${node.name} --image ${installerImage(v, node.schematic)}`,
     );
 
     out.push({
@@ -85,7 +85,7 @@ function findingsForTalos(inv: Inventory, up: UpstreamVersions): Finding[] {
           ? `This node was built from Image Factory schematic ${node.schematic}, carrying ${node.extensions.map((e) => e.name).join(", ") || "no extensions"}. Every upgrade image below is built from that same schematic; using the stock installer instead would drop those extensions.`
           : "No Image Factory schematic was found, so the stock installer applies. Confirm this node genuinely has no system extensions before upgrading.",
         singleNode
-          ? "--preserve is set because this is a single-node cluster: without it the upgrade wipes the ephemeral partition and takes etcd with it."
+          ? "This is a single-node cluster, so the reboot is a full outage and etcd goes with it. Take a snapshot first. Do not reach for --preserve: it is deprecated as of Talos 1.13 and selects a legacy upgrade path, and the ephemeral partition is preserved by default without it."
           : "",
       ]
         .filter(Boolean)
