@@ -14,8 +14,10 @@ import { loadConfig } from "./config.ts";
 import { detectLoadedModel } from "./model.ts";
 import { collect } from "./probes/index.ts";
 import { sync } from "./sync.ts";
-import { buildPrompt } from "./prompt.ts";
+import { buildPrompt, SWEEP_PROMPT } from "./prompt.ts";
 import { renderDigest, renderPlanDocument } from "./render.ts";
+import { realAnomalies, runSweep } from "./sweep/index.ts";
+import { renderSweep, renderSweepForModel } from "./sweep/render.ts";
 import { fetchUpstream } from "./upstream/index.ts";
 
 const USAGE = `clusterpilot — Talos/Kubernetes upgrade planner and runner
@@ -23,6 +25,7 @@ const USAGE = `clusterpilot — Talos/Kubernetes upgrade planner and runner
   clusterpilot status [--json]   Collect cluster state and computed findings. No model.
   clusterpilot plan [--out FILE] Collect, analyze, and write an upgrade plan with the local model.
   clusterpilot apply [--apply]   Build an execution plan and run it. Dry run unless --apply.
+  clusterpilot sweep [--json]    Hunt for abnormalities in metrics, logs, and object state.
   clusterpilot sync [--out F]    Record what the cluster IS into a git-tracked state file.
   clusterpilot ask "<question>"  Ask the model one question; it can probe the cluster to answer.
 
@@ -39,6 +42,13 @@ apply options
   --skip-helm     Leave Helm releases alone.
   --snapshot PATH Where to write the pre-upgrade etcd snapshot.
   --sync          Sync state to git afterwards even if syncPath is unset.
+
+sweep options
+  --json          Machine-readable report.
+  --verbose       Show the evidence behind each finding.
+  --window H      Hours of kernel log to consider current (default 24).
+  --no-logs       Skip the log passes; metrics and object state only.
+  --no-model      Skip the triage pass and print the findings alone.
 
 sync options
   --out FILE      Where to write the state file (default: config syncPath).
@@ -129,6 +139,54 @@ async function cmdAsk(args: string[]) {
   else console.log(outcome.text);
 }
 
+
+async function cmdSweep(args: string[]) {
+  const cfg = await loadConfig();
+  if (!cfg.kubeContext) {
+    throw new Error("No kubectl context found. Set one, or set CLUSTERPILOT_CONTEXT.");
+  }
+  process.stderr.write(`sweeping ${cfg.kubeContext}...\n`);
+
+  const windowFlag = flag(args, "--window");
+  const report = await runSweep(cfg, {
+    windowHours: windowFlag ? Number(windowFlag) : undefined,
+    skipLogs: args.includes("--no-logs"),
+  });
+
+  // The model correlates; it does not detect. Findings are printed either way,
+  // so a dead llama.cpp server costs the narrative and nothing else.
+  if (!args.includes("--no-model") && !args.includes("--json")) {
+    try {
+      process.stderr.write("triaging with the local model...\n");
+      const outcome = await runAgent({
+        cfg,
+        prompt: `${renderSweepForModel(report)}\n\nAssess this cluster.`,
+        systemPrompt: SWEEP_PROMPT,
+        stream: false,
+        thinkingLevel: "low",
+      });
+      if (outcome.text.trim()) {
+        report.triage = outcome.text;
+        report.modelId = outcome.modelId;
+      }
+    } catch (err) {
+      process.stderr.write(`triage skipped: ${(err as Error).message}\n`);
+    }
+  }
+
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(renderSweep(report, args.includes("--verbose")));
+  }
+
+  // Exit code carries the verdict, so this is usable from cron without parsing
+  // the output. Expected-on-Talos findings deliberately do not trip it.
+  const real = realAnomalies(report.anomalies);
+  if (real.some((a) => a.severity === "critical")) process.exitCode = 2;
+  else if (real.length > 0) process.exitCode = 1;
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
 
@@ -158,6 +216,9 @@ async function main() {
       if (result.committed) console.log("committed, not pushed");
       break;
     }
+    case "sweep":
+      await cmdSweep(args);
+      break;
     case "ask":
       await cmdAsk(args);
       break;

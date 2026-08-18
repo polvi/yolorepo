@@ -22,6 +22,7 @@ import { dirname, relative } from "node:path";
 import { parse, stringify } from "yaml";
 import type { Config } from "./config.ts";
 import { run } from "./exec.ts";
+import { redact } from "./redact.ts";
 import type { Inventory } from "./types.ts";
 
 export interface ClusterState {
@@ -109,66 +110,14 @@ function parseYamlSafe(text: string): unknown {
 }
 
 /**
- * Key-name patterns whose values never go into a git-tracked file.
+ * Secret handling lives in ./redact.ts, shared with the sweep. `helm get
+ * values` returns everything the operator supplied, and for a real release
+ * that includes database passwords and admin credentials in plaintext; the
+ * state file is committed, so those have to be stripped on the way in.
  *
- * `helm get values` returns everything the operator supplied, and for a real
- * release that includes database passwords and admin credentials in plaintext.
- * The state file is committed and eventually pushed, so those have to be
- * stripped on the way in.
- *
- * The list errs toward over-redaction. A state file that hides one harmless
- * setting is a small loss; one that leaks a Postgres password to a git remote
- * is not, and the leak is unrecoverable once pushed.
+ * Re-exported here because the state file's own documentation refers to them.
  */
-const SECRET_KEY_PATTERNS = [
-  "password",
-  "passwd",
-  "passphrase",
-  "secret",
-  "token",
-  "apikey",
-  "api_key",
-  "accesskey",
-  "access_key",
-  "privatekey",
-  "private_key",
-  "credential",
-  "bearer",
-  "salt",
-  "dsn",
-  "connectionstring",
-  "webhook",
-  "license",
-];
-
-export const REDACTED = "<redacted by clusterpilot>";
-
-function looksSecret(key: string): boolean {
-  const k = key.toLowerCase().replace(/[-_]/g, "");
-  return SECRET_KEY_PATTERNS.some((p) => k.includes(p.replace(/[-_]/g, "")));
-}
-
-/** Credentials embedded in a URL, e.g. postgres://user:pw@host. */
-const URL_CREDENTIALS = /^([a-z][a-z0-9+.-]*:\/\/[^:/@\s]+):[^@/\s]+@/i;
-
-/** Recursively replaces secret-shaped values. Structure is preserved. */
-export function redact(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(redact);
-
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = looksSecret(k) ? REDACTED : redact(v);
-    }
-    return out;
-  }
-
-  if (typeof value === "string" && URL_CREDENTIALS.test(value)) {
-    return value.replace(URL_CREDENTIALS, "$1:" + REDACTED + "@");
-  }
-
-  return value;
-}
+export { redact, REDACTED } from "./redact.ts";
 
 export function renderState(state: ClusterState): string {
   return [

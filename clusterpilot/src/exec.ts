@@ -30,6 +30,9 @@ const ALLOWED: Record<string, Set<string>> = {
     "service",
     "health",
     "dmesg",
+    // Retrieves a service's log. Read-only despite the name's overlap with
+    // `kubectl logs`; neither can change anything.
+    "logs",
     "disks",
     "memory",
     "containers",

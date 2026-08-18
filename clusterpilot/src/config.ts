@@ -42,6 +42,13 @@ export interface Config {
    * should not be hand-edited.
    */
   syncPath?: string;
+  /**
+   * Where the sweep finds Prometheus, reached read-only through the API server
+   * proxy rather than a port-forward. Left unset, clusterpilot looks in the
+   * conventional place and then searches for a service by name; set it to skip
+   * the search or to point at a Prometheus somewhere unusual.
+   */
+  prometheus?: { namespace: string; service: string; port: number };
   /** Where written plans land. */
   plansDir: string;
   /** Per-command timeout. Talos calls over Omni can be slow. */
@@ -108,6 +115,7 @@ export async function loadConfig(path = "clusterpilot.config.json"): Promise<Con
     syncPath: process.env.CLUSTERPILOT_SYNC_PATH ?? file.syncPath,
     llamaBaseUrl: process.env.LLAMA_BASE_URL ?? file.llamaBaseUrl ?? "http://127.0.0.1:8080/v1",
     model: process.env.CLUSTERPILOT_MODEL ?? file.model,
+    prometheus: file.prometheus,
     plansDir: file.plansDir ?? "plans",
     timeoutMs: file.timeoutMs ?? 45_000,
   };

@@ -12,6 +12,7 @@ bun run src/index.ts status          # cluster state and computed findings, no m
 bun run src/index.ts plan            # write a narrative upgrade plan
 bun run src/index.ts apply           # build an execution plan and dry-run it
 bun run src/index.ts apply --apply   # actually execute, confirming each step
+bun run src/index.ts sweep           # hunt for abnormalities in metrics and logs
 bun run src/index.ts sync            # record what the cluster IS into git
 bun run src/index.ts ask "is etcd healthy?"
 ```
@@ -231,6 +232,104 @@ settings is worse than skipping the upgrade.
 }
 ```
 
+## The sweep
+
+`status` asks what is installed and what is behind. `sweep` asks a different
+question — is anything wrong right now, and is anything heading that way — so it
+reads time series and logs rather than versions.
+
+```bash
+bun run src/index.ts sweep                 # findings, then a model triage pass
+bun run src/index.ts sweep --no-model      # findings alone
+bun run src/index.ts sweep --verbose       # show the evidence behind each one
+bun run src/index.ts sweep --window 72     # hours of kernel log to treat as current
+bun run src/index.ts sweep --json          # machine-readable
+```
+
+It exits 0 when clean, 1 on warnings, 2 on anything critical, so it works from
+cron without parsing the output.
+
+### Reading Prometheus without opening a tunnel
+
+The cluster's Prometheus has three years of retention, which makes it the only
+source that remembers yesterday — and a trend is worth far more than a level.
+Reaching it is the interesting part: `kubectl port-forward` is a mutating verb
+at the gate, and correctly so. But the API server will proxy a GET to a Service,
+and `kubectl get --raw` is an ordinary read. So the entire metrics client is one
+allowed read-only command with a URL in it, and the gate stays exactly as tight
+as it was.
+
+Prometheus is optional. Without it the sweep still runs on `kubectl` and
+`talosctl` alone, losing the trends and the hardware counters. A health check
+that refused to run without monitoring would be useless precisely when
+monitoring broke.
+
+### What it looks at
+
+- **Headroom**, as one sorted table of everything that can run out: CPU, memory,
+  pod slots, CPU committed by requests, every filesystem, every PVC.
+- **Trends**. Anything that can fill also gets a linear projection from the last
+  24 hours, so a volume reads as "full in nine days" rather than "62%".
+- **Hardware counters** — SMART status and uncorrected errors, ECC, NIC errors,
+  drive temperature, ZFS pool state — each read twice: the lifetime total, and
+  the increase over the last day. A drive with four errors from a bad cable two
+  years ago is not the same as one accruing them this afternoon.
+- **Workloads**: restarts, OOM kills, pods that are not Running, unbound PVCs.
+- **Logs**: the kernel ring buffer on every node, the logs of any unhealthy
+  Talos service, and the *previous* container's logs for pods that have been
+  restarting — the dead container is the one that explains why.
+
+### Why it stays quiet
+
+A health check that cries wolf gets ignored, so most of the work here is in
+what gets rejected.
+
+- **Recency.** A kernel log covers the whole uptime. Talos timestamps every
+  line, so anything outside the window is dropped rather than aged.
+- **Meaning over spelling.** `Sense Key : Recovered Error` matches any search
+  for `/error/i` and means the drive fixed the problem. It is reported as
+  context, never as a fault.
+- **Uniformity.** A fault hits one device; a poller hits all of them. When a
+  device-scoped pattern appears on nearly every device at nearly the same rate,
+  it is something walking the bus on a timer. On this cluster that is
+  smartctl-exporter reading defect lists off a SAS backplane — about 75 lines
+  per drive per day across all sixteen. Without this test a healthy box reports
+  sixteen failing drives.
+- **Known-benign signals are labelled, not hidden.** Talos binds kube-proxy,
+  kube-scheduler, and kube-controller-manager metrics to localhost, so those
+  three alert forever. `Watchdog` is a deadman's switch that fires continuously
+  by design — reporting it as a problem inverts its meaning. All of these are
+  printed with the reason attached and left out of the counts, so the day a new
+  one appears it is visible instead of buried.
+- **Memory excludes the ZFS ARC**, which counts as used but is evicted on
+  demand. This box reads 32% used with the ARC and 4% without; the second number
+  is the one that predicts running out. Both are shown so they cannot be
+  confused.
+- **Request sums count only Running pods.** `kube_pod_container_resource_requests`
+  keeps reporting for Succeeded pods, so an unfiltered sum counts finished Jobs.
+  Two 32-core build Jobs once read as 86% of this node committed while it idled.
+
+### Logs are treated as credential-bearing
+
+The Talos kernel command line contains the Omni siderolink join token, so a raw
+`dmesg` dump is a secret. Every log line is redacted before it is printed,
+written, or handed to the model, using the same secret-shaped-key rules that
+protect the state file.
+
+That is a mitigation, not a guarantee: free text can carry a credential with no
+marker at all. Treat sweep output as sensitive.
+
+### What the model adds
+
+Nothing about detection. The rules decide what is abnormal, because those are
+comparisons and comparisons should be code. The model sees every finding at once
+and does the one thing the rules cannot: notice when several of them are one
+story. A drive throwing errors, a pool degrading, and a pod crash-looping on a
+volume from that pool are one hardware failure with three symptoms.
+
+If the llama.cpp server is down, the triage is skipped and the findings still
+print.
+
 ## Layout
 
 ```
@@ -243,6 +342,12 @@ src/
   plan.ts         findings -> ordered ExecutionPlan (the only place argv is built)
   values.ts       resolves which values file each helm upgrade applies
   sync.ts         writes and commits the redacted cluster-state file
+  redact.ts       secret redaction, for both structured data and free text
+  sweep/          the health sweep
+    promql.ts     Prometheus through the API server proxy
+    metrics.ts    metric rules and thresholds
+    logs.ts       kernel/service/container log scanning
+    render.ts     the report, for a terminal and for the model
   preflight.ts    gates evaluated against fresh state
   execute.ts      the runner
   watch.ts        rollout convergence
@@ -265,3 +370,11 @@ refused by the read-only gate wherever it appears in the argv, that destructive
 verbs are refused even by the mutation gate, that `talosctl etcd` is narrowed to
 `snapshot` alone, and that every command the plan compiler generates passes the
 mutation gate.
+
+The sweep tests cover the filters that keep it quiet: that a stale log line is
+dropped rather than aged, that a medium error is never absorbed by the
+recovered-error pattern, that a signal spread evenly across every device reads
+as a poller while the same signal on one device stays a real finding, that the
+siderolink join token is stripped from a kernel command line, and that reading
+Prometheus through the API server proxy passes the read-only gate while
+`port-forward` still does not.
