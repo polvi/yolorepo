@@ -67,160 +67,234 @@ export async function execute(opts: ExecuteOptions): Promise<ExecuteResult> {
 
   let status: ExecuteResult["status"] = "completed";
 
-  for (const [index, step] of plan.steps.entries()) {
-    const position = `[${index + 1}/${plan.steps.length}]`;
-    log(`\n${position} ${step.title}`);
-    log(`      ${step.effect}`);
-    log(`      downtime: ${step.downtime}`);
-    log(`      $ ${step.argv.join(" ")}`);
+  try {
+    for (const [index, step] of plan.steps.entries()) {
+      const position = `[${index + 1}/${plan.steps.length}]`;
+      log(`\n${position} ${step.title}`);
+      log(`      ${step.effect}`);
+      log(`      downtime: ${step.downtime}`);
+      log(`      $ ${step.argv.join(" ")}`);
 
-    journal.write({ t: "step-start", at: now(), stepId: step.id, title: step.title, argv: step.argv });
+      journal.write({
+        t: "step-start",
+        at: now(),
+        stepId: step.id,
+        title: step.title,
+        argv: step.argv,
+      });
 
-    const outcome: StepOutcome = { stepId: step.id, status: "pending", startedAt: now() };
+      const outcome: StepOutcome = {
+        stepId: step.id,
+        status: "pending",
+        startedAt: now(),
+      };
 
-    // --- preflight -------------------------------------------------------
-    let preflightLines: string[] = [];
-    if (step.preflight.length > 0) {
-      log("      preflight:");
-      const pre = await runPreflight(cfg, step.preflight);
-      preflightLines = pre.lines;
-      for (const line of pre.lines) log(`        ${line}`);
-      journal.write({ t: "preflight", at: now(), stepId: step.id, ok: pre.ok, lines: pre.lines });
+      // --- preflight -------------------------------------------------------
+      let preflightLines: string[] = [];
+      if (step.preflight.length > 0) {
+        log("      preflight:");
+        const pre = await runPreflight(cfg, step.preflight);
+        preflightLines = pre.lines;
+        for (const line of pre.lines) log(`        ${line}`);
+        journal.write({
+          t: "preflight",
+          at: now(),
+          stepId: step.id,
+          ok: pre.ok,
+          lines: pre.lines,
+        });
 
-      if (!pre.ok) {
-        outcome.status = "failed";
-        outcome.error = `preflight failed: ${pre.failures.join("; ")}`;
+        if (!pre.ok) {
+          outcome.status = "failed";
+          outcome.error = `preflight failed: ${pre.failures.join("; ")}`;
+          outcome.finishedAt = now();
+          outcomes.push(outcome);
+          journal.write({
+            t: "step-end",
+            at: now(),
+            stepId: step.id,
+            status: "failed",
+            error: outcome.error,
+          });
+          log(`      ABORT: ${outcome.error}`);
+          status = "failed";
+          break;
+        }
+      }
+
+      // --- dry run ---------------------------------------------------------
+      if (!apply) {
+        outcome.status = "skipped";
         outcome.finishedAt = now();
         outcomes.push(outcome);
-        journal.write({ t: "step-end", at: now(), stepId: step.id, status: "failed", error: outcome.error });
-        log(`      ABORT: ${outcome.error}`);
+        journal.write({
+          t: "step-end",
+          at: now(),
+          stepId: step.id,
+          status: "skipped",
+        });
+        log("      dry run: not executed");
+        continue;
+      }
+
+      // --- confirm ---------------------------------------------------------
+      if (!opts.assumeYes) {
+        const approved = await opts.confirm(step, preflightLines);
+        if (!approved) {
+          outcome.status = "aborted";
+          outcome.finishedAt = now();
+          outcomes.push(outcome);
+          journal.write({
+            t: "step-end",
+            at: now(),
+            stepId: step.id,
+            status: "aborted",
+          });
+          log("      stopped at your request");
+          status = "aborted";
+          break;
+        }
+      }
+
+      // --- execute ---------------------------------------------------------
+      outcome.status = "running";
+      let output = "";
+      let failure: string | undefined;
+
+      try {
+        // A `verify` step only reads, so it goes through the read-only gate. The
+        // mutation gate would refuse it, which is correct of the gate and wrong
+        // of the caller: routing every step through it once turned a healthy
+        // finish into a crash after the upgrade had already succeeded.
+        const mutating = step.kind !== "verify";
+        const res = await run(step.argv, {
+          mutating,
+          timeoutMs: timeoutFor(step),
+          onOutput: (chunk) => {
+            output += chunk;
+            process.stderr.write(chunk);
+          },
+        });
+
+        journal.write({
+          t: "command",
+          at: now(),
+          stepId: step.id,
+          argv: step.argv,
+          code: res.code,
+          durationMs: res.durationMs,
+        });
+
+        if (!res.ok)
+          failure = `command exited ${res.code}: ${res.stderr.trim().slice(0, 500)}`;
+      } catch (err) {
+        // A gate refusal or a spawn error arrives as a throw. Treat it as a
+        // failed step so the run still journals and diagnoses, rather than
+        // killing the process and losing the record of what already ran.
+        failure = `could not run the command: ${(err as Error).message}`;
+      }
+
+      outcome.output = output.slice(-8000);
+
+      // --- watch -----------------------------------------------------------
+      if (!failure && step.watch) {
+        log(`      watching: ${step.watch.kind}`);
+        const w = await watch(cfg, step.watch, (m) => log(`        ${m}`));
+        journal.write({
+          t: "watch",
+          at: now(),
+          stepId: step.id,
+          ok: w.ok,
+          detail: w.detail,
+          elapsedMs: w.elapsedMs,
+        });
+        log(`        ${w.ok ? "ok" : "FAILED"}: ${w.detail}`);
+        if (!w.ok) failure = `rollout did not converge: ${w.detail}`;
+      }
+
+      // --- verify ----------------------------------------------------------
+      if (!failure) {
+        for (const argv of step.verify) {
+          try {
+            const v = await run(argv, { timeoutMs: 60_000 });
+            log(
+              `      verify $ ${argv.join(" ")} -> ${v.ok ? "ok" : `exit ${v.code}`}`,
+            );
+            if (!v.ok)
+              failure = `verification command failed: ${argv.join(" ")}`;
+          } catch (err) {
+            failure = `verification command could not run: ${argv.join(" ")} (${(err as Error).message})`;
+          }
+        }
+      }
+
+      // --- troubleshoot on failure ----------------------------------------
+      if (failure) {
+        outcome.status = "failed";
+        outcome.error = failure;
+        log(`      FAILED: ${failure}`);
+        log("      gathering diagnostics...");
+
+        const evidence = await gather(cfg, step);
+        const diagnosis = await diagnose(cfg, step, failure, evidence);
+        outcome.diagnosis = diagnosis;
+
+        journal.write({
+          t: "diagnosis",
+          at: now(),
+          stepId: step.id,
+          summary: diagnosis.summary,
+          recommendations: diagnosis.recommendations,
+        });
+
+        log(`\n      diagnosis: ${diagnosis.summary}`);
+        log(`      likely cause: ${diagnosis.likelyCause}`);
+        log(
+          `      cluster believed stable: ${diagnosis.clusterStable ? "yes" : "no"}`,
+        );
+        if (diagnosis.recommendations.length > 0) {
+          log("      recommended next steps for you:");
+          for (const r of diagnosis.recommendations) log(`        - ${r}`);
+        }
+
+        outcome.finishedAt = now();
+        outcomes.push(outcome);
+        journal.write({
+          t: "step-end",
+          at: now(),
+          stepId: step.id,
+          status: "failed",
+          error: failure,
+        });
         status = "failed";
         break;
       }
-    }
 
-    // --- dry run ---------------------------------------------------------
-    if (!apply) {
-      outcome.status = "skipped";
+      outcome.status = "succeeded";
       outcome.finishedAt = now();
       outcomes.push(outcome);
-      journal.write({ t: "step-end", at: now(), stepId: step.id, status: "skipped" });
-      log("      dry run: not executed");
-      continue;
+      journal.write({
+        t: "step-end",
+        at: now(),
+        stepId: step.id,
+        status: "succeeded",
+      });
+      log("      done");
     }
-
-    // --- confirm ---------------------------------------------------------
-    if (!opts.assumeYes) {
-      const approved = await opts.confirm(step, preflightLines);
-      if (!approved) {
-        outcome.status = "aborted";
-        outcome.finishedAt = now();
-        outcomes.push(outcome);
-        journal.write({ t: "step-end", at: now(), stepId: step.id, status: "aborted" });
-        log("      stopped at your request");
-        status = "aborted";
-        break;
-      }
-    }
-
-    // --- execute ---------------------------------------------------------
-    outcome.status = "running";
-    let output = "";
-    const res = await run(step.argv, {
-      mutating: true,
-      timeoutMs: timeoutFor(step),
-      onOutput: (chunk) => {
-        output += chunk;
-        process.stderr.write(chunk);
-      },
-    });
-
+  } catch (err) {
+    // Nothing above should throw any more, but a run that dies without a
+    // run-end record leaves no way to tell what had already executed.
+    status = "failed";
+    log(`\n      unexpected error: ${(err as Error).message}`);
+  } finally {
     journal.write({
-      t: "command",
+      t: "run-end",
       at: now(),
-      stepId: step.id,
-      argv: step.argv,
-      code: res.code,
-      durationMs: res.durationMs,
+      status,
+      completed: outcomes.filter((o) => o.status === "succeeded").length,
+      total: plan.steps.length,
     });
-    outcome.output = output.slice(-8000);
-
-    let failure: string | undefined;
-    if (!res.ok) failure = `command exited ${res.code}: ${res.stderr.trim().slice(0, 500)}`;
-
-    // --- watch -----------------------------------------------------------
-    if (!failure && step.watch) {
-      log(`      watching: ${step.watch.kind}`);
-      const w = await watch(cfg, step.watch, (m) => log(`        ${m}`));
-      journal.write({
-        t: "watch",
-        at: now(),
-        stepId: step.id,
-        ok: w.ok,
-        detail: w.detail,
-        elapsedMs: w.elapsedMs,
-      });
-      log(`        ${w.ok ? "ok" : "FAILED"}: ${w.detail}`);
-      if (!w.ok) failure = `rollout did not converge: ${w.detail}`;
-    }
-
-    // --- verify ----------------------------------------------------------
-    if (!failure) {
-      for (const argv of step.verify) {
-        const v = await run(argv, { timeoutMs: 60_000 });
-        log(`      verify $ ${argv.join(" ")} -> ${v.ok ? "ok" : `exit ${v.code}`}`);
-        if (!v.ok) failure = `verification command failed: ${argv.join(" ")}`;
-      }
-    }
-
-    // --- troubleshoot on failure ----------------------------------------
-    if (failure) {
-      outcome.status = "failed";
-      outcome.error = failure;
-      log(`      FAILED: ${failure}`);
-      log("      gathering diagnostics...");
-
-      const evidence = await gather(cfg, step);
-      const diagnosis = await diagnose(cfg, step, failure, evidence);
-      outcome.diagnosis = diagnosis;
-
-      journal.write({
-        t: "diagnosis",
-        at: now(),
-        stepId: step.id,
-        summary: diagnosis.summary,
-        recommendations: diagnosis.recommendations,
-      });
-
-      log(`\n      diagnosis: ${diagnosis.summary}`);
-      log(`      likely cause: ${diagnosis.likelyCause}`);
-      log(`      cluster believed stable: ${diagnosis.clusterStable ? "yes" : "no"}`);
-      if (diagnosis.recommendations.length > 0) {
-        log("      recommended next steps for you:");
-        for (const r of diagnosis.recommendations) log(`        - ${r}`);
-      }
-
-      outcome.finishedAt = now();
-      outcomes.push(outcome);
-      journal.write({ t: "step-end", at: now(), stepId: step.id, status: "failed", error: failure });
-      status = "failed";
-      break;
-    }
-
-    outcome.status = "succeeded";
-    outcome.finishedAt = now();
-    outcomes.push(outcome);
-    journal.write({ t: "step-end", at: now(), stepId: step.id, status: "succeeded" });
-    log("      done");
   }
-
-  journal.write({
-    t: "run-end",
-    at: now(),
-    status,
-    completed: outcomes.filter((o) => o.status === "succeeded").length,
-    total: plan.steps.length,
-  });
 
   return { outcomes, status };
 }

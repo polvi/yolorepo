@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { assertMutation, MutationNotPlannedError, run } from "./exec.ts";
+import { assertMutation, assertReadOnly, MutationNotPlannedError, run } from "./exec.ts";
 import { buildPlan } from "./plan.ts";
 import type { Config } from "./config.ts";
 import type { Inventory, UpstreamVersions } from "./types.ts";
@@ -148,6 +148,17 @@ describe("plan compiler", () => {
     const plan = buildPlan(cfg, inventory, upstream);
     const talos = plan.steps.find((s) => s.kind === "talos-upgrade")!;
     expect(talos.downtime).toBe("full-outage");
+  });
+
+  // Regression: the executor routed every step through the mutation gate,
+  // including the read-only final verify. The gate refused `kubectl get`, the
+  // throw escaped, and a run whose upgrade had already succeeded died without
+  // a run-end record or a state sync. Verify steps must use the read-only gate.
+  test("the verify step is read-only and would be refused as a mutation", () => {
+    const plan = buildPlan(cfg, inventory, upstream, withValues);
+    const verify = plan.steps.find((s) => s.kind === "verify")!;
+    expect(() => assertReadOnly(verify.argv)).not.toThrow();
+    expect(() => assertMutation(verify.argv)).toThrow(MutationNotPlannedError);
   });
 
   test("every generated command passes the mutation gate", () => {
