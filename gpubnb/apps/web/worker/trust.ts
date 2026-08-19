@@ -91,7 +91,7 @@ export const listingUpsertSchema = z.object({
     .max(300)
     .refine((u) => /^https?:\/\//.test(u), 'endpoint_url must be http(s)'),
   gpu_model: z.string().trim().min(1).max(120),
-  cpu_tee: z.enum(['snp']).default('snp'),
+  cpu_tee: z.enum(['snp', 'tdx', 'simulated']).default('snp'), // tdx: verifier not shipped yet; listing only
   model_id: z.string().trim().min(1).max(200),
   ctx_len: z.number().int().positive().max(10_000_000),
   price_in_piconero: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),

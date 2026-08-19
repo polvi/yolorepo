@@ -16,6 +16,7 @@ license = "AGPL-3.0-or-later"
 rust-version = "1.85"
 
 [workspace.dependencies]
+tower-http = { version = "0.6", features = ["cors"] }
 gpubnb-protocol = { path = "crates/protocol" }
 gpubnb-attest = { path = "crates/attest" }
 gpubnb-xmr = { path = "crates/xmr" }

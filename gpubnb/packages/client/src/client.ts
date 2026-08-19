@@ -73,7 +73,10 @@ export class GpubnbClient {
     this.endpointUrl = p.endpointUrl.replace(/\/+$/, "");
     this.hpkePub = p.hpkePub;
     this.signPub = p.signPub;
-    this.f = p.fetch ?? fetch;
+    // Bound: calling window.fetch with `this` = the client is an "Illegal
+    // invocation" in browsers (bun/node tolerate it).
+    const raw = p.fetch ?? fetch;
+    this.f = (input, init) => raw(input, init);
   }
 
   /**
@@ -81,7 +84,8 @@ export class GpubnbClient {
    * verdict is `verified` (or `simulated` when allowSimulated). The client is bound to the keys in the doc.
    */
   static async connect(p: { endpointUrl: string; golden: GoldenSet; allowSimulated?: boolean; models?: ModelCatalog; fetch?: typeof fetch; fetchJwks?: () => Promise<JsonWebKey[]>; now?: number }): Promise<{ client: GpubnbClient; verdict: Verdict; doc: AttestationDoc }> {
-    const f = p.fetch ?? fetch;
+    const raw = p.fetch ?? fetch;
+    const f: typeof fetch = (input, init) => raw(input, init);
     const challenge = randomBytes(32);
     const blob = await fetchAttestation(p.endpointUrl, challenge, f);
     const verdict = await verifyAttestationDoc(blob, { golden: p.golden, allowSimulated: p.allowSimulated, expectedChallenge: challenge, models: p.models, fetch: f, fetchJwks: p.fetchJwks, now: p.now });

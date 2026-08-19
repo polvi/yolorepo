@@ -31,6 +31,16 @@ pub fn router(gw: Shared) -> Router {
         .route("/.well-known/gpubnb/attestation", get(attestation))
         .route("/.well-known/gpubnb/info", get(info))
         .route("/healthz", get(|| async { "ok" }))
+        // Renters' browsers call the runner directly from the marketplace origin
+        // (and from anywhere else): every body is HPKE-sealed and sessions are
+        // PSK-authenticated, so a permissive CORS policy gives nothing away.
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::OPTIONS])
+                .allow_headers([header::CONTENT_TYPE])
+                .max_age(std::time::Duration::from_secs(86400)),
+        )
         .with_state(gw)
 }
 
