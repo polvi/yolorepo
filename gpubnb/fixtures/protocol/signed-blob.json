@@ -1,0 +1,55 @@
+{
+  "_doc": "PROTOCOL.md §1. sig = Ed25519(seed, utf8(domain) || payload_bytes); payload is b64u(payload_bytes). payload_bytes here are exactly utf8(payload_json).",
+  "seed": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "pub": "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6",
+  "payload_json": "{\"hello\":\"gpubnb\",\"n\":1,\"nested\":{\"a\":[1,2,3]}}",
+  "vectors": [
+    {
+      "domain": "gpubnb-offer-v1",
+      "kid": "test-kid",
+      "blob": {
+        "payload": "eyJoZWxsbyI6ImdwdWJuYiIsIm4iOjEsIm5lc3RlZCI6eyJhIjpbMSwyLDNdfX0",
+        "sig": "KQjz8ymGoxeZHZko0ZHHJgbocC6VzRSWjKO6sw0BmOCuiKqNM_wrLKFQE9F4pbLA52i41WngQRh5eeDaTWjhDA",
+        "kid": "test-kid"
+      }
+    },
+    {
+      "domain": "gpubnb-receipt-v1",
+      "blob": {
+        "payload": "eyJoZWxsbyI6ImdwdWJuYiIsIm4iOjEsIm5lc3RlZCI6eyJhIjpbMSwyLDNdfX0",
+        "sig": "cjQVm6AJ5iLMywy5Cn-WwvZlDao8yHNCvqa3yjDtAjdEgKULNSuw4JssKP8i2zUX9Hqh_OJhi0e1Oxw2vWZIAA"
+      }
+    }
+  ],
+  "negative": [
+    {
+      "_doc": "same blob verified under the wrong domain must fail",
+      "domain": "gpubnb-receipt-v1",
+      "blob": {
+        "payload": "eyJoZWxsbyI6ImdwdWJuYiIsIm4iOjEsIm5lc3RlZCI6eyJhIjpbMSwyLDNdfX0",
+        "sig": "KQjz8ymGoxeZHZko0ZHHJgbocC6VzRSWjKO6sw0BmOCuiKqNM_wrLKFQE9F4pbLA52i41WngQRh5eeDaTWjhDA",
+        "kid": "test-kid"
+      },
+      "expect": false
+    },
+    {
+      "_doc": "one flipped payload char must fail",
+      "domain": "gpubnb-offer-v1",
+      "blob": {
+        "payload": "eyJoZWxsbyI6ImdwdWJuYiIsIm4iOjEsIm5lc3RlZCI6eyJhIjpbMSwyLDNdfXA",
+        "sig": "KQjz8ymGoxeZHZko0ZHHJgbocC6VzRSWjKO6sw0BmOCuiKqNM_wrLKFQE9F4pbLA52i41WngQRh5eeDaTWjhDA",
+        "kid": "test-kid"
+      },
+      "expect": false
+    }
+  ],
+  "dev_root": {
+    "kid": "gpubnb-dev-root",
+    "pub_b64u": "ymOF_JrpoPhtWQ3ddhLxQ2ElP4IvWU42GJ5Y98FK4bk",
+    "priv_b64u": "dV0ywEoe20SjGM__t7x94B9I7NWqws9oILxmNOXy9G0"
+  },
+  "offline_root": {
+    "kid": "gpubnb-root-2026",
+    "pub_b64u": "vDTaTKbOIk2FAGfIMYwICVyEHkSQq4RBEe4WOCgwb04"
+  }
+}

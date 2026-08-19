@@ -1,0 +1,31 @@
+{
+  "_doc": "PROTOCOL.md §5.1 session open: HPKE base mode, suite X25519/HKDF-SHA256/ChaCha20-Poly1305, info = aad = 'gpubnb-open-v1'. 'ekm' is the RFC 9180 DeriveKeyPair ikm used for the ephemeral key (hpke-js 'ekm' option); implementations that cannot inject it should instead unseal the envelope with recipient_priv and check plaintext, then derive resp_key/resp_nonce_base via export('gpubnb-resp-key-v1',32)/export('gpubnb-resp-nonce-v1',12) and req_hash = SHA256(enc||ct), and reproduce the frames byte-for-byte.",
+  "recipient_priv": "7f3c1a5e9b2d4c6f8a0e1d3b5c7a9f2e4d6c8b0a1f3e5d7c9b2a4f6e8d0c1b3a",
+  "recipient_pub": "4bcc3005736b1decd9e4e376aec3f9253c8ace844cbe43711861108ff2fe402f",
+  "ekm": "1111111111111111111111111111111111111111111111111111111111111111",
+  "plaintext_json": "{\"client_nonce\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\"}",
+  "plaintext_hex": "7b22636c69656e745f6e6f6e6365223a226f4b47696f36536c7071656f71617172724b32757237437873724f3074626133754c6d3675377939767238227d",
+  "info": "gpubnb-open-v1",
+  "aad_hex": "677075626e622d6f70656e2d7631",
+  "envelope": {
+    "session_id": null,
+    "ctr": 0,
+    "enc": "GiOSSep0QDurwB8y35kxoW9xrIlyxGHWn-0VZA4xBjk",
+    "ct": "ZLQkBsggmGNMhkmVNnUkh_uQjYFtrJzItKinY5MvixNQKUHw0RLjpiUpu_f8BoP9TNc51TemVg_j-3AWu2XQZhCB8uctJZXKpuOfvC46"
+  },
+  "response": {
+    "resp_key": "9d9893c56de8ed38df6dc58df1c742aaf26fccb92b2aa2bf572ae3574a2a4087",
+    "resp_nonce_base": "842da0b6ffeddf5efb6a5626",
+    "req_hash": "2736e689e8013194d9046c60ae8c5f488ff4aa5b7b2a904e0dc7b778a87c55a3",
+    "frames": [
+      {
+        "index": 0,
+        "final": true,
+        "nonce": "842da0b6ffeddf5efb6a5626",
+        "payload_json": "{\"t\":\"open\",\"session_id\":\"EBESExQVFhcYGRobHB0eHw\",\"session_key\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"subaddress\":\"5SIMULATED\",\"price\":{\"in_per_m\":1000,\"out_per_m\":2000},\"offer\":{\"payload\":\"eyJzZXNzaW9uX2lkIjoiRUJFU0V4UVZGaGNZR1JvYkhCMGVIdyIsInN1YmFkZHJlc3MiOiI1U0lNVUxBVEVEIiwicHJpY2UiOnsiaW5fcGVyX20iOjEwMDAsIm91dF9wZXJfbSI6MjAwMH0sImhwa2VfcHViIjoiUzh3d0JYTnJIZXpaNU9OMnJzUDVKVHlLem9STXZrTnhHR0VRal9MLVFDOCIsImNyZWF0ZWRfYXQiOjE3NTU2MDAwMDAsImV4cGlyZXNfYXQiOjE3NTU2ODY0MDB9\",\"sig\":\"_pKmV0q_X8DXrp7DGsbDFhK_O9tQ78t1PKze5a5-T02qdMT4lIyN3edQCV95EvT6tyLTXXPx1iR8u2--qaQyCA\"}}",
+        "frame_hex": "00000256e3144ecaa0e08e3144b83a96b67888c5fcb389a43b35949d9a657c2600487df906bc986cb55e76048cc1ee23a54462ed69276c85c8475a10af7fec15f5878c4095b357871552feba03e45edc3a5416f6228c60c2ab77f95254de0e8d223c6444e22cc8df8e3f60902841d8561b3f99c75cdcecdf8dec1e16f4cb57bb6f80232422aa447bd6c243df3d4f1ecbb89a4e620a4e3baf0fc7ade25abbe3df85a17ef340f36ae5d8eee33cb51f5763ac866f5c005db75c38aba23b25d1adc0ee756d78f4909c9b3e9b26a25f2a0ffe39d0f4e359daf9fe6ce814de6cb2f24e1b895fc90d637b21f69c123217a963a075754a4d6baf8e87b818b79b1195643451df6287c19e10d12afc2e55c1aaf264586ec78834f5ef98e5db59306ea1e917225d260e93e3a450be56203209afd2cc4f17d32b13700337985dda2b57ed21c1fb25c4e7c4fb086d14913cdd9ca0b2ed07910f1a9be535a50628fe795b5b890a09d5a4b8ab8f0f582fd0da665f0938af013ff8df14c0b7df4e74e80538beade5e7167b494ea20797fa7c7c41bde662dac9a74294d171be5a9b994fc25835fe115d831861f07162a669fbc61ee3ddd08f52546a79989ea0cf8c0cc8e0795569c27a5879a89c0851593f619e05e4123d9af5056f8d4b4263848766c555f86d3b460d7b082fd2b8f4ec0ac3f241aaa6fe413f8fd90998dd256c44883e9c13a31465e1af5d55fece2b3ad602bfd242726d2bd359c1300e5cc68c6d81a74fb834e35eb8b979b018c57d48da1f24e89d12ccedc47e24e28273d05325c7ba3a26154d7028da2f6592253a06b5f4b36b720a54b36a8642760d4c36b95a98"
+      }
+    ],
+    "body_hex": "00000256e3144ecaa0e08e3144b83a96b67888c5fcb389a43b35949d9a657c2600487df906bc986cb55e76048cc1ee23a54462ed69276c85c8475a10af7fec15f5878c4095b357871552feba03e45edc3a5416f6228c60c2ab77f95254de0e8d223c6444e22cc8df8e3f60902841d8561b3f99c75cdcecdf8dec1e16f4cb57bb6f80232422aa447bd6c243df3d4f1ecbb89a4e620a4e3baf0fc7ade25abbe3df85a17ef340f36ae5d8eee33cb51f5763ac866f5c005db75c38aba23b25d1adc0ee756d78f4909c9b3e9b26a25f2a0ffe39d0f4e359daf9fe6ce814de6cb2f24e1b895fc90d637b21f69c123217a963a075754a4d6baf8e87b818b79b1195643451df6287c19e10d12afc2e55c1aaf264586ec78834f5ef98e5db59306ea1e917225d260e93e3a450be56203209afd2cc4f17d32b13700337985dda2b57ed21c1fb25c4e7c4fb086d14913cdd9ca0b2ed07910f1a9be535a50628fe795b5b890a09d5a4b8ab8f0f582fd0da665f0938af013ff8df14c0b7df4e74e80538beade5e7167b494ea20797fa7c7c41bde662dac9a74294d171be5a9b994fc25835fe115d831861f07162a669fbc61ee3ddd08f52546a79989ea0cf8c0cc8e0795569c27a5879a89c0851593f619e05e4123d9af5056f8d4b4263848766c555f86d3b460d7b082fd2b8f4ec0ac3f241aaa6fe413f8fd90998dd256c44883e9c13a31465e1af5d55fece2b3ad602bfd242726d2bd359c1300e5cc68c6d81a74fb834e35eb8b979b018c57d48da1f24e89d12ccedc47e24e28273d05325c7ba3a26154d7028da2f6592253a06b5f4b36b720a54b36a8642760d4c36b95a98"
+  }
+}

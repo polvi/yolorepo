@@ -1,0 +1,39 @@
+{
+  "_doc": "PROTOCOL.md §8. Sort entries bytewise by UTF-8 path (not locale-aware: 'Zed.txt' < 'config.json' < 'model-…' < 'tokenizer/…' < 'ünïcode.txt'); encode each as path || 0x00 || sha256 || 0x0a; digest = SHA256 of the concatenation. Entries are given unsorted on purpose.",
+  "entries": [
+    {
+      "path": "model-00002-of-00002.safetensors",
+      "sha256": "0202020202020202020202020202020202020202020202020202020202020202"
+    },
+    {
+      "path": "config.json",
+      "sha256": "0101010101010101010101010101010101010101010101010101010101010101"
+    },
+    {
+      "path": "model-00001-of-00002.safetensors",
+      "sha256": "0303030303030303030303030303030303030303030303030303030303030303"
+    },
+    {
+      "path": "tokenizer/tokenizer.json",
+      "sha256": "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100"
+    },
+    {
+      "path": "Zed.txt",
+      "sha256": "0404040404040404040404040404040404040404040404040404040404040404"
+    },
+    {
+      "path": "ünïcode.txt",
+      "sha256": "0505050505050505050505050505050505050505050505050505050505050505"
+    }
+  ],
+  "sorted_paths": [
+    "Zed.txt",
+    "config.json",
+    "model-00001-of-00002.safetensors",
+    "model-00002-of-00002.safetensors",
+    "tokenizer/tokenizer.json",
+    "ünïcode.txt"
+  ],
+  "digest": "8f08df6598e8d1caa9ec1f394a404f41f7c3ff5b80432931282516fb19de2e24",
+  "empty_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

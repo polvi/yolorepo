@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "_comment": "Unsigned source of truth for the golden set (PROTOCOL.md §10). Edit this, then run `bun scripts/sign-golden.ts` with the offline root key to produce golden.json. Real entries carry the SEV-SNP launch MEASUREMENT (hex48) of the published runner image for that runner_version plus its dm-verity root; none exist until the image pipeline lands (runner/image/). Simulated entries use the convention measurement = SHA384(\"gpubnb-simulated-\" || runner_version) — the Rust simulated attester and makeSimulatedDoc() both produce exactly that, so a simulated runner of a listed version verifies as status \"simulated\" and nothing else.",
+  "entries": [
+    {
+      "runner_version": "0.1.0",
+      "measurement": "d5edc940f681d3472552312378a512410dc0032b8cff4fbc63eb08c6180bd804cd9df6a7c963ed42c574accb2accd829",
+      "simulated": true,
+      "note": "SHA384(\"gpubnb-simulated-0.1.0\"); dev-root simulated attester only"
+    }
+  ]
+}

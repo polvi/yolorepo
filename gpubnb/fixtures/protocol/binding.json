@@ -1,0 +1,25 @@
+{
+  "_doc": "PROTOCOL.md §2. binding = SHA256('gpubnb-binding-v1' || hpke_pub || sign_pub || boot_nonce || SHA256(utf8(runner_version)) || model_digest); report_data = SHA512('gpubnb-report-v1' || binding || challenge); gpu_nonce = SHA256('gpubnb-gpu-v1' || binding || challenge). All hex.",
+  "inputs": {
+    "hpke_pub": "4bcc3005736b1decd9e4e376aec3f9253c8ace844cbe43711861108ff2fe402f",
+    "sign_pub": "207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6",
+    "boot_nonce": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+    "runner_version": "0.1.0",
+    "model_digest": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
+  },
+  "runner_version_sha256": "6ad9613a455798d6d92e5f5f390ab4baa70596bc869ed6b17f5cdd2b28635f06",
+  "vectors": [
+    {
+      "challenge": "0000000000000000000000000000000000000000000000000000000000000000",
+      "binding": "35fc217b88a9904124e0e3d7aeb2c055c7434e44d872d2e7e92eecf41484c62a",
+      "report_data": "93b55116d498dea959ed511e202814bbd9b515358015dd70253c9708613aabf5848b34909d2849aa5929caad788419d8daee8e6bfc6648bdd3c6d4015062696e",
+      "gpu_nonce": "6797b4e45279879d400e535f5f2e27297c7ddb6b6f063a9071b5e668a5fd4c13"
+    },
+    {
+      "challenge": "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
+      "binding": "35fc217b88a9904124e0e3d7aeb2c055c7434e44d872d2e7e92eecf41484c62a",
+      "report_data": "a7ece67665093a6fa49224b38b9c002ba7da7ac8392cdc07267dbc5ce5cd820003c7e1ddca741dd6953afd7d976b07414e0942cfce1d15b18a16aa647dadcd55",
+      "gpu_nonce": "2ae86366b531d0a303f243ef7d900fa83dd3f551814803164a189d0ab7effd14"
+    }
+  ]
+}

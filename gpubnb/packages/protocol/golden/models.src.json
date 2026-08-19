@@ -1,0 +1,6 @@
+{
+  "v": 1,
+  "_comment": "Unsigned source of truth for the model catalog (PROTOCOL.md §8). Only models whose weight directory digest (SHA256 over sorted (path, SHA256(file)) entries, see modelDigestFromEntries) has been computed from the exact published weights belong in `entries`; a real runner refuses to start with an unlisted digest. `simulated_any: true` means simulated docs may carry any model digest, because a simulated runner hashes whatever it is pointed at. Sign with `bun scripts/sign-golden.ts`.",
+  "entries": [],
+  "simulated_any": true
+}

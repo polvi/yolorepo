@@ -1,0 +1,48 @@
+{
+  "_doc": "PROTOCOL.md §5.1 session request: HPKE PSK mode, psk = session_key, psk_id = session_id, info = 'gpubnb-req-v1', aad = utf8('gpubnb-req-v1') || session_id(16) || u64be(ctr). Same export labels as hpke-open.json for the response frames.",
+  "recipient_priv": "7f3c1a5e9b2d4c6f8a0e1d3b5c7a9f2e4d6c8b0a1f3e5d7c9b2a4f6e8d0c1b3a",
+  "recipient_pub": "4bcc3005736b1decd9e4e376aec3f9253c8ace844cbe43711861108ff2fe402f",
+  "ekm": "2222222222222222222222222222222222222222222222222222222222222222",
+  "session_id": "101112131415161718191a1b1c1d1e1f",
+  "session_key": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+  "ctr": 7,
+  "plaintext_json": "{\"model\":\"Qwen/Qwen3-8B\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+  "plaintext_hex": "7b226d6f64656c223a225177656e2f5177656e332d3842222c226d65737361676573223a5b7b22726f6c65223a2275736572222c22636f6e74656e74223a226869227d5d2c2273747265616d223a747275657d",
+  "info": "gpubnb-req-v1",
+  "aad_hex": "677075626e622d7265712d7631101112131415161718191a1b1c1d1e1f0000000000000007",
+  "envelope": {
+    "session_id": "EBESExQVFhcYGRobHB0eHw",
+    "ctr": 7,
+    "enc": "47lwiqohp_HmKpXuKNHl1gsPzu1saFmQE6VLMY6eCxU",
+    "ct": "damRSfYVg51Ec7JOQQCVuxe2ZIx3aAbncPrAHgMQbEFI5eJFxYq4c-K1PLP8-0imQggL9n21wrhJzNiz8rzOnp9SbLDwF7gwh0OkAQZzzVpW25Nks3MhdWbi1wDjcKiih8eW"
+  },
+  "response": {
+    "resp_key": "d83a51e45b34ffe995c346f2237c835e5ee0cd48fb8795135397333073e63c18",
+    "resp_nonce_base": "5f92fd894cb4009ee9ceb8fb",
+    "req_hash": "7bf1fff7976f14445a48c59a2a100cdd5dfd3450fb0f91ae31005702e65876cc",
+    "frames": [
+      {
+        "index": 0,
+        "final": false,
+        "nonce": "5f92fd894cb4009ee9ceb8fb",
+        "payload_json": "{\"t\":\"chunk\",\"data\":{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"}}]}}",
+        "frame_hex": "00000084a3f1a39b05ccfb89f275d97ac7e0266f18b28362abd6242325aaafcab710f01349dd9310b87bf50bafa9e7d81bdc5e48b26c8f505d7c80685c06776a960e4add0323b875d1322741c04058dfd1784d236cac0c576187003f73c1888c36e4b6eeed17a42f0c9f34038fc52cf4cf0877fea5bbb607b009608aac842c9921f11c44fc2d0a79"
+      },
+      {
+        "index": 1,
+        "final": false,
+        "nonce": "5f92fd894cb4009ee9ceb8fa",
+        "payload_json": "{\"t\":\"chunk\",\"data\":{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"}}]}}",
+        "frame_hex": "000000835615a0e8856155644157c9deff8bbcc06f01d93c82e9490cef504028f088d39f194366548d36d1e3a1a83d7e179b0063e46624ec66d15cdb79d5359c5fea03e2838e8cddf14ad57a0046b1728160f79d788e5b7df53eaf6779cfcef268f60af47dbe623548e4af3671a0c332b3d77ca7e8e1aa112ba99d62011cef8b3ea215989cb06f"
+      },
+      {
+        "index": 2,
+        "final": true,
+        "nonce": "5f92fd894cb4009ee9ceb8f9",
+        "payload_json": "{\"t\":\"receipt\",\"receipt\":{\"payload\":\"eyJzZXNzaW9uX2lkIjoiRUJFU0V4UVZGaGNZR1JvYkhCMGVIdyIsInNlcSI6MywidG9rZW5zX2luIjo1LCJ0b2tlbnNfb3V0IjoyLCJkZWJpdF9waWNvbmVybyI6OSwiY3VtdWxhdGl2ZV9kZWJpdF9waWNvbmVybyI6MjcsImJhbGFuY2VfcGljb25lcm8iOjk3MywidHMiOjE3NTU2MDAxMDB9\",\"sig\":\"hU2cVfSDyRSXQSM7RrW6aQLyPG7z1Wfy9jvmHxTYYGGMGzouBlq1ecswiSI_S283m46NTILxwh4W7ijRr4FXCA\"}}",
+        "frame_hex": "000001744d7e4b2d565dc73e6c6d628ca8f41d5c606eb8d741264b13990a1a35700e63c9231946424e6008414640420705d039c2d893ea0a22fb2f13c4679f5816f9de39315677f295a72547483fadac570cf3251fdeff86ede6503011f47447e7b049b5f77ec2e75d9e478a0ab2f668f0290fcb18ae8486eef545a4ded368cb2f6d22b7c2e4c8ff94b4920c66869d679bfee6dd1e890d794cef16bf3bfb0b02fea4caee2efe95925e2b8f033e333c923cc2d4196ae0895a18ef21595f99caaeae01c6d67223eac026f688ce2c5c7c55b5e49cba19a6d6f4bc4487125748c2ec351f343223b114aa87fcbf49e592243fda2a98566c4e4ea42f743f3f2ee7f55a6b8cdfef1b9eee9aaf13d09cfb4580fda233ac2d01c96aee9b81cb191f0fda9674a8ef61e64cc7a313f9ea5e4ea8f59eda795b7592474247c10785cf49dc2ec8ee849666adfe184dbe8006a2f4d7cc7ffd7ac95fc32a602798b0430975caa4bf1e0f74b4af0de3e5a36cee515ee54dc7eae8e7b7e85a0367"
+      }
+    ],
+    "body_hex": "00000084a3f1a39b05ccfb89f275d97ac7e0266f18b28362abd6242325aaafcab710f01349dd9310b87bf50bafa9e7d81bdc5e48b26c8f505d7c80685c06776a960e4add0323b875d1322741c04058dfd1784d236cac0c576187003f73c1888c36e4b6eeed17a42f0c9f34038fc52cf4cf0877fea5bbb607b009608aac842c9921f11c44fc2d0a79000000835615a0e8856155644157c9deff8bbcc06f01d93c82e9490cef504028f088d39f194366548d36d1e3a1a83d7e179b0063e46624ec66d15cdb79d5359c5fea03e2838e8cddf14ad57a0046b1728160f79d788e5b7df53eaf6779cfcef268f60af47dbe623548e4af3671a0c332b3d77ca7e8e1aa112ba99d62011cef8b3ea215989cb06f000001744d7e4b2d565dc73e6c6d628ca8f41d5c606eb8d741264b13990a1a35700e63c9231946424e6008414640420705d039c2d893ea0a22fb2f13c4679f5816f9de39315677f295a72547483fadac570cf3251fdeff86ede6503011f47447e7b049b5f77ec2e75d9e478a0ab2f668f0290fcb18ae8486eef545a4ded368cb2f6d22b7c2e4c8ff94b4920c66869d679bfee6dd1e890d794cef16bf3bfb0b02fea4caee2efe95925e2b8f033e333c923cc2d4196ae0895a18ef21595f99caaeae01c6d67223eac026f688ce2c5c7c55b5e49cba19a6d6f4bc4487125748c2ec351f343223b114aa87fcbf49e592243fda2a98566c4e4ea42f743f3f2ee7f55a6b8cdfef1b9eee9aaf13d09cfb4580fda233ac2d01c96aee9b81cb191f0fda9674a8ef61e64cc7a313f9ea5e4ea8f59eda795b7592474247c10785cf49dc2ec8ee849666adfe184dbe8006a2f4d7cc7ffd7ac95fc32a602798b0430975caa4bf1e0f74b4af0de3e5a36cee515ee54dc7eae8e7b7e85a0367"
+  }
+}

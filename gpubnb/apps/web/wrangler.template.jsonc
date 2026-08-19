@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gpubnb-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/llms.txt"]
+  },
+  "routes": [
+    {
+      "pattern": "gpubnb.__BASE_DOMAIN__",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "AUTH_ENDPOINT": "__AUTH_ENDPOINT__",
+    "BASE_DOMAIN": "__BASE_DOMAIN__"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gpubnb",
+      "database_id": "__D1:gpubnb__",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

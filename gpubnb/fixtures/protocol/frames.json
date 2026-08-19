@@ -1,0 +1,57 @@
+{
+  "_doc": "PROTOCOL.md §5.2. frame_i = u32be(len) || ChaCha20Poly1305.seal(resp_key, nonce = resp_base XOR u96be(i), aad = req_hash, flags(1) || payload); flags bit0 = final. nonce_i shown explicitly. body_hex is the concatenation. tampered_body_hex flips the last byte and must be rejected; truncated_body_hex (first two frames only) must be rejected for lacking a final frame.",
+  "resp_key": "303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
+  "resp_nonce_base": "000102030405060708090a0b",
+  "req_hash": "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f",
+  "frames": [
+    {
+      "index": 0,
+      "final": false,
+      "flags_byte": 0,
+      "nonce": "000102030405060708090a0b",
+      "payload_json": "{\"t\":\"chunk\",\"data\":{\"a\":1}}",
+      "frame_hex": "0000002df59b2ff7a5d69325ef19f659a3f3a821fbeb3b90d0f2914ee51802949cc6988ddfe164cd016b861d18e11fa3ed"
+    },
+    {
+      "index": 1,
+      "final": false,
+      "flags_byte": 0,
+      "nonce": "000102030405060708090a0a",
+      "payload_json": "{\"t\":\"chunk\",\"data\":{\"a\":2}}",
+      "frame_hex": "0000002db19fa44eb06950ab860f0a9f2a55b7ff1290486e3eb199ee0983e0c07a21c51aa8e0179bbfbae41e9595d095c0"
+    },
+    {
+      "index": 2,
+      "final": true,
+      "flags_byte": 1,
+      "nonce": "000102030405060708090a09",
+      "payload_json": "{\"t\":\"receipt\",\"receipt\":{\"payload\":\"e30\",\"sig\":\"AA\"}}",
+      "frame_hex": "00000047ccbb957df4298c7bfd0cb6ccc4b7a7d37d2a77dc5fbdc86e1285698b0bbe3ee1b122918da1e6679379c287f4151a7c18c5392dbfc2cdc4caaeac8a5f30dc55f41af88d64b73a75"
+    }
+  ],
+  "body_hex": "0000002df59b2ff7a5d69325ef19f659a3f3a821fbeb3b90d0f2914ee51802949cc6988ddfe164cd016b861d18e11fa3ed0000002db19fa44eb06950ab860f0a9f2a55b7ff1290486e3eb199ee0983e0c07a21c51aa8e0179bbfbae41e9595d095c000000047ccbb957df4298c7bfd0cb6ccc4b7a7d37d2a77dc5fbdc86e1285698b0bbe3ee1b122918da1e6679379c287f4151a7c18c5392dbfc2cdc4caaeac8a5f30dc55f41af88d64b73a75",
+  "tampered_body_hex": "0000002df59b2ff7a5d69325ef19f659a3f3a821fbeb3b90d0f2914ee51802949cc6988ddfe164cd016b861d18e11fa3ed0000002db19fa44eb06950ab860f0a9f2a55b7ff1290486e3eb199ee0983e0c07a21c51aa8e0179bbfbae41e9595d095c000000047ccbb957df4298c7bfd0cb6ccc4b7a7d37d2a77dc5fbdc86e1285698b0bbe3ee1b122918da1e6679379c287f4151a7c18c5392dbfc2cdc4caaeac8a5f30dc55f41af88d64b73a74",
+  "truncated_body_hex": "0000002df59b2ff7a5d69325ef19f659a3f3a821fbeb3b90d0f2914ee51802949cc6988ddfe164cd016b861d18e11fa3ed0000002db19fa44eb06950ab860f0a9f2a55b7ff1290486e3eb199ee0983e0c07a21c51aa8e0179bbfbae41e9595d095c0",
+  "nonce_examples": [
+    {
+      "i": 0,
+      "nonce": "000102030405060708090a0b"
+    },
+    {
+      "i": 1,
+      "nonce": "000102030405060708090a0a"
+    },
+    {
+      "i": 255,
+      "nonce": "000102030405060708090af4"
+    },
+    {
+      "i": 256,
+      "nonce": "000102030405060708090b0b"
+    },
+    {
+      "i": 65536,
+      "nonce": "000102030405060708080a0b"
+    }
+  ]
+}
