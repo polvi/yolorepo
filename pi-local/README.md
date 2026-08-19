@@ -78,9 +78,12 @@ every axis, which is what you expect when the bottleneck is memory bandwidth
 rather than capacity.
 
 Weights come from
-[unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF)
-and are read straight out of the Hugging Face cache
-(`~/.cache/huggingface/hub`), so nothing is downloaded twice.
+[unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF).
+The 35B default is read out of the Hugging Face cache
+(`~/.cache/huggingface/hub`); the 27B was refreshed on Aug 19 with
+`pi-llama-fetch` and now lives in `~/models`. `pi-llama-up` searches both, so
+nothing is downloaded twice. Sizes above are the pre-refresh files; the
+current Q6_K_XL is 23.56 GiB.
 
 ## Memory budget
 
@@ -92,7 +95,8 @@ Measured resident size of the server, model fully offloaded, f16 KV cache:
 | Qwen3.6-35B-A3B Q4, 65 536 (default) | 23.1 GiB | 31.3 GiB |
 | Qwen3.8-27B Q6, 65 536 | 29.1 GiB | 25.3 GiB |
 | Qwen3.8-27B Q6, 262 144 (native max) | 40.0 GiB | 14.4 GiB |
-| Qwen3-Coder-Next IQ4_XS, 65 536 | 37.4 GiB | 17.0 GiB |
+| Qwen3.8-27B Q6 + MTP draft, 65 536 | 30.9 GiB | 23.5 GiB |
+| Qwen3-Coder-Next IQ4_XS, 65 536 (deleted, for reference) | 37.4 GiB | 17.0 GiB |
 
 For the dense 27B, KV costs about 64 KiB per token, so 64K of context is only
 ~4 GiB. The default
@@ -147,7 +151,7 @@ win but its error bar swallows the difference. The stock `2048 / 512` stays.
 
 Against a live server (`llama.cpp` build 10450, pi 0.84.2):
 
-- server reports 65 536 tokens across 1 slot for each of the three models
+- server reports 65 536 tokens across 1 slot for both models
 - multimodal projector loads for the two vision models, so
   `input: ["text", "image"]` is honest
 - `--thinking off` and `--thinking medium` both work; thinking arrives as
@@ -173,6 +177,8 @@ Every knob is an environment variable, readable from `~/.pi-local.env`:
 | `PI_LLAMA_KV_TYPE` | `f16` |
 | `PI_LLAMA_VISION` | `1` |
 | `PI_LLAMA_ALLOW_DOWNLOAD` | `0`; set `1` to let a missing model download via `-hf` |
+| `PI_LLAMA_DRAFT` | unset; draft model for speculative decoding (path or name fragment) |
+| `PI_LLAMA_DRAFT_MAX` | `3`; tokens drafted ahead. Higher is worse here, see MODELS.md |
 | `PI_LLAMA_LOG` | `~/Library/Logs/pi-llama.log` |
 
 ## pi provider
