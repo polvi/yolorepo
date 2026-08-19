@@ -10,10 +10,28 @@ Everything here was measured on this machine (M1 Max 64 GB, llama.cpp build
 
 ## The answer
 
-Use **Qwen3.6-35B-A3B**. It is the fastest of the three, the smallest in
-memory, and the only one that got every task right. The 80B coder model is
-bigger, slower, and less accurate; the dense 27B matches it on correctness but
-takes five times as long.
+**Configured default: Qwen3.8-27B dense**, chosen by preference for its
+reasoning, with its MTP draft auto-enabled and 131 072 tokens of context.
+
+On measurement alone the pick would be **Qwen3.6-35B-A3B**: fastest, smallest
+in memory, and the only model that got every task right. It is still
+installed and one env var away. The tables below are what that choice costs,
+recorded so the trade stays visible rather than forgotten:
+
+| | 27B dense (default) | 35B-A3B |
+|---|---|---|
+| Prefill | 74 t/s | **686 t/s** (9x) |
+| Generation | 5.9, or 6.9 with draft | **46.9 t/s** (7x) |
+| Suite wall time | 1004s | **202s** |
+| Correctness | 6/6 | 6/6 |
+| Resident at 128K | 35.0 GiB | **24.1 GiB** |
+
+Switch to the fast one whenever a session is tool-loop heavy:
+
+```sh
+PI_LLAMA_REPO=unsloth/Qwen3.6-35B-A3B-GGUF PI_LLAMA_QUANT=UD-Q4_K_XL \
+PI_LLAMA_ALIAS=qwen3.6-35b-a3b pi-llama-up
+```
 
 ### What is actually on disk
 
@@ -117,7 +135,7 @@ implying it. The other two models never needed this.
 | Everyday coding, agent loops, tool calls | Qwen3.6-35B-A3B |
 | Big prompts, whole-file or repo context | Qwen3.6-35B-A3B (686 t/s prefill) |
 | Screenshots, diagrams, PDFs | Qwen3.6-35B-A3B or 27B dense (both vision) |
-| Hardest single-shot reasoning, willing to wait | Qwen3.8-27B dense, with `PI_LLAMA_DRAFT` |
+| Hardest single-shot reasoning, willing to wait | Qwen3.8-27B dense (the default; draft auto-on) |
 | Coder-Next | no clear niche on this machine |
 
 Only one model is loaded at a time. Switching is a server restart:
@@ -206,18 +224,13 @@ figure of 5.9 t/s the honest gain is nearer +15%. Either way it is a real but
 modest win, and it does not change the routing rule: 6.9 t/s is still a
 seventh of the 35B-A3B's 46.9.
 
-Enable it per run:
+It is now **on by default**, but auto-paired rather than blanket-enabled:
+`PI_LLAMA_DRAFT=auto` (the default) attaches the MTP draft only when the model
+being loaded is actually Qwen3.8-27B, and silently skips it otherwise, so the
+draft can never be mismatched to the 35B. `PI_LLAMA_DRAFT=off` disables it;
+a path or name fragment picks a different one.
 
-```sh
-PI_LLAMA_REPO=unsloth/Qwen3.8-27B-GGUF \
-PI_LLAMA_QUANT=UD-Q6_K_XL \
-PI_LLAMA_ALIAS=qwen3.8-27b \
-PI_LLAMA_DRAFT=mtp-Qwen3.8-27B-Q4_0 pi-llama-up
-```
-
-Costs 1.3 GiB of memory (30.9 GiB resident, up from 29.1). It is off by
-default because the draft weights are model-specific: pointing the 27B's MTP
-file at the 35B would be wrong. Reproduce with `bench/spec-bench.sh`.
+Costs 1.3 GiB of memory. Reproduce with `bench/spec-bench.sh`.
 
 ## What this suite does not tell you
 

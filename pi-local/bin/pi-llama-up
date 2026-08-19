@@ -9,21 +9,23 @@ set -euo pipefail
 
 [ -f "${PI_LOCAL_ENV:-$HOME/.pi-local.env}" ] && . "${PI_LOCAL_ENV:-$HOME/.pi-local.env}"
 
-# Default is Qwen3.6-35B-A3B: fastest, smallest, and the only model that got
-# every task in bench/eval.ts right. See MODELS.md for the measurements.
-PI_LLAMA_REPO="${PI_LLAMA_REPO:-unsloth/Qwen3.6-35B-A3B-GGUF}"
-PI_LLAMA_QUANT="${PI_LLAMA_QUANT:-UD-Q4_K_XL}"
-PI_LLAMA_ALIAS="${PI_LLAMA_ALIAS:-qwen3.6-35b-a3b}"
-PI_LLAMA_CTX="${PI_LLAMA_CTX:-65536}"
+# Default is Qwen3.8-27B dense, chosen by preference over the faster
+# Qwen3.6-35B-A3B. See MODELS.md for what that trade costs in throughput.
+PI_LLAMA_REPO="${PI_LLAMA_REPO:-unsloth/Qwen3.8-27B-GGUF}"
+PI_LLAMA_QUANT="${PI_LLAMA_QUANT:-UD-Q6_K_XL}"
+PI_LLAMA_ALIAS="${PI_LLAMA_ALIAS:-qwen3.8-27b}"
+PI_LLAMA_CTX="${PI_LLAMA_CTX:-131072}"
 PI_LLAMA_HOST="${PI_LLAMA_HOST:-127.0.0.1}"
 PI_LLAMA_PORT="${PI_LLAMA_PORT:-8080}"
 PI_LLAMA_BATCH="${PI_LLAMA_BATCH:-2048}"
 PI_LLAMA_UBATCH="${PI_LLAMA_UBATCH:-512}"
 PI_LLAMA_KV_TYPE="${PI_LLAMA_KV_TYPE:-f16}"
 PI_LLAMA_VISION="${PI_LLAMA_VISION:-1}"
-# Speculative decoding: point at a small draft model (e.g. the MTP weights
-# unsloth ships alongside Qwen3.8-27B). Empty disables it.
-PI_LLAMA_DRAFT="${PI_LLAMA_DRAFT:-}"
+# Speculative decoding. Draft weights are model-specific, so rather than a
+# blanket default this auto-pairs: the Qwen3.8-27B MTP draft is used only when
+# the model being loaded is actually Qwen3.8-27B. Set PI_LLAMA_DRAFT=off to
+# disable, or to a path/name fragment to choose your own.
+PI_LLAMA_DRAFT="${PI_LLAMA_DRAFT:-auto}"
 PI_LLAMA_DRAFT_MAX="${PI_LLAMA_DRAFT_MAX:-3}"
 PI_LLAMA_LOG="${PI_LLAMA_LOG:-$HOME/Library/Logs/pi-llama.log}"
 
@@ -55,6 +57,21 @@ model_dir="${PI_LLAMA_MODEL_DIR:-$HOME/models}"
 if [ -z "$model" ] && [ -d "$model_dir" ]; then
   model=$(/usr/bin/find "$model_dir" -name "*${PI_LLAMA_QUANT}*.gguf" -not -name "mmproj*" 2>/dev/null | sort | head -1)
 fi
+
+# "auto" pairs a known draft with its own base model and stays quiet otherwise.
+if [ "$PI_LLAMA_DRAFT" = "auto" ]; then
+  case "$(basename "${model:-}")" in
+    *Qwen3.8-27B*) PI_LLAMA_DRAFT="mtp-Qwen3.8-27B-Q4_0" ;;
+    *)             PI_LLAMA_DRAFT="" ;;
+  esac
+  # Auto-pairing must never be fatal: if the draft is absent, just run without.
+  if [ -n "$PI_LLAMA_DRAFT" ]; then
+    probe=$(/usr/bin/find "${PI_LLAMA_MODEL_DIR:-$HOME/models}" "$snapshots" \
+      -name "*${PI_LLAMA_DRAFT}*.gguf" 2>/dev/null | sort | head -1)
+    [ -z "$probe" ] && PI_LLAMA_DRAFT=""
+  fi
+fi
+[ "$PI_LLAMA_DRAFT" = "off" ] && PI_LLAMA_DRAFT=""
 
 draft=""
 if [ -n "$PI_LLAMA_DRAFT" ]; then
