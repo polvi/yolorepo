@@ -1,0 +1,39 @@
+{
+  "note": "§5.1 envelopes sealed by the Rust side (enc is ephemeral, so these are decrypt-only vectors). Suite DHKEM(X25519,HKDF-SHA256)/HKDF-SHA256/ChaCha20Poly1305. open: base mode, info=aad='gpubnb-open-v1'. psk: psk=session_key, psk_id=session_id bytes, info='gpubnb-req-v1', aad='gpubnb-req-v1'||session_id||u64be(ctr). resp_key=export('gpubnb-resp-key-v1',32), resp_base=export('gpubnb-resp-nonce-v1',12), req_hash=sha256(enc||ct)",
+  "recipient_sk": "XPGrf34I7HQ6FI9I_FyYZYSzydvZfxuNEEKQFXAgmlU",
+  "recipient_pub": "dDE8pGk45u53qtaUm_g0hf-rYdx8G4t6ijLarw11UFY",
+  "vectors": [
+    {
+      "mode": "open",
+      "ctr": 0,
+      "session_id": null,
+      "session_key": null,
+      "plaintext": "{\"client_nonce\":\"oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8\"}",
+      "envelope": {
+        "session_id": null,
+        "ctr": 0,
+        "enc": "QhJR6EThQuoDS2NIsOcmSBVLZfQKNDSuS2osTSvHjF0",
+        "ct": "fbRVSI4xgsSFPO0Oe7i2j8k-XosWtVbdpBvD-xmPPezYqrM4SnQq0JqZW2zbBkj6NCKA8G0sFR7BZJLliNIOjTsrNovZPseQg-akxNbo"
+      },
+      "resp_key": "8d95230a8304e6d0060098a26be14e88ed5673234705e2d2af04c679db919c94",
+      "resp_base": "a6733e66d8bda76c9c816b51",
+      "req_hash": "d6d191d65fb25e45af99787e1b4a6c442086fb3f407fc8c01b48fb6603e239a6"
+    },
+    {
+      "mode": "psk",
+      "ctr": 7,
+      "session_id": "sLGys7S1tre4ubq7vL2-vw",
+      "session_key": "wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t8",
+      "plaintext": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "envelope": {
+        "session_id": "sLGys7S1tre4ubq7vL2-vw",
+        "ctr": 7,
+        "enc": "MqARusxcJtpC24bR5m9mcZh2fRlfNVIAmnw7zyWAGEI",
+        "ct": "FarW5TsNxpzTFLZv5Mi63tZNbROx6aPk8xWoHwwEPjIGr_dToxSf5QuNqivRTLiPcsjHRbnEqKozVrMyFXgNdlasgNxF4ZOuFsxZFJF6eN8YU1QPRU4t"
+      },
+      "resp_key": "aef502cb01b6a83582eadd29e86ad862621225ad5050d8f934d0946251ce8ecb",
+      "resp_base": "6bcf37366149c0464fd69a93",
+      "req_hash": "d55742672a7b5fcde8f14515b1d9817976b8887fbdc08997cf3f702433589a3c"
+    }
+  ]
+}

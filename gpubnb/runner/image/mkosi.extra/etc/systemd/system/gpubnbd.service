@@ -1,0 +1,17 @@
+[Unit]
+Description=gpubnb runner (attested inference endpoint)
+After=network-online.target nvidia-persistenced.service
+Wants=network-online.target
+
+[Service]
+# /etc/gpubnb/gpubnbd.toml is host-specific and mounted from an unmeasured config partition.
+ExecStart=/usr/bin/gpubnbd run --config /etc/gpubnb/gpubnbd.toml
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=info
+# ledger snapshots (sealed under SNP_GET_DERIVED_KEY) and the view-only wallet
+StateDirectory=gpubnb
+WorkingDirectory=/var/lib/gpubnb
+
+[Install]
+WantedBy=multi-user.target

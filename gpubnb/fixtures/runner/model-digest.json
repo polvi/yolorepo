@@ -1,0 +1,48 @@
+{
+  "note": "§8 model digest: SHA256 over sorted (path || 0x00 || sha256(file) || 0x0a); paths relative, '/'-separated, byte-order sorted",
+  "files": [
+    {
+      "path": "b.safetensors",
+      "content_b64u": "YmJiYg"
+    },
+    {
+      "path": "a.safetensors",
+      "content_b64u": "YWFh"
+    },
+    {
+      "path": "config.json",
+      "content_b64u": "e30"
+    },
+    {
+      "path": "sub/dir/tokenizer.json",
+      "content_b64u": ""
+    },
+    {
+      "path": "README.md",
+      "content_b64u": "IyBtCg"
+    }
+  ],
+  "entries": [
+    {
+      "path": "README.md",
+      "sha256": "f111799c30453e08811543041d130c37b076f90951a52e0f3eaf3f06a012099f"
+    },
+    {
+      "path": "a.safetensors",
+      "sha256": "9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0"
+    },
+    {
+      "path": "b.safetensors",
+      "sha256": "81cc5b17018674b401b42f35ba07bb79e211239c23bffe658da1577e3e646877"
+    },
+    {
+      "path": "config.json",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "path": "sub/dir/tokenizer.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "digest": "aaeda1f63a7507e7bc8e9500543d58bec995b22aedd8d3eb734ddd13bbd2d6cf"
+}

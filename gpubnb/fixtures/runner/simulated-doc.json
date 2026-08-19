@@ -1,0 +1,87 @@
+{
+  "note": "§3 simulated attestation docs (dev root, kid gpubnb-dev-root). Verifies as `simulated` with allowSimulated and now ≈ issued_at; `failed` otherwise. Keys derived from fixed seeds; hpke_sk/sign_seed included so the TS side can reproduce.",
+  "issued_at": 1755600000,
+  "hpke_sk": "x6glt_KTfjwMxdnofcsdckQ3NZ0-x7LNwcJvkJTsVLU",
+  "sign_seed": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+  "boot_nonce": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+  "runner_version": "0.1.0",
+  "model": {
+    "id": "Qwen/Qwen3-8B",
+    "digest": "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f",
+    "ctx_len": 32768
+  },
+  "simulated_measurement": "d5edc940f681d3472552312378a512410dc0032b8cff4fbc63eb08c6180bd804cd9df6a7c963ed42c574accb2accd829",
+  "expected_status": "simulated",
+  "docs": [
+    {
+      "challenge": "0000000000000000000000000000000000000000000000000000000000000000",
+      "blob": {
+        "payload": "eyJ2IjoxLCJydW5uZXJfdmVyc2lvbiI6IjAuMS4wIiwiaHBrZV9wdWIiOiJXUlU4SWdBOGF4TG14QWdDVjFwTnd3OGZDZ3NJQmJTYUowOG0wa3Mxa3hFIiwic2lnbl9wdWIiOiJLYXk2NFVHOHl2Q3lMaHFVMDAwTHh6WWVVbTBMX2hMSWw1UzhreUtXYmRjIiwiYm9vdF9ub25jZSI6Ik1ERXlNelExTmpjNE9UbzdQRDAtUDBCQlFrTkVSVVpIU0VsS1MweE5UazgiLCJiaW5kaW5nIjoiNDQxZTJjNDQ2YjhhNmM0Y2EwNTZlZDc3NDRiYzdlMGJjNDRkYmU2ZTE4N2IxODIwMTY2NTUxMjZlNWEzN2NlYyIsImNoYWxsZW5nZSI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJpc3N1ZWRfYXQiOjE3NTU2MDAwMDAsIm1vZGVsIjp7ImlkIjoiUXdlbi9Rd2VuMy04QiIsImRpZ2VzdCI6IjUwNTE1MjUzNTQ1NTU2NTc1ODU5NWE1YjVjNWQ1ZTVmNjA2MTYyNjM2NDY1NjY2NzY4Njk2YTZiNmM2ZDZlNmYiLCJjdHhfbGVuIjozMjc2OH0sInBsYXRmb3JtIjp7ImtpbmQiOiJzaW11bGF0ZWQiLCJjcHUiOiJTSU1VTEFURUQiLCJncHVfbW9kZWwiOiJOVklESUEgUlRYIFBSTyA2MDAwIEJsYWNrd2VsbCBTZXJ2ZXIgRWRpdGlvbiIsImNjX21vZGUiOiJzaW11bGF0ZWQifSwic25wIjpudWxsLCJncHUiOm51bGwsInNpbXVsYXRlZCI6eyJwYXlsb2FkIjoiZXlKeVpYQnZjblJmWkdGMFlTSTZJbVpsTUdRNE9HSmlOekpoTkRKa1ptRmlObUZoTVdOaU1XVXlOalZsTnpVMU56SmhPV1EyWkdZNFlqRXdaVE5oTVRNeE0yTTFOMkpsWm1NNFlqVXlaRFl6TkRObU16WmtNakJpTTJZNU5UZ3dabVJsT0daa00yUmlNamszTVRreU1XSmtZVFpsTURsbE0yUmlaakZsTVRoa01EZzNNelV6T1dFMU5XWTVOemxpSWl3aVozQjFYMjV2Ym1ObElqb2lOak0wWVdFeVltVXlNamxsTW1Vek5XSmlNREpoTWpBNE5qSTBOV0k0WlRaaE5UYzJNREUxWWpNek5XWmlPV1JtWW1FMllXSXhNemhoTldNd05HTXpNQ0lzSW0xbFlYTjFjbVZ0Wlc1MElqb2laRFZsWkdNNU5EQm1Oamd4WkRNME56STFOVEl6TVRJek56aGhOVEV5TkRFd1pHTXdNRE15WWpoalptWTBabUpqTmpObFlqQTRZell4T0RCaVpEZ3dOR05rT1dSbU5tRTNZemsyTTJWa05ESmpOVGMwWVdOallqSmhZMk5rT0RJNUlpd2lhSGR0YjJSbGJDSTZJbE5KVFZWTVFWUkZSQ0lzSW1semMzVmxaRjloZENJNk1UYzFOVFl3TURBd01IMCIsInNpZyI6InZGVWQ4TU1rSEJqUURwbDRtNkJmaDJsTlpSWjVPWnNwakF0QWVhWlY2TV81eEtxelFjNGt1NGs3YzZnQXpFeGtHQzUtbGJOZVFUZkExVmd3WmpKQ0N3Iiwia2lkIjoiZ3B1Ym5iLWRldi1yb290In19",
+        "sig": "PdfN131trV5gjd2iqBjRhm9EEWODTOzW6IaHnRX25EyNsQs8G2wjurF8lA6QJ-t6y8TAYO6TBjVIS97BUAuYBQ"
+      },
+      "doc": {
+        "v": 1,
+        "runner_version": "0.1.0",
+        "hpke_pub": "WRU8IgA8axLmxAgCV1pNww8fCgsIBbSaJ08m0ks1kxE",
+        "sign_pub": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
+        "boot_nonce": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+        "binding": "441e2c446b8a6c4ca056ed7744bc7e0bc44dbe6e187b182016655126e5a37cec",
+        "challenge": "0000000000000000000000000000000000000000000000000000000000000000",
+        "issued_at": 1755600000,
+        "model": {
+          "id": "Qwen/Qwen3-8B",
+          "digest": "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f",
+          "ctx_len": 32768
+        },
+        "platform": {
+          "kind": "simulated",
+          "cpu": "SIMULATED",
+          "gpu_model": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+          "cc_mode": "simulated"
+        },
+        "snp": null,
+        "gpu": null,
+        "simulated": {
+          "payload": "eyJyZXBvcnRfZGF0YSI6ImZlMGQ4OGJiNzJhNDJkZmFiNmFhMWNiMWUyNjVlNzU1NzJhOWQ2ZGY4YjEwZTNhMTMxM2M1N2JlZmM4YjUyZDYzNDNmMzZkMjBiM2Y5NTgwZmRlOGZkM2RiMjk3MTkyMWJkYTZlMDllM2RiZjFlMThkMDg3MzUzOWE1NWY5NzliIiwiZ3B1X25vbmNlIjoiNjM0YWEyYmUyMjllMmUzNWJiMDJhMjA4NjI0NWI4ZTZhNTc2MDE1YjMzNWZiOWRmYmE2YWIxMzhhNWMwNGMzMCIsIm1lYXN1cmVtZW50IjoiZDVlZGM5NDBmNjgxZDM0NzI1NTIzMTIzNzhhNTEyNDEwZGMwMDMyYjhjZmY0ZmJjNjNlYjA4YzYxODBiZDgwNGNkOWRmNmE3Yzk2M2VkNDJjNTc0YWNjYjJhY2NkODI5IiwiaHdtb2RlbCI6IlNJTVVMQVRFRCIsImlzc3VlZF9hdCI6MTc1NTYwMDAwMH0",
+          "sig": "vFUd8MMkHBjQDpl4m6Bfh2lNZRZ5OZspjAtAeaZV6M_5xKqzQc4ku4k7c6gAzExkGC5-lbNeQTfA1VgwZjJCCw",
+          "kid": "gpubnb-dev-root"
+        }
+      }
+    },
+    {
+      "challenge": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "blob": {
+        "payload": "eyJ2IjoxLCJydW5uZXJfdmVyc2lvbiI6IjAuMS4wIiwiaHBrZV9wdWIiOiJXUlU4SWdBOGF4TG14QWdDVjFwTnd3OGZDZ3NJQmJTYUowOG0wa3Mxa3hFIiwic2lnbl9wdWIiOiJLYXk2NFVHOHl2Q3lMaHFVMDAwTHh6WWVVbTBMX2hMSWw1UzhreUtXYmRjIiwiYm9vdF9ub25jZSI6Ik1ERXlNelExTmpjNE9UbzdQRDAtUDBCQlFrTkVSVVpIU0VsS1MweE5UazgiLCJiaW5kaW5nIjoiNDQxZTJjNDQ2YjhhNmM0Y2EwNTZlZDc3NDRiYzdlMGJjNDRkYmU2ZTE4N2IxODIwMTY2NTUxMjZlNWEzN2NlYyIsImNoYWxsZW5nZSI6IjQwNDE0MjQzNDQ0NTQ2NDc0ODQ5NGE0YjRjNGQ0ZTRmNTA1MTUyNTM1NDU1NTY1NzU4NTk1YTViNWM1ZDVlNWYiLCJpc3N1ZWRfYXQiOjE3NTU2MDAwMDAsIm1vZGVsIjp7ImlkIjoiUXdlbi9Rd2VuMy04QiIsImRpZ2VzdCI6IjUwNTE1MjUzNTQ1NTU2NTc1ODU5NWE1YjVjNWQ1ZTVmNjA2MTYyNjM2NDY1NjY2NzY4Njk2YTZiNmM2ZDZlNmYiLCJjdHhfbGVuIjozMjc2OH0sInBsYXRmb3JtIjp7ImtpbmQiOiJzaW11bGF0ZWQiLCJjcHUiOiJTSU1VTEFURUQiLCJncHVfbW9kZWwiOiJOVklESUEgUlRYIFBSTyA2MDAwIEJsYWNrd2VsbCBTZXJ2ZXIgRWRpdGlvbiIsImNjX21vZGUiOiJzaW11bGF0ZWQifSwic25wIjpudWxsLCJncHUiOm51bGwsInNpbXVsYXRlZCI6eyJwYXlsb2FkIjoiZXlKeVpYQnZjblJmWkdGMFlTSTZJbVprT1daa01EWTFOekV3TWpReU1XRTVZemczTkdWaVlqSXpaREJqTnpoa09UWmxNVE16T1dJeU56RTBPRE5pT1RBeE5EYzJPR014TkdFMU16VTNPREpqTkdJMVpHWXdNV0ZpTldSalkyUTRNRFZtTW1Rd09UUXhOR014TjJFeU5UTTBZelUyTldWaFpURmpaREV3WW1ZMk5ESmhNalV5WXpaaVpEVTJPV015SWl3aVozQjFYMjV2Ym1ObElqb2lZelF6WldReE1ERXpORGMzWldGa1lUUXhZalkwTnpVeFlqSTVNemt6TnpjNVkyWTNabU16TWpZeU1UVXhNakE1TnpobVl6QmpabUkxWldObU5tRTBZeUlzSW0xbFlYTjFjbVZ0Wlc1MElqb2laRFZsWkdNNU5EQm1Oamd4WkRNME56STFOVEl6TVRJek56aGhOVEV5TkRFd1pHTXdNRE15WWpoalptWTBabUpqTmpObFlqQTRZell4T0RCaVpEZ3dOR05rT1dSbU5tRTNZemsyTTJWa05ESmpOVGMwWVdOallqSmhZMk5rT0RJNUlpd2lhSGR0YjJSbGJDSTZJbE5KVFZWTVFWUkZSQ0lzSW1semMzVmxaRjloZENJNk1UYzFOVFl3TURBd01IMCIsInNpZyI6Il9lbzhWbDBBYS1BWkhxdkFSeERUS19XS1FaVEJsRktiQ3JWN1VxbWxjbU9nT19yWGJXNjV4eXFRa2xNbFZWY003LWhNeS1yZWEtVFFGT3JzbGEwYkJBIiwia2lkIjoiZ3B1Ym5iLWRldi1yb290In19",
+        "sig": "PuS8MAvT0MxVgpDUUEGxdl0zYVFTY60Tv161Z0EN0VD0h7fiGTgwvdAKWFkGBoXTz7riBiaydX_soxNkvnStAA"
+      },
+      "doc": {
+        "v": 1,
+        "runner_version": "0.1.0",
+        "hpke_pub": "WRU8IgA8axLmxAgCV1pNww8fCgsIBbSaJ08m0ks1kxE",
+        "sign_pub": "Kay64UG8yvCyLhqU000LxzYeUm0L_hLIl5S8kyKWbdc",
+        "boot_nonce": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+        "binding": "441e2c446b8a6c4ca056ed7744bc7e0bc44dbe6e187b182016655126e5a37cec",
+        "challenge": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "issued_at": 1755600000,
+        "model": {
+          "id": "Qwen/Qwen3-8B",
+          "digest": "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f",
+          "ctx_len": 32768
+        },
+        "platform": {
+          "kind": "simulated",
+          "cpu": "SIMULATED",
+          "gpu_model": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+          "cc_mode": "simulated"
+        },
+        "snp": null,
+        "gpu": null,
+        "simulated": {
+          "payload": "eyJyZXBvcnRfZGF0YSI6ImZkOWZkMDY1NzEwMjQyMWE5Yzg3NGViYjIzZDBjNzhkOTZlMTMzOWIyNzE0ODNiOTAxNDc2OGMxNGE1MzU3ODJjNGI1ZGYwMWFiNWRjY2Q4MDVmMmQwOTQxNGMxN2EyNTM0YzU2NWVhZTFjZDEwYmY2NDJhMjUyYzZiZDU2OWMyIiwiZ3B1X25vbmNlIjoiYzQzZWQxMDEzNDc3ZWFkYTQxYjY0NzUxYjI5MzkzNzc5Y2Y3ZmMzMjYyMTUxMjA5NzhmYzBjZmI1ZWNmNmE0YyIsIm1lYXN1cmVtZW50IjoiZDVlZGM5NDBmNjgxZDM0NzI1NTIzMTIzNzhhNTEyNDEwZGMwMDMyYjhjZmY0ZmJjNjNlYjA4YzYxODBiZDgwNGNkOWRmNmE3Yzk2M2VkNDJjNTc0YWNjYjJhY2NkODI5IiwiaHdtb2RlbCI6IlNJTVVMQVRFRCIsImlzc3VlZF9hdCI6MTc1NTYwMDAwMH0",
+          "sig": "_eo8Vl0Aa-AZHqvARxDTK_WKQZTBlFKbCrV7UqmlcmOgO_rXbW65xyqQklMlVVcM7-hMy-rea-TQFOrsla0bBA",
+          "kid": "gpubnb-dev-root"
+        }
+      }
+    }
+  ]
+}

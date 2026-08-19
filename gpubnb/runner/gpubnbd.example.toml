@@ -1,0 +1,62 @@
+# gpubnbd configuration. Copy to gpubnbd.toml and edit.
+#
+#   gpubnbd run --config gpubnbd.toml --simulate      # dev box, no hardware
+#   gpubnbd run --config gpubnbd.toml                 # inside the CVM (built with --features snp)
+#
+# Refused outside --simulate: xmr.mode = "free", a model whose digest is not in
+# attest.models_json, a missing listing.weights_dir.
+
+[listing]
+slug = "my-rtx6000-qwen3"                          # marketplace listing slug (PUT /api/listings/:slug)
+gpu_model = "NVIDIA RTX PRO 6000 Blackwell Server Edition"
+cpu_tee = "snp"                                    # reported as "simulated" under --simulate
+model_id = "Qwen/Qwen3-8B"
+weights_dir = "/models/Qwen3-8B"                   # hashed at boot (§8); optional under --simulate
+ctx_len = 32768
+region = "us-west"
+price_in_piconero = 500000000                      # per 1,000,000 input tokens  (0.0005 XMR)
+price_out_piconero = 2000000000                    # per 1,000,000 output tokens (0.002 XMR)
+endpoint_url = "https://gpu1.example.com"          # what renters connect to (TLS terminator in front is fine: bodies are HPKE-sealed)
+
+[upstream]
+url = "http://127.0.0.1:8080"                      # vLLM / llama-server, OpenAI-compatible
+model = "Qwen3-8B"                                 # model name the upstream expects
+default_max_tokens = 1024                          # reservation when the renter sends no max_tokens
+# api_key = ""
+
+[marketplace]                                      # omit the section to run unlisted
+url = "https://gpubnb.proc.io"
+token = "gb_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"   # host token minted in the dashboard
+
+[xmr]
+mode = "wallet"                                    # "wallet" | "free" (free: --simulate only)
+network = "stagenet"                               # "mainnet" | "stagenet" | "testnet"
+address = "5..."                                   # host primary address
+view_key = "..."                                   # PRIVATE view key (lets the enclave watch the chain; cannot spend)
+node_url = "https://stagenet.node.example:38081"   # remote daemon (TLS/authenticated recommended)
+# Either talk to a running monero-wallet-rpc ...
+# wallet_rpc_url = "http://127.0.0.1:38083"
+# ... or let gpubnbd spawn one:
+wallet_rpc_bin = "/usr/local/bin/monero-wallet-rpc"
+wallet_rpc_port = 38083
+# wallet_dir = "./state/wallet"
+wallet_name = "gpubnb-view"
+restore_height = 0                                 # set to the block height of your first rental to scan faster
+confirmations = 10                                 # K (§6)
+poll_interval_s = 20
+free_piconero = 1000000000000                      # credit per session when mode = "free" (1 XMR)
+
+[server]
+listen = "127.0.0.1:8787"
+public_url = "https://gpu1.example.com"            # overrides listing.endpoint_url for registration if set
+state_dir = "./state"                              # ledger snapshots (plaintext in --simulate, sealed under SNP_GET_DERIVED_KEY otherwise)
+snapshot_interval_s = 30
+session_ttl_s = 2592000                            # offer expires_at = created_at + ttl (30 d)
+
+[attest]
+vcek_cache_dir = "/var/lib/gpubnb/vcek"            # vcek.pem/ask.pem/ark.pem (fetched from AMD KDS and cached when missing)
+nv_attestation_cli = "nvattest"                    # nv-attestation-cli binary
+nvidia_smi = "nvidia-smi"
+# product = "Genoa"                                # "Genoa" | "Turin" | "Milan"; auto-detected from the report when unset
+# nras_url = "https://nras.attestation.nvidia.com"
+models_json = "/etc/gpubnb/models.json"            # signed model catalog (gpubnb-models-v1); required outside --simulate

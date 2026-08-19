@@ -1,0 +1,31 @@
+[package]
+name = "gpubnb-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "gpubnb runner gateway: HPKE-sealed OpenAI-compatible endpoint, sessions, metering, receipts"
+
+[dependencies]
+gpubnb-protocol.workspace = true
+gpubnb-attest.workspace = true
+gpubnb-xmr.workspace = true
+axum.workspace = true
+tokio.workspace = true
+tokio-stream = "0.1"
+reqwest.workspace = true
+futures-util.workspace = true
+bytes.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ed25519-dalek.workspace = true
+chacha20poly1305.workspace = true
+rand.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+ed25519-dalek.workspace = true

@@ -1,0 +1,37 @@
+[package]
+name = "gpubnbd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "gpubnb runner daemon: attested, HPKE-sealed, Monero-metered OpenAI-compatible endpoint inside a confidential VM"
+
+[[bin]]
+name = "gpubnbd"
+path = "src/main.rs"
+
+[features]
+default = []
+snp = ["gpubnb-attest/snp"]
+
+[dependencies]
+gpubnb-protocol.workspace = true
+gpubnb-attest.workspace = true
+gpubnb-xmr.workspace = true
+gpubnb-gateway.workspace = true
+gpubnb-marketplace.workspace = true
+axum.workspace = true
+tokio.workspace = true
+clap.workspace = true
+toml.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+hex.workspace = true
+reqwest.workspace = true
+rand.workspace = true
+futures-util.workspace = true
+bytes.workspace = true
+
+[dev-dependencies]

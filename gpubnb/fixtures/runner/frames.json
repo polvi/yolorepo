@@ -1,0 +1,45 @@
+{
+  "note": "§5.2 frames: u32_be(len) || ChaCha20Poly1305(resp_key, resp_base XOR u96_be(i), aad=req_hash, flags||payload); flags bit0 = final",
+  "vectors": [
+    {
+      "resp_key": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+      "resp_base": "707172737475767778797a7b",
+      "req_hash": "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
+      "frames": [
+        {
+          "i": 0,
+          "final": false,
+          "payload": "{\"t\":\"chunk\",\"data\":{\"id\":\"c1\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"}}]}}",
+          "frame": "000000637993c35c03eb34968d0a0e226252202de486884a93a41bf17db2590ccd006776331aa56cef46c2f17174b8dc8a269dd4a0e38902e61e5e41da346c601b06d69a8a2ad15fee937751a46a8853371a8e6e5a41b00887517ec3ea6c16eb60f966b5869d89"
+        },
+        {
+          "i": 1,
+          "final": false,
+          "payload": "{\"t\":\"chunk\",\"data\":{\"id\":\"c1\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo\"}}]}}",
+          "frame": "0000006272c5079b8ba70733cf4588219ee2699e08573f735bc12b055bf13c6e4b214f2e5904aaf3124dc5156e67aa81b64dbce3be171a9373eb504b5573943d2316fe470a5f2eaf8c47b78a28d4b2bec0f58fc28e0310706b59482eb246685c2e000d132ff6"
+        },
+        {
+          "i": 2,
+          "final": true,
+          "payload": "{\"t\":\"receipt\",\"receipt\":{\"payload\":\"e30\",\"sig\":\"AA\"}}",
+          "frame": "000000474342999af753628d82083a31657accc89392047b2471aca5d35b078fe11ba448f6865146a4a63fd41248ef43621a12857b68a674b356c8ab320732788765a97c4697e3d80a7686"
+        }
+      ],
+      "stream": "000000637993c35c03eb34968d0a0e226252202de486884a93a41bf17db2590ccd006776331aa56cef46c2f17174b8dc8a269dd4a0e38902e61e5e41da346c601b06d69a8a2ad15fee937751a46a8853371a8e6e5a41b00887517ec3ea6c16eb60f966b5869d890000006272c5079b8ba70733cf4588219ee2699e08573f735bc12b055bf13c6e4b214f2e5904aaf3124dc5156e67aa81b64dbce3be171a9373eb504b5573943d2316fe470a5f2eaf8c47b78a28d4b2bec0f58fc28e0310706b59482eb246685c2e000d132ff6000000474342999af753628d82083a31657accc89392047b2471aca5d35b078fe11ba448f6865146a4a63fd41248ef43621a12857b68a674b356c8ab320732788765a97c4697e3d80a7686"
+    },
+    {
+      "resp_key": "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+      "resp_base": "000000000000000000000000",
+      "req_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "frames": [
+        {
+          "i": 0,
+          "final": true,
+          "payload": "{\"t\":\"status\",\"balance_piconero\":0,\"credited_piconero\":0,\"pending_piconero\":0,\"subaddress\":\"5x\",\"cumulative_debit_piconero\":0}",
+          "frame": "0000008f9acdd1e17691eaebbe0485ad0de919435ba415a480950c69eb9565384f68c539856805db72a84275116bcb80de1dc299279d590766bace29f9ea23aec524da2dc1ecf4f34fc8bbc5ccd78dd10fc0317810e7e2675f388a7495de8a9bdde2d83d61239989a124929e6d525e2b58571ae2516aa2b0bb8eab2134c234220381b1a53b681e8cb41469e01207c3e8d2f59a"
+        }
+      ],
+      "stream": "0000008f9acdd1e17691eaebbe0485ad0de919435ba415a480950c69eb9565384f68c539856805db72a84275116bcb80de1dc299279d590766bace29f9ea23aec524da2dc1ecf4f34fc8bbc5ccd78dd10fc0317810e7e2675f388a7495de8a9bdde2d83d61239989a124929e6d525e2b58571ae2516aa2b0bb8eab2134c234220381b1a53b681e8cb41469e01207c3e8d2f59a"
+    }
+  ]
+}

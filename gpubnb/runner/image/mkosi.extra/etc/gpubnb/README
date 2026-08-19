@@ -1,0 +1,2 @@
+gpubnbd.toml is NOT part of the image. Provide it from the host via the config
+partition / cloud-init seed (see ../../README.md). Template: runner/gpubnbd.example.toml

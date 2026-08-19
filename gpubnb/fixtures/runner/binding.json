@@ -1,0 +1,29 @@
+{
+  "note": "§2 binding/report_data/gpu_nonce and the simulated measurement for runner_version",
+  "vectors": [
+    {
+      "hpke_pub": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8",
+      "sign_pub": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+      "boot_nonce": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+      "runner_version": "0.1.0",
+      "model_digest": "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f",
+      "challenge": "0000000000000000000000000000000000000000000000000000000000000000",
+      "binding": "a0d4f48453fe62280534d3fd8c11c0a9830c0352e811f8611958635e0d3621d8",
+      "report_data": "fba550be268bcbfd0bb430a24494789b9165be374c939f3d4033b46c4c1b6212e70e267d08efd2ae44096e3e81a5fdbc0c6ee9827f31c82a890a840881e23f46",
+      "gpu_nonce": "ce60acb1e5bc1dfeaae87388df1cfe2a8b2932fa3abe9970be48d805f3f8421a",
+      "simulated_measurement": "d5edc940f681d3472552312378a512410dc0032b8cff4fbc63eb08c6180bd804cd9df6a7c963ed42c574accb2accd829"
+    },
+    {
+      "hpke_pub": "ERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzA",
+      "sign_pub": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+      "boot_nonce": "MDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk8",
+      "runner_version": "0.1.0",
+      "model_digest": "505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f",
+      "challenge": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "binding": "0d39fe7988d4b6bd3e29c6832cda21832e4a81af08afaddae71e932d09a59583",
+      "report_data": "05da03d148da8f8333b008cb40c88ef22a41fd91b11cc240aaf66f80a4f3b75a9cda4cc86b8ee7ffba9522768d800e8a883b13239d14de4f5faf2165278a41a6",
+      "gpu_nonce": "f3fce97b4d339b6e3113bf72b1d1f601f2de8b61907b1a46bd4d44baaee27849",
+      "simulated_measurement": "d5edc940f681d3472552312378a512410dc0032b8cff4fbc63eb08c6180bd804cd9df6a7c963ed42c574accb2accd829"
+    }
+  ]
+}

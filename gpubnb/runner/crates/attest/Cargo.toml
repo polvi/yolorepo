@@ -1,0 +1,25 @@
+[package]
+name = "gpubnb-attest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "gpubnb attesters: simulated (dev root) and SEV-SNP + NVIDIA GPU EAT (feature snp)"
+
+[features]
+default = []
+# Real hardware paths: /dev/sev-guest via the `sev` crate, nv-attestation-cli, nvidia-smi.
+snp = ["dep:sev", "dep:reqwest"]
+
+[dependencies]
+gpubnb-protocol.workspace = true
+ed25519-dalek.workspace = true
+sha2.workspace = true
+rand.workspace = true
+base64.workspace = true
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+sev = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true, features = ["blocking"] }

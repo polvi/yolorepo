@@ -1,0 +1,21 @@
+[package]
+name = "gpubnb-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "gpubnb protocol v1: encodings, signed blobs, binding, HPKE envelope and frames, receipts, model digest"
+
+[dependencies]
+hpke.workspace = true
+chacha20poly1305.workspace = true
+ed25519-dalek.workspace = true
+sha2.workspace = true
+rand.workspace = true
+base64.workspace = true
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+walkdir.workspace = true
+
+[dev-dependencies]

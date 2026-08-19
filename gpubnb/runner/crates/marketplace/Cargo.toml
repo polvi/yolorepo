@@ -1,0 +1,23 @@
+[package]
+name = "gpubnb-marketplace"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "gpubnb marketplace client: listing upsert, attest, heartbeat (gb_ bearer token)"
+
+[dependencies]
+gpubnb-protocol.workspace = true
+gpubnb-gateway.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+gpubnb-attest.workspace = true
+gpubnb-xmr.workspace = true
+axum.workspace = true
+parking_lot.workspace = true

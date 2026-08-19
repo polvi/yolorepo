@@ -1,0 +1,51 @@
+{
+  "note": "§1 signed blobs: sig = Ed25519(DOMAIN || payload_bytes); payload = b64u(payload_bytes) verbatim",
+  "vectors": [
+    {
+      "domain": "gpubnb-offer-v1",
+      "seed": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+      "pub": "ebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ",
+      "kid": null,
+      "payload_json": "{\"session_id\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"subaddress\":\"5test\",\"price\":{\"in_per_m\":1,\"out_per_m\":2},\"hpke_pub\":\"x\",\"created_at\":1,\"expires_at\":2}",
+      "blob": {
+        "payload": "eyJzZXNzaW9uX2lkIjoiQUFBQUFBQUFBQUFBQUFBQUFBQUFBQSIsInN1YmFkZHJlc3MiOiI1dGVzdCIsInByaWNlIjp7ImluX3Blcl9tIjoxLCJvdXRfcGVyX20iOjJ9LCJocGtlX3B1YiI6IngiLCJjcmVhdGVkX2F0IjoxLCJleHBpcmVzX2F0IjoyfQ",
+        "sig": "f3GVdiJ9VzvkwTbPsuBu6POLH1wSNmdAi1_gLAbqfWiQXbCd9Nd4wVOOL2jFm3rtRJ8sNG5_BmdrEo3QjopcBQ"
+      }
+    },
+    {
+      "domain": "gpubnb-receipt-v1",
+      "seed": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+      "pub": "ebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ",
+      "kid": null,
+      "payload_json": "{\"session_id\":\"AAAAAAAAAAAAAAAAAAAAAA\",\"seq\":1,\"tokens_in\":7,\"tokens_out\":3,\"debit_piconero\":10,\"cumulative_debit_piconero\":10,\"balance_piconero\":990,\"ts\":1755600000}",
+      "blob": {
+        "payload": "eyJzZXNzaW9uX2lkIjoiQUFBQUFBQUFBQUFBQUFBQUFBQUFBQSIsInNlcSI6MSwidG9rZW5zX2luIjo3LCJ0b2tlbnNfb3V0IjozLCJkZWJpdF9waWNvbmVybyI6MTAsImN1bXVsYXRpdmVfZGViaXRfcGljb25lcm8iOjEwLCJiYWxhbmNlX3BpY29uZXJvIjo5OTAsInRzIjoxNzU1NjAwMDAwfQ",
+        "sig": "0UaqMgDzRzM_jlKlDqBvqbxpWKW7RKDz9MGwraM0aq_BRqWlmKYe4ZbjXW1y5cOo-x1ENytiS1ENxGMH-bFwBg"
+      }
+    },
+    {
+      "domain": "gpubnb-simulated-v1",
+      "seed": "dV0ywEoe20SjGM__t7x94B9I7NWqws9oILxmNOXy9G0",
+      "pub": "ymOF_JrpoPhtWQ3ddhLxQ2ElP4IvWU42GJ5Y98FK4bk",
+      "kid": "gpubnb-dev-root",
+      "payload_json": "{\"report_data\":\"00\",\"gpu_nonce\":\"11\",\"measurement\":\"22\",\"hwmodel\":\"SIMULATED\",\"issued_at\":1755600000}",
+      "blob": {
+        "payload": "eyJyZXBvcnRfZGF0YSI6IjAwIiwiZ3B1X25vbmNlIjoiMTEiLCJtZWFzdXJlbWVudCI6IjIyIiwiaHdtb2RlbCI6IlNJTVVMQVRFRCIsImlzc3VlZF9hdCI6MTc1NTYwMDAwMH0",
+        "sig": "doPxircTkliV0orKcUOuMOx1Dkp4R97VcbgqIl_McLcQP3Lav4FWtsVRLEYIOAsAv1kyL9WbdNCl8JgjRmhcAw",
+        "kid": "gpubnb-dev-root"
+      }
+    },
+    {
+      "domain": "gpubnb-golden-v1",
+      "seed": "AgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICE",
+      "pub": "Q83AI9ItX54QfRoGk0V9NdHRDrfSHHIRkvVvXeQGZdM",
+      "kid": "gpubnb-test-kid",
+      "payload_json": "{ \"v\": 1 , \"entries\" : [] }",
+      "blob": {
+        "payload": "eyAidiI6IDEgLCAiZW50cmllcyIgOiBbXSB9",
+        "sig": "rJapj0cvgT9U6mdW9bQ3tfUPXjHPzwmtFZbWP5M3idedFt0t3lLVNrOv7PItfRAtJHRPT9o0c9VRV3R8i_yCDQ",
+        "kid": "gpubnb-test-kid"
+      }
+    }
+  ]
+}
