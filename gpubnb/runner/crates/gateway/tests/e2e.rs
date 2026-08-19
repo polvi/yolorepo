@@ -91,6 +91,14 @@ async fn simulate_free_end_to_end() {
 
     let price = Price { in_per_m: 1_000_000, out_per_m: 1_000_000 }; // 1 piconero per token each way
     let identity = Identity::generate("0.1.0", "test/model", [9u8; 32], 4096);
+    // Persist-on-write probe: every accepted ctr, every receipt and every open
+    // must hit the persister before the client sees a response.
+    let persists = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let persists_c = persists.clone();
+    let persist: gpubnb_gateway::Persister = Arc::new(move |_l: &Ledger| {
+        persists_c.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(())
+    });
     let gw = Arc::new(Gateway {
         identity,
         attester: Arc::new(SimulatedAttester::new("0.1.0", "SIMULATED GPU")),
@@ -104,6 +112,7 @@ async fn simulate_free_end_to_end() {
         default_max_tokens: 1024,
         boot_doc: Default::default(),
         started: std::time::Instant::now(),
+        persist: Some(persist),
     });
     let base = spawn(gpubnb_gateway::router(gw.clone())).await;
     let http = reqwest::Client::new();
@@ -225,4 +234,7 @@ async fn simulate_free_end_to_end() {
     }
     let (tin, tout) = gw.ledger.totals();
     assert_eq!((tin, tout), (14, 5));
+    // 1 open + accepted ctrs (status 1, chat 2, chat 3, chat 4, status 5 = 5)
+    // + receipts (3) = 9; replays / bad PSK / unknown session never persist.
+    assert_eq!(persists.load(std::sync::atomic::Ordering::SeqCst), 9);
 }

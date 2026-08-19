@@ -32,10 +32,18 @@ What it does at boot and while serving:
    session balance is short. Credit arrives from a view-only
    `monero-wallet-rpc` watcher at K confirmations, idempotent by
    `(txid, major, minor)`, revoked on reorg (balance may go negative).
-6. Keeps the ledger in RAM, snapshotting to `state_dir` (plaintext under
-   `--simulate`; sealed with ChaCha20-Poly1305 under a key from
-   `SNP_GET_DERIVED_KEY` in real mode, so only the same measured image on the
-   same chip can read it back).
+6. Keeps the ledger in RAM and **persists on write** to `state_dir`: the
+   ledger reaches disk (tmp + fsync + rename) before a session offer or a
+   receipt leaves the runner and before an accepted request counter starts
+   work; if that write fails the runner answers `busy` instead. Interval
+   snapshots are only a backstop. This is the design `specs/Metering.tla`
+   forced: with lazy snapshots a crash between a receipt and the next
+   snapshot re-issues a `seq` and re-accepts a replayed counter after
+   restart (`IssuedMonotone`/`ReplaySafe`). Plaintext under `--simulate`;
+   sealed with ChaCha20-Poly1305 under a key from `SNP_GET_DERIVED_KEY` in
+   real mode, so only the same measured image on the same chip can read it
+   back. Reservations and chain credits are the only RAM-only state
+   (credits rebuild by rescan).
 
 ## Layout
 
@@ -182,6 +190,7 @@ check it.
 
 The host can still DoS the endpoint or hide payments after prepay (keep
 top-ups small; signed offers + receipts feed the marketplace's reputation);
-chunk timing leaks token counts; the ledger is RAM-first and a crash between
-snapshots loses un-snapshotted *debits* only (credits rebuild by rescan, so
-losses fall on the host); v1 is SEV-SNP only.
+chunk timing leaks token counts; debits, receipt sequence and replay marks
+are persisted before they are acted on, so a crash loses only in-flight
+reservations (released) and the credits it rebuilds by rescan, and any
+shortfall falls on the host, never the renter; v1 is SEV-SNP only.

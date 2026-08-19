@@ -290,6 +290,17 @@ async fn run(cfg: Config, simulate: bool) -> anyhow::Result<()> {
         default_max_tokens: cfg.upstream.default_max_tokens,
         boot_doc: Default::default(),
         started: std::time::Instant::now(),
+        persist: Some({
+            // Persist-on-write (specs/Metering.tla): serialized under a mutex so
+            // concurrent requests cannot interleave tmp+rename of the same file.
+            let path = snap_path.clone();
+            let key = snap_key;
+            let lock = std::sync::Mutex::new(());
+            Arc::new(move |ledger: &gpubnb_gateway::ledger::Ledger| {
+                let _g = lock.lock().unwrap_or_else(|e| e.into_inner());
+                snapshot::write(&path, key.as_ref(), &ledger.snapshot_json())
+            })
+        }),
     });
 
     // Boot attestation before serving: in real mode this is also what sets the GPU ready state.

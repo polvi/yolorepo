@@ -43,7 +43,12 @@ pub fn write(path: &Path, key: Option<&[u8; 32]>, json: &[u8]) -> anyhow::Result
         None => json.to_vec(),
     };
     let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, bytes)?;
+    {
+        use std::io::Write;
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(&bytes)?;
+        f.sync_all()?;
+    }
     std::fs::rename(&tmp, path)?;
     Ok(())
 }

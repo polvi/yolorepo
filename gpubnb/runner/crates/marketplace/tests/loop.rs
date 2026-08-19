@@ -89,6 +89,7 @@ async fn round_trip_with_challenge() {
         default_max_tokens: 1,
         boot_doc: Default::default(),
         started: std::time::Instant::now(),
+        persist: None,
     });
     let mp = gpubnb_marketplace::Marketplace::new(&format!("http://{addr}"), "gb_test");
     let upsert = gpubnb_marketplace::ListingUpsert {

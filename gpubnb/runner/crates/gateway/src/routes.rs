@@ -64,6 +64,12 @@ fn unseal_psk(gw: &Shared, env: &Envelope) -> Result<(Session, OpenedRequest), R
     if !gw.ledger.advance_hwm(&sid, env.ctr) {
         return Err(err(StatusCode::CONFLICT, "replay"));
     }
+    // The accepted counter must be on disk before any work happens (ReplaySafe).
+    // The RAM hwm stays advanced on failure: refusing is always safe.
+    if let Err(e) = gw.persist_now() {
+        tracing::error!(error = %e, "ledger persist failed; refusing request");
+        return Err(err(StatusCode::SERVICE_UNAVAILABLE, "busy"));
+    }
     Ok((session, opened))
 }
 
@@ -131,6 +137,12 @@ async fn open_session(State(gw): State<Shared>, body: Bytes) -> Response {
     });
     if let Some(free) = gw.free_piconero {
         gw.ledger.credit_free(&id, free);
+    }
+    // The session (key, subaddress binding) must survive a crash before the
+    // renter's first payment lands; persist before handing out the offer.
+    if let Err(e) = gw.persist_now() {
+        tracing::error!(error = %e, "ledger persist failed; refusing session open");
+        return sealed_single(&opened.keys, &Event::Error { code: ErrorCode::Busy, message: "ledger persist failed".into() });
     }
     tracing::info!(session = %id_b64, %subaddress, "session opened");
     sealed_single(
@@ -220,6 +232,11 @@ async fn chat(State(gw): State<Shared>, body: Bytes) -> Response {
                     },
                 );
                 if let Some(settled) = gw.ledger.next_receipt_zero(&sid) {
+                    if let Err(e) = gw.persist_now() {
+                        tracing::error!(error = %e, "ledger persist failed; withholding receipt");
+                        send(&mut enc, true, &Event::Error { code: ErrorCode::Busy, message: "ledger persist failed".into() });
+                        return;
+                    }
                     send(&mut enc, true, &Event::Receipt { receipt: receipt_blob(&gw, &sid, 0, 0, &settled) });
                 }
                 return;
@@ -255,7 +272,15 @@ async fn chat(State(gw): State<Shared>, body: Bytes) -> Response {
         };
         let settled = gw.ledger.settle(&sid, reserve, tokens_in, tokens_out);
         if let Some(settled) = settled {
-            if !client_gone {
+            // Receipt leaves only after the debit + seq are durable (ReceiptsDurable,
+            // IssuedMonotone across restarts). On failure the debit stands (it was
+            // earned) but no receipt is issued; the client retries with a new ctr.
+            if let Err(e) = gw.persist_now() {
+                tracing::error!(error = %e, "ledger persist failed; withholding receipt");
+                if !client_gone {
+                    send(&mut enc, true, &Event::Error { code: ErrorCode::Busy, message: "ledger persist failed".into() });
+                }
+            } else if !client_gone {
                 send(&mut enc, true, &Event::Receipt { receipt: receipt_blob(&gw, &sid, tokens_in, tokens_out, &settled) });
             }
         }

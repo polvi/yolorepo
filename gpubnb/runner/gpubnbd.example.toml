@@ -50,7 +50,7 @@ free_piconero = 1000000000000                      # credit per session when mod
 listen = "127.0.0.1:8787"
 public_url = "https://gpu1.example.com"            # overrides listing.endpoint_url for registration if set
 state_dir = "./state"                              # ledger snapshots (plaintext in --simulate, sealed under SNP_GET_DERIVED_KEY otherwise)
-snapshot_interval_s = 30
+snapshot_interval_s = 30                           # backstop only: the ledger is persisted on every write (offer/receipt/accepted ctr)
 session_ttl_s = 2592000                            # offer expires_at = created_at + ttl (30 d)
 
 [attest]
