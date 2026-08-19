@@ -24,3 +24,6 @@ build/
 
 # forkable dev-only generated config
 forkable/apps/web/wrangler.dev.jsonc
+
+# gpubnb runner (Rust)
+/gpubnb/runner/target/

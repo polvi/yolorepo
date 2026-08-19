@@ -20,6 +20,7 @@ project keeps its passing spec and config in a `specs/` folder.
 | [`tabby/`](tabby/) | Splitwise for Monero: split trip expenses in USD/CAD/TAB, get a minimal set of transfers, and pay each other in XMR via Cake Wallet deep links + QR. | [tabby.proc.io](https://tabby.proc.io) |
 | [`molemap/`](molemap/) | Google Earth for your body: photograph yourself, reconstruct a zoomable 3D scan locally (COLMAP + Gaussian splats), and track moles over time with a visit slider. Raw photos never leave your machine. | [molemap.proc.io](https://molemap.proc.io) |
 | [`backtalk/`](backtalk/) | A hidden feedback widget + error tracker your coding agent reads over MCP: visitors report (Cmd+Shift+/ or two-finger press), errors group themselves, the agent offers fixes, and submitters see "shipped ✓" when it lands. | [backtalk.proc.io](https://backtalk.proc.io) |
+| [`gpubnb/`](gpubnb/) | Airbnb for confidential GPUs: hosts with NVIDIA CC-capable GPUs (RTX PRO 6000 Blackwell SE, H100/H200/B200) in SEV-SNP VMs list attested, OpenAI-compatible inference endpoints; renters verify the attestation in their browser, send HPKE-sealed prompts, and pay the host directly in Monero per token. | [gpubnb.proc.io](https://gpubnb.proc.io) |
 
 ## Stack
 
