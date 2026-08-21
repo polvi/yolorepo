@@ -22,13 +22,19 @@ export interface Config {
    * "no upstream configured" rather than silently skipped.
    */
   helmRepos: Record<string, string>;
-  /** OpenAI-compatible base URL of the local llama.cpp server. */
+  /** OpenAI-compatible base URL of the local llama.cpp server, used when no explicit model is set. */
   llamaBaseUrl: string;
   /**
-   * Model id to use. When unset, clusterpilot asks the server which model is
-   * loaded and uses that, so it never fights whatever you already have resident.
+   * Model to use: "provider/model" or a model id, resolved against modelsJson.
+   * When unset, clusterpilot asks the local server which model is loaded and
+   * uses that, so it never fights whatever you already have resident.
    */
   model?: string;
+  /**
+   * models.json to read providers from. Defaults to the one pi itself uses
+   * (~/.pi/agent/models.json).
+   */
+  modelsJson?: string;
   /**
    * Authored values files, keyed by release name or "namespace/release".
    * When a release has one, upgrades apply it with -f so your file stays the
@@ -115,6 +121,7 @@ export async function loadConfig(path = "clusterpilot.config.json"): Promise<Con
     syncPath: process.env.CLUSTERPILOT_SYNC_PATH ?? file.syncPath,
     llamaBaseUrl: process.env.LLAMA_BASE_URL ?? file.llamaBaseUrl ?? "http://127.0.0.1:8080/v1",
     model: process.env.CLUSTERPILOT_MODEL ?? file.model,
+    modelsJson: process.env.CLUSTERPILOT_MODELS_JSON ?? file.modelsJson,
     prometheus: file.prometheus,
     plansDir: file.plansDir ?? "plans",
     timeoutMs: file.timeoutMs ?? 45_000,

@@ -2,8 +2,10 @@
 
 An agent that inspects a Talos Linux Kubernetes cluster, plans upgrades, and —
 when you tell it to — carries them out, watching the rollout and diagnosing
-what went wrong if a step fails. It reasons with a local model on your own
-llama.cpp server, so nothing about your infrastructure leaves the machine.
+what went wrong if a step fails. It reasons with a model from your own pi
+setup — by default whatever your local llama.cpp server has loaded, or any
+provider registered in `~/.pi/agent/models.json` — so nothing about your
+infrastructure leaves machines you control.
 
 Built on the [pi.dev SDK](https://pi.dev/docs/latest/sdk).
 
@@ -172,13 +174,21 @@ rather than hoped for:
 
 ## Model
 
-The agent uses whatever model your llama.cpp server currently has loaded. It
-asks the server rather than pinning a name in config, because llama-server holds
-one model at a time and the weights are tens of gigabytes: a swap is not a cheap
-accident. Clusterpilot writes its own `models.json` for pi, so it works whether
-or not `~/.pi/agent` has been configured.
+The model is whatever pi's own `models.json` says you have. With no model set,
+clusterpilot uses whatever your llama.cpp server currently has loaded: it asks
+the server rather than pinning a name in config, because llama-server holds one
+model at a time and the weights are tens of gigabytes — a swap is not a cheap
+accident. To reason elsewhere, set `CLUSTERPILOT_MODEL` to `provider/model`
+or a model id from the same file, e.g. `CLUSTERPILOT_MODEL=proc/qwen3.8-27b`
+for a vLLM server on the dev cluster. Either way, clusterpilot asks the chosen
+server what it actually serves before planning, so a stale `models.json` or a
+swapped-in model fails loudly there, not mid-plan.
 
-Start a server with [`pi-local`](../pi-local) (`pi-llama-up`), or point
+If `models.json` is absent or does not describe the loaded model, clusterpilot
+synthesizes a minimal provider from the live `/models` response, so it works
+whether or not `~/.pi/agent` has been configured.
+
+Start a local server with [`pi-local`](../pi-local) (`pi-llama-up`), or point
 `LLAMA_BASE_URL` anywhere OpenAI-compatible.
 
 ## Configuration
@@ -191,13 +201,16 @@ kubeconfig. Drop a `clusterpilot.config.json` next to the source to override:
   "kubeContext": "proc-proc-dev",
   "talosNodes": ["proc-0"],
   "helmRepos": { "my-chart": "https://example.com/charts" },
-  "llamaBaseUrl": "http://127.0.0.1:8080/v1"
+  "llamaBaseUrl": "http://127.0.0.1:8080/v1",
+  "model": "proc/qwen3.8-27b"
 }
 ```
 
 | Environment | Effect |
 | --- | --- |
-| `LLAMA_BASE_URL` | OpenAI-compatible endpoint (default `http://127.0.0.1:8080/v1`) |
+| `LLAMA_BASE_URL` | Local OpenAI-compatible server, used when `CLUSTERPILOT_MODEL` is unset (default `http://127.0.0.1:8080/v1`) |
+| `CLUSTERPILOT_MODEL` | `provider/model` or a model id from `models.json`, e.g. `proc/qwen3.8-27b`. Unset: whatever the local server has loaded |
+| `CLUSTERPILOT_MODELS_JSON` | Alternate `models.json` (default `~/.pi/agent/models.json`, the one pi itself uses) |
 | `CLUSTERPILOT_CONTEXT` | Override the kubectl context |
 | `CLUSTERPILOT_SYNC_PATH` | Where `sync` writes the state file |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit for release lookups |
@@ -327,7 +340,7 @@ and does the one thing the rules cannot: notice when several of them are one
 story. A drive throwing errors, a pool degrading, and a pod crash-looping on a
 volume from that pool are one hardware failure with three symptoms.
 
-If the llama.cpp server is down, the triage is skipped and the findings still
+If the model server is down, the triage is skipped and the findings still
 print.
 
 ## Layout

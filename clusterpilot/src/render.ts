@@ -103,7 +103,7 @@ export function renderPlanDocument(
   return [
     `# Upgrade plan: ${inv.kubeContext}`,
     "",
-    `Generated ${new Date().toISOString()} by clusterpilot, reasoning with \`${modelId}\` on a local llama.cpp server.`,
+    `Generated ${new Date().toISOString()} by clusterpilot, reasoning with \`${modelId}\`.`,
     `Findings: ${counts.critical} critical, ${counts.warning} warning, ${counts.info} info.`,
     "",
     "> Clusterpilot is read-only. Every command below is a suggestion for a human to run and review; nothing here has been applied to the cluster.",

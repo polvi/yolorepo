@@ -37,7 +37,7 @@ export interface AgentOutcome {
 
 export async function runAgent(opts: RunAgentOptions): Promise<AgentOutcome> {
   const { cfg, prompt } = opts;
-  const { model, modelRuntime, loaded } = await resolveModel(cfg);
+  const { model, modelRuntime, target } = await resolveModel(cfg);
 
   // Extensions have to come from a real loader (they need the runtime), but we
   // want ours and nothing else, so we build a DefaultResourceLoader purely for
@@ -106,5 +106,5 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutcome> {
     session.dispose();
   }
 
-  return { text: chunks.join(""), modelId: loaded.id, toolCalls };
+  return { text: chunks.join(""), modelId: `${target.providerId}/${target.modelId}`, toolCalls };
 }

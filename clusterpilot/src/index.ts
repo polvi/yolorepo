@@ -2,7 +2,7 @@
 // clusterpilot CLI.
 //
 //   clusterpilot status   collect and print the state, no model involved
-//   clusterpilot plan     collect, analyze, then have the local model write the upgrade plan
+//   clusterpilot plan     collect, analyze, then have the model write the upgrade plan
 //   clusterpilot ask      one-off question against the live cluster
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -11,7 +11,7 @@ import { runAgent } from "./agent.ts";
 import { analyze } from "./analyze.ts";
 import { cmdApply } from "./cli-apply.ts";
 import { loadConfig } from "./config.ts";
-import { detectLoadedModel } from "./model.ts";
+import { resolveTarget } from "./model.ts";
 import { collect } from "./probes/index.ts";
 import { sync } from "./sync.ts";
 import { buildPrompt, SWEEP_PROMPT } from "./prompt.ts";
@@ -23,7 +23,7 @@ import { fetchUpstream } from "./upstream/index.ts";
 const USAGE = `clusterpilot — Talos/Kubernetes upgrade planner and runner
 
   clusterpilot status [--json]   Collect cluster state and computed findings. No model.
-  clusterpilot plan [--out FILE] Collect, analyze, and write an upgrade plan with the local model.
+  clusterpilot plan [--out FILE] Collect, analyze, and write an upgrade plan with the model.
   clusterpilot apply [--apply]   Build an execution plan and run it. Dry run unless --apply.
   clusterpilot sweep [--json]    Hunt for abnormalities in metrics, logs, and object state.
   clusterpilot sync [--out F]    Record what the cluster IS into a git-tracked state file.
@@ -55,7 +55,9 @@ sync options
   --no-commit     Write the file but leave git alone.
 
 Environment
-  LLAMA_BASE_URL        OpenAI-compatible endpoint (default http://127.0.0.1:8080/v1)
+  LLAMA_BASE_URL        Local OpenAI-compatible server, used when CLUSTERPILOT_MODEL is unset (default http://127.0.0.1:8080/v1)
+  CLUSTERPILOT_MODEL    Model to use: provider/model or a model id from models.json (e.g. proc/qwen3.8-27b). Unset = whatever the local server has loaded
+  CLUSTERPILOT_MODELS_JSON  Alternate models.json (default ~/.pi/agent/models.json, the one pi itself uses)
   CLUSTERPILOT_CONTEXT  Override the kubectl context
   GITHUB_TOKEN          Raises the GitHub API rate limit for release lookups
 
@@ -101,7 +103,7 @@ async function cmdPlan(args: string[]) {
   const thinking = (flag(args, "--thinking") ?? "medium") as "off" | "low" | "medium" | "high";
 
   const digest = renderDigest(inventory, findings);
-  process.stderr.write(`planning with the local model...\n\n`);
+  process.stderr.write(`planning with the model...\n\n`);
 
   const outcome = await runAgent({
     cfg,
@@ -111,7 +113,7 @@ async function cmdPlan(args: string[]) {
   });
 
   if (!outcome.text.trim()) {
-    throw new Error("The model returned nothing. Check that the llama.cpp server is healthy.");
+    throw new Error("The model returned nothing. Check that the model server is healthy.");
   }
 
   const doc = renderPlanDocument(inventory, findings, outcome.text, outcome.modelId);
@@ -154,10 +156,10 @@ async function cmdSweep(args: string[]) {
   });
 
   // The model correlates; it does not detect. Findings are printed either way,
-  // so a dead llama.cpp server costs the narrative and nothing else.
+  // so a dead model server costs the narrative and nothing else.
   if (!args.includes("--no-model") && !args.includes("--json")) {
     try {
-      process.stderr.write("triaging with the local model...\n");
+      process.stderr.write("triaging with the model...\n");
       const outcome = await runAgent({
         cfg,
         prompt: `${renderSweepForModel(report)}\n\nAssess this cluster.`,
@@ -224,8 +226,8 @@ async function main() {
       break;
     case "model": {
       const cfg = await loadConfig();
-      const loaded = await detectLoadedModel(cfg.llamaBaseUrl);
-      console.log(`${loaded.id} (context ${loaded.contextWindow}) at ${cfg.llamaBaseUrl}`);
+      const target = await resolveTarget(cfg);
+      console.log(`${target.providerId}/${target.modelId} (context ${target.contextWindow}) at ${target.baseUrl}`);
       break;
     }
     default:
