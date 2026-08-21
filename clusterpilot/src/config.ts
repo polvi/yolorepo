@@ -26,8 +26,8 @@ export interface Config {
   llamaBaseUrl: string;
   /**
    * Model to use: "provider/model" or a model id, resolved against modelsJson.
-   * When unset, clusterpilot asks the local server which model is loaded and
-   * uses that, so it never fights whatever you already have resident.
+   * When unset, clusterpilot follows pi's own default provider and model, and
+   * falls back to whatever the local server has loaded.
    */
   model?: string;
   /**
@@ -35,6 +35,11 @@ export interface Config {
    * (~/.pi/agent/models.json).
    */
   modelsJson?: string;
+  /**
+   * settings.json to read pi's default provider and model from. Defaults to
+   * the one pi itself uses (~/.pi/agent/settings.json).
+   */
+  settingsJson?: string;
   /**
    * Authored values files, keyed by release name or "namespace/release".
    * When a release has one, upgrades apply it with -f so your file stays the
@@ -122,6 +127,7 @@ export async function loadConfig(path = "clusterpilot.config.json"): Promise<Con
     llamaBaseUrl: process.env.LLAMA_BASE_URL ?? file.llamaBaseUrl ?? "http://127.0.0.1:8080/v1",
     model: process.env.CLUSTERPILOT_MODEL ?? file.model,
     modelsJson: process.env.CLUSTERPILOT_MODELS_JSON ?? file.modelsJson,
+    settingsJson: process.env.CLUSTERPILOT_SETTINGS_JSON ?? file.settingsJson,
     prometheus: file.prometheus,
     plansDir: file.plansDir ?? "plans",
     timeoutMs: file.timeoutMs ?? 45_000,

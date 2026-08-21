@@ -1,7 +1,7 @@
 {
   "name": "clusterpilot",
   "version": "0.1.0",
-  "description": "Read-only Talos/Kubernetes upgrade planner that reasons with a model from your pi setup (local llama.cpp by default)",
+  "description": "Read-only Talos/Kubernetes upgrade planner that reasons with the model your pi setup defaults to",
   "type": "module",
   "private": true,
   "bin": {

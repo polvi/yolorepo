@@ -6,9 +6,12 @@
 // no clusterpilot-specific plumbing.
 //
 // Which model gets used:
-//   CLUSTERPILOT_MODEL unset -> whatever the local llama.cpp server has loaded
-//     right now, asked live via GET /models. llama-server holds one model at a
-//     time and a swap costs tens of GB, so we never fight what is resident.
+//   CLUSTERPILOT_MODEL unset -> pi's own default provider and model, read from
+//     settings.json, so clusterpilot reasons with whatever `pi` would use. If
+//     that default is missing, unregistered, or its server is not answering,
+//     we fall back to whatever the local llama.cpp server has loaded right
+//     now, asked live via GET /models. llama-server holds one model at a time
+//     and a swap costs tens of GB, so we never fight what is resident.
 //   CLUSTERPILOT_MODEL set   -> "provider/model" or a bare model id, resolved
 //     against models.json. A bare id must match exactly one model across all
 //     providers; a bare provider name takes that provider's first model.
@@ -56,6 +59,34 @@ interface CatalogProvider {
 
 function catalogPathFor(cfg: Config): string {
   return cfg.modelsJson ?? join(getAgentDir(), "models.json");
+}
+
+function settingsPathFor(cfg: Config): string {
+  return cfg.settingsJson ?? join(getAgentDir(), "settings.json");
+}
+
+/**
+ * pi's chosen default provider and model. This is a preference file, not a
+ * contract, so anything unreadable or malformed is treated as "no preference"
+ * rather than failing a cluster job over it.
+ */
+export async function readPiDefault(cfg: Config): Promise<{ providerId: string; modelId: string } | undefined> {
+  let raw: string;
+  try {
+    raw = await readFile(settingsPathFor(cfg), "utf8");
+  } catch {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as { defaultProvider?: unknown; defaultModel?: unknown };
+    const providerId = parsed.defaultProvider;
+    const modelId = parsed.defaultModel;
+    if (typeof providerId !== "string" || typeof modelId !== "string") return undefined;
+    if (!providerId || !modelId) return undefined;
+    return { providerId, modelId };
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -167,7 +198,35 @@ export async function resolveTarget(cfg: Config): Promise<ModelTarget> {
     };
   }
 
-  // No explicit model: whatever the local server has loaded.
+  // No explicit model: follow pi's own default, so clusterpilot and pi reason
+  // with the same model.
+  const preferred = await readPiDefault(cfg);
+  if (catalog && preferred) {
+    const provider = catalog[preferred.providerId];
+    const model = provider?.models?.find((m) => m.id === preferred.modelId);
+    if (provider && model) {
+      try {
+        await assertServing(provider.baseUrl, model.id);
+        return {
+          providerId: preferred.providerId,
+          modelId: model.id,
+          baseUrl: provider.baseUrl,
+          contextWindow: model.contextWindow ?? 32768,
+          fromCatalog: true,
+        };
+      } catch (err) {
+        // Registered but not reachable right now. A preference should not
+        // strand a cluster job, so say so and fall through to the local server.
+        console.warn(
+          `clusterpilot: pi's default ${preferred.providerId}/${preferred.modelId} is unavailable ` +
+            `(${(err as Error).message}). Falling back to the local server.`,
+        );
+      }
+    }
+  }
+
+  // Nothing preferred, or the preference did not pan out: whatever the local
+  // server has loaded.
   const served = await listServedModels(
     cfg.llamaBaseUrl,
     "Start it with pi-llama-up, or point LLAMA_BASE_URL somewhere else.",

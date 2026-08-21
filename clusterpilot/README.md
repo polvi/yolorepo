@@ -3,8 +3,8 @@
 An agent that inspects a Talos Linux Kubernetes cluster, plans upgrades, and —
 when you tell it to — carries them out, watching the rollout and diagnosing
 what went wrong if a step fails. It reasons with a model from your own pi
-setup — by default whatever your local llama.cpp server has loaded, or any
-provider registered in `~/.pi/agent/models.json` — so nothing about your
+setup — by default the same provider and model `pi` itself defaults to, or any
+other provider registered in `~/.pi/agent/models.json` — so nothing about your
 infrastructure leaves machines you control.
 
 Built on the [pi.dev SDK](https://pi.dev/docs/latest/sdk).
@@ -175,13 +175,21 @@ rather than hoped for:
 ## Model
 
 The model is whatever pi's own `models.json` says you have. With no model set,
-clusterpilot uses whatever your llama.cpp server currently has loaded: it asks
-the server rather than pinning a name in config, because llama-server holds one
-model at a time and the weights are tens of gigabytes — a swap is not a cheap
-accident. To reason elsewhere, set `CLUSTERPILOT_MODEL` to `provider/model`
-or a model id from the same file, e.g. `CLUSTERPILOT_MODEL=proc/qwen3.8-27b`
-for a vLLM server on the dev cluster. Either way, clusterpilot asks the chosen
-server what it actually serves before planning, so a stale `models.json` or a
+clusterpilot follows **pi's own default** — the `defaultProvider` and
+`defaultModel` in `~/.pi/agent/settings.json` — so `clusterpilot` and `pi`
+reason with the same model without configuring anything twice.
+
+If that default is missing, not registered in `models.json`, or its server is
+not answering, clusterpilot says so on stderr and falls back to whatever your
+local llama.cpp server currently has loaded. It asks the server rather than
+pinning a name in config, because llama-server holds one model at a time and
+the weights are tens of gigabytes — a swap is not a cheap accident. A
+preference should never strand a cluster job.
+
+To override, set `CLUSTERPILOT_MODEL` to `provider/model` or a model id from
+the same file, e.g. `CLUSTERPILOT_MODEL=proc/qwen3.8-27b` for a vLLM server on
+the dev cluster. Whichever path is taken, clusterpilot asks the chosen server
+what it actually serves before planning, so a stale `models.json` or a
 swapped-in model fails loudly there, not mid-plan.
 
 If `models.json` is absent or does not describe the loaded model, clusterpilot
@@ -209,8 +217,9 @@ kubeconfig. Drop a `clusterpilot.config.json` next to the source to override:
 | Environment | Effect |
 | --- | --- |
 | `LLAMA_BASE_URL` | Local OpenAI-compatible server, used when `CLUSTERPILOT_MODEL` is unset (default `http://127.0.0.1:8080/v1`) |
-| `CLUSTERPILOT_MODEL` | `provider/model` or a model id from `models.json`, e.g. `proc/qwen3.8-27b`. Unset: whatever the local server has loaded |
+| `CLUSTERPILOT_MODEL` | `provider/model` or a model id from `models.json`, e.g. `proc/qwen3.8-27b`. Unset: pi's default, then the local server |
 | `CLUSTERPILOT_MODELS_JSON` | Alternate `models.json` (default `~/.pi/agent/models.json`, the one pi itself uses) |
+| `CLUSTERPILOT_SETTINGS_JSON` | Alternate `settings.json` to read pi's default from (default `~/.pi/agent/settings.json`) |
 | `CLUSTERPILOT_CONTEXT` | Override the kubectl context |
 | `CLUSTERPILOT_SYNC_PATH` | Where `sync` writes the state file |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit for release lookups |
