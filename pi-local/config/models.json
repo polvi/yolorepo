@@ -17,7 +17,7 @@
           "name": "Qwen3.8 27B dense Q6 (local, thinker)",
           "reasoning": true,
           "input": ["text", "image"],
-          "contextWindow": 65536,
+          "contextWindow": 131072,
           "maxTokens": 16384,
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
           "samplingParams": {
@@ -33,7 +33,7 @@
           "name": "Qwen3.6 35B-A3B MoE Q4 (local, fast thinker)",
           "reasoning": true,
           "input": ["text", "image"],
-          "contextWindow": 65536,
+          "contextWindow": 131072,
           "maxTokens": 16384,
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
           "samplingParams": {

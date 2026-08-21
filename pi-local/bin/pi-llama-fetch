@@ -16,8 +16,11 @@ jobs="${PI_LLAMA_FETCH_JOBS:-8}"
 
 url="https://huggingface.co/${repo}/resolve/main/${file}"
 mkdir -p "$dest"
-out="$dest/$file"
-parts="$dest/.parts-$file"
+# The repo path may contain a directory (e.g. MTP/mtp-...gguf); flatten it,
+# since llama.cpp only cares about the file.
+base=$(basename "$file")
+out="$dest/$base"
+parts="$dest/.parts-$base"
 
 if [ -f "$out" ]; then
   echo "pi-llama-fetch: $out already exists"

@@ -1,8 +1,8 @@
 # Which local model, and when
 
-Three models, all served by the same `llama-server` on port 8080, all
-registered as pi providers. This is the measured comparison and the routing
-rule that falls out of it.
+Three models were measured; the two that earned their space are kept and
+registered as pi providers, served by the same `llama-server` on port 8080.
+This is the comparison and the routing rule that falls out of it.
 
 Everything here was measured on this machine (M1 Max 64 GB, llama.cpp build
 10450, pi 0.84.2), not copied from model cards. Reproduce with
@@ -10,10 +10,28 @@ Everything here was measured on this machine (M1 Max 64 GB, llama.cpp build
 
 ## The answer
 
-Use **Qwen3.6-35B-A3B**. It is the fastest of the three, the smallest in
-memory, and the only one that got every task right. The 80B coder model is
-bigger, slower, and less accurate; the dense 27B matches it on correctness but
-takes five times as long.
+**Configured default: Qwen3.8-27B dense**, chosen by preference for its
+reasoning, with its MTP draft auto-enabled and 131 072 tokens of context.
+
+On measurement alone the pick would be **Qwen3.6-35B-A3B**: fastest, smallest
+in memory, and the only model that got every task right. It is still
+installed and one env var away. The tables below are what that choice costs,
+recorded so the trade stays visible rather than forgotten:
+
+| | 27B dense (default) | 35B-A3B |
+|---|---|---|
+| Prefill | 74 t/s | **686 t/s** (9x) |
+| Generation | 5.9, or 6.9 with draft | **46.9 t/s** (7x) |
+| Suite wall time | 1004s | **202s** |
+| Correctness | 6/6 | 6/6 |
+| Resident at 128K | 35.0 GiB | **24.1 GiB** |
+
+Switch to the fast one whenever a session is tool-loop heavy:
+
+```sh
+PI_LLAMA_REPO=unsloth/Qwen3.6-35B-A3B-GGUF PI_LLAMA_QUANT=UD-Q4_K_XL \
+PI_LLAMA_ALIAS=qwen3.6-35b-a3b pi-llama-up
+```
 
 ### What is actually on disk
 
@@ -22,7 +40,7 @@ Only the two models that earned their space:
 | Model | Kept | Why |
 |---|---|---|
 | Qwen3.6-35B-A3B UD-Q4_K_XL | yes, 21 GiB | the default |
-| Qwen3.8-27B UD-Q6_K_XL | yes, 24 GiB | hardest-reasoning fallback |
+| Qwen3.8-27B UD-Q6_K_XL | yes, 23.6 GiB | hardest-reasoning fallback (refreshed Aug 19) |
 | Qwen3.8-27B UD-Q5_K_XL / UD-Q4_K_XL | deleted | superseded quants, 35.5 GiB |
 | Qwen3-Coder-Next UD-IQ4_XS | deleted | rejected, 35.8 GiB |
 
@@ -36,7 +54,7 @@ Raw throughput, `llama-bench`, flash attention on, full Metal offload:
 
 | Model | Quant | Weights | Prefill (pp2048) | Generate (tg64) | Resident at 64K |
 |---|---|---|---|---|---|
-| Qwen3.8-27B dense | UD-Q6_K_XL | 24.1 GiB | 74.3 t/s | 5.9 t/s | 29.1 GiB |
+| Qwen3.8-27B dense | UD-Q6_K_XL | 23.6 GiB | 74.3 t/s | 5.9 t/s (6.9 with MTP draft) | 29.1 GiB |
 | **Qwen3.6-35B-A3B** | UD-Q4_K_XL | 20.8 GiB | **685.6 t/s** | **46.9 t/s** | **23.1 GiB** |
 | Qwen3-Coder-Next 80B-A3B | UD-IQ4_XS | 35.8 GiB | 393.4 t/s | 40.4 t/s | 37.4 GiB |
 
@@ -117,7 +135,7 @@ implying it. The other two models never needed this.
 | Everyday coding, agent loops, tool calls | Qwen3.6-35B-A3B |
 | Big prompts, whole-file or repo context | Qwen3.6-35B-A3B (686 t/s prefill) |
 | Screenshots, diagrams, PDFs | Qwen3.6-35B-A3B or 27B dense (both vision) |
-| Hardest single-shot reasoning, willing to wait | Qwen3.8-27B dense |
+| Hardest single-shot reasoning, willing to wait | Qwen3.8-27B dense (the default; draft auto-on) |
 | Coder-Next | no clear niche on this machine |
 
 Only one model is loaded at a time. Switching is a server restart:
@@ -158,6 +176,61 @@ pi-llama-fetch unsloth/Qwen3-Coder-Next-GGUF Qwen3-Coder-Next-UD-IQ4_XS.gguf
 
 It writes to `~/models`, which `pi-llama-up` searches after the HF cache, so
 the two sources are interchangeable.
+
+## Keeping the weights current (Aug 19 re-pull)
+
+Unsloth re-uploaded the Qwen3.8-27B quants on 2026-08-19 (three
+`upload-large-folder` commits), replacing the UD files and deleting the
+non-UD ones. Our Q6_K_XL was stale: different SHA256 and 596 MiB smaller
+(24.14 -> 23.56 GiB). The 35B-A3B default was untouched, still on the April
+commit `a483e9e6`, byte-identical.
+
+To check staleness yourself, compare the local blob name (the HF cache names
+each blob by its sha256) against the remote:
+
+```sh
+curl -sIL https://huggingface.co/<repo>/resolve/main/<file>.gguf \
+  | grep -i x-linked-etag
+```
+
+The refreshed 27B was fetched with `pi-llama-fetch` and verified byte-exact
+against the remote oid after reassembly from 8 parallel ranges. It now lives
+in `~/models`, not the HF cache, alongside a copy of `mmproj-BF16.gguf` so
+vision still resolves (`pi-llama-up` looks for the projector next to the
+model).
+
+## Speculative decoding with the MTP draft
+
+The same re-upload added `MTP/mtp-Qwen3.8-27B-Q4_0.gguf`, a 1.28 GiB
+multi-token-prediction draft model. llama.cpp can run it ahead of the big
+model and pay full price only for rejected tokens. Measured on the 27B,
+256-token greedy generations:
+
+| Setting | Generation | vs no draft | Draft acceptance |
+|---|---|---|---|
+| no draft | ~5.1 t/s | — | — |
+| `--spec-draft-n-max 3` | **~6.9 t/s** | **+35%** | 0.56 (159/285), mean len 2.67 |
+| `--spec-draft-n-max 5` | ~4.2 t/s | **-18%** | 0.36 (164/454), mean len 2.80 |
+
+Drafting further ahead is worse than not drafting at all, and the acceptance
+numbers say exactly why: at n=5 the draft produces 454 tokens to get 164
+accepted, so ~290 tokens of draft compute are thrown away versus ~126 at
+n=3. The absolute number accepted barely moves; only the waste grows.
+
+Treat the +35% as a range rather than a constant. The no-draft baseline drifted
+downward across repeated long generations (5.98 -> 4.51 t/s within one run)
+while the drafted runs stayed flat, so against the clean `llama-bench` tg64
+figure of 5.9 t/s the honest gain is nearer +15%. Either way it is a real but
+modest win, and it does not change the routing rule: 6.9 t/s is still a
+seventh of the 35B-A3B's 46.9.
+
+It is now **on by default**, but auto-paired rather than blanket-enabled:
+`PI_LLAMA_DRAFT=auto` (the default) attaches the MTP draft only when the model
+being loaded is actually Qwen3.8-27B, and silently skips it otherwise, so the
+draft can never be mismatched to the 35B. `PI_LLAMA_DRAFT=off` disables it;
+a path or name fragment picks a different one.
+
+Costs 1.3 GiB of memory. Reproduce with `bench/spec-bench.sh`.
 
 ## What this suite does not tell you
 

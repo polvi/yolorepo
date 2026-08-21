@@ -3,12 +3,13 @@
 pi.dev running fully local: [pi](https://pi.dev) as the agent, llama.cpp as the
 inference server, on an M1 Max 64 GB. No tokens leave the laptop.
 
-Two models are kept. **Qwen3.6-35B-A3B is the default and the one to use** —
-it is the fastest, the smallest in memory, and the only one that got every
-task in the eval suite right. The dense Qwen3.8-27B stays as a
-hardest-reasoning fallback. A third, Qwen3-Coder-Next 80B-A3B, was measured
-and deleted. See [MODELS.md](MODELS.md) for the comparison and the routing
-rule.
+Two models are kept. **Qwen3.8-27B dense is the default**, chosen by
+preference for its reasoning; its MTP draft model is auto-enabled, which buys
+back some of the speed. Qwen3.6-35B-A3B is kept as the fast option and is
+still the throughput winner by a wide margin (see [MODELS.md](MODELS.md)); a
+third model, Qwen3-Coder-Next 80B-A3B, was measured and deleted.
+
+Default context is **131 072 tokens** on both.
 
 Infra-only, no proc subdomain.
 
@@ -38,9 +39,9 @@ pi-llama-down
 Switch models by restarting the server with different env:
 
 ```sh
-PI_LLAMA_REPO=unsloth/Qwen3.8-27B-GGUF \
-PI_LLAMA_QUANT=UD-Q6_K_XL \
-PI_LLAMA_ALIAS=qwen3.8-27b pi-llama-up
+PI_LLAMA_REPO=unsloth/Qwen3.6-35B-A3B-GGUF \
+PI_LLAMA_QUANT=UD-Q4_K_XL \
+PI_LLAMA_ALIAS=qwen3.6-35b-a3b pi-llama-up
 ```
 
 Fetch a new model with the parallel downloader (Hugging Face throttles a
@@ -78,9 +79,12 @@ every axis, which is what you expect when the bottleneck is memory bandwidth
 rather than capacity.
 
 Weights come from
-[unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF)
-and are read straight out of the Hugging Face cache
-(`~/.cache/huggingface/hub`), so nothing is downloaded twice.
+[unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF).
+The 35B default is read out of the Hugging Face cache
+(`~/.cache/huggingface/hub`); the 27B was refreshed on Aug 19 with
+`pi-llama-fetch` and now lives in `~/models`. `pi-llama-up` searches both, so
+nothing is downloaded twice. Sizes above are the pre-refresh files; the
+current Q6_K_XL is 23.56 GiB.
 
 ## Memory budget
 
@@ -89,10 +93,20 @@ Measured resident size of the server, model fully offloaded, f16 KV cache:
 
 | Model, context | Resident | Headroom |
 |---|---|---|
-| Qwen3.6-35B-A3B Q4, 65 536 (default) | 23.1 GiB | 31.3 GiB |
-| Qwen3.8-27B Q6, 65 536 | 29.1 GiB | 25.3 GiB |
-| Qwen3.8-27B Q6, 262 144 (native max) | 40.0 GiB | 14.4 GiB |
-| Qwen3-Coder-Next IQ4_XS, 65 536 | 37.4 GiB | 17.0 GiB |
+| Qwen3.8-27B Q6 + draft, 131 072 (default) | 35.0 GiB | 19.4 GiB |
+| Qwen3.8-27B Q6 + draft, 65 536 | 30.6 GiB | 23.8 GiB |
+| Qwen3.8-27B Q6 + draft, 262 144 (native max) | 43.5 GiB | 10.9 GiB |
+| Qwen3.6-35B-A3B Q4, 131 072 | 24.1 GiB | 30.3 GiB |
+| Qwen3.6-35B-A3B Q4, 65 536 | 23.1 GiB | 31.3 GiB |
+| Qwen3-Coder-Next IQ4_XS, 65 536 (deleted, for reference) | 37.4 GiB | 17.0 GiB |
+
+The 35B barely notices context growth (+1 GiB from 64K to 128K) because its
+KV is tiny; the dense 27B pays ~4.5 GiB for the same doubling.
+
+Going to the full 262 144 works and still leaves ~11 GiB, but note what it
+costs in *time*: at the 27B's ~74 t/s prefill, filling 256K takes about an
+hour. Large contexts are headroom for accumulated conversation, not something
+you fill in one prompt.
 
 For the dense 27B, KV costs about 64 KiB per token, so 64K of context is only
 ~4 GiB. The default
@@ -117,7 +131,7 @@ accuracy for no reason.
 | `--n-gpu-layers 99` | full Metal offload; anything on CPU would dominate the runtime |
 | `--flash-attn on` | faster attention, smaller KV footprint |
 | `--parallel 1` | one slot, so the whole context belongs to one conversation instead of being split across slots |
-| `--ctx-size 65536` | target working window |
+| `--ctx-size 131072` | target working window |
 | `--cache-type-k/v f16` | KV is cheap here, so do not trade accuracy away |
 | `--cache-reuse 256` | reuse prefix chunks across agent turns; agent loops re-send a long, near-identical prefix every step |
 | `--no-context-shift` | overflow should be a loud error, not silent truncation of tool-call history |
@@ -147,7 +161,7 @@ win but its error bar swallows the difference. The stock `2048 / 512` stays.
 
 Against a live server (`llama.cpp` build 10450, pi 0.84.2):
 
-- server reports 65 536 tokens across 1 slot for each of the three models
+- server reports 131 072 tokens across 1 slot for both models
 - multimodal projector loads for the two vision models, so
   `input: ["text", "image"]` is honest
 - `--thinking off` and `--thinking medium` both work; thinking arrives as
@@ -161,18 +175,20 @@ Every knob is an environment variable, readable from `~/.pi-local.env`:
 
 | Variable | Default |
 |---|---|
-| `PI_LLAMA_REPO` | `unsloth/Qwen3.6-35B-A3B-GGUF` |
-| `PI_LLAMA_QUANT` | `UD-Q4_K_XL` |
-| `PI_LLAMA_ALIAS` | `qwen3.6-35b-a3b` |
+| `PI_LLAMA_REPO` | `unsloth/Qwen3.8-27B-GGUF` |
+| `PI_LLAMA_QUANT` | `UD-Q6_K_XL` |
+| `PI_LLAMA_ALIAS` | `qwen3.8-27b` |
 | `PI_LLAMA_MODEL` | unset; an explicit `.gguf` path, bypassing all lookup |
 | `PI_LLAMA_MODEL_DIR` | `~/models`, searched after the HF cache |
-| `PI_LLAMA_CTX` | `65536` |
+| `PI_LLAMA_CTX` | `131072` |
 | `PI_LLAMA_PORT` | `8080` |
 | `PI_LLAMA_HOST` | `127.0.0.1` |
 | `PI_LLAMA_BATCH` / `PI_LLAMA_UBATCH` | `2048` / `512` |
 | `PI_LLAMA_KV_TYPE` | `f16` |
 | `PI_LLAMA_VISION` | `1` |
 | `PI_LLAMA_ALLOW_DOWNLOAD` | `0`; set `1` to let a missing model download via `-hf` |
+| `PI_LLAMA_DRAFT` | `auto`; pairs the MTP draft with Qwen3.8-27B only. `off` disables |
+| `PI_LLAMA_DRAFT_MAX` | `3`; tokens drafted ahead. Higher is worse here, see MODELS.md |
 | `PI_LLAMA_LOG` | `~/Library/Logs/pi-llama.log` |
 
 ## pi provider
